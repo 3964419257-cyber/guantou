@@ -1,0 +1,5 @@
+# Optional dependencies for legacy material-processing scripts.
+# These packages are intentionally not part of the Django runtime requirements.
+xlrd~=2.0.1
+xlwt~=1.3.0
+zhconv~=1.4.3
