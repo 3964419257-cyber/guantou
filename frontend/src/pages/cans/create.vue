@@ -8,7 +8,7 @@
         ‹
       </text>
       <text class="title">
-        装一罐
+        {{ pageTitle }}
       </text>
     </view>
 
@@ -16,11 +16,18 @@
       scroll-y
       class="content"
     >
+      <view
+        v-if="targetFlavor.id"
+        class="target-flavor"
+      >
+        正在为「{{ targetFlavor.name }}」补录一版方言
+      </view>
       <uni-forms label-position="top">
         <uni-forms-item label="普通话概念">
           <input
             v-model="form.concept_text"
             class="field"
+            :disabled="Boolean(targetFlavor.id)"
             placeholder="例如：膝盖、祖母、走路"
             maxlength="20"
           >
@@ -152,13 +159,17 @@
 
 <script>
 import { uploadFile } from '@/services/file';
-import { createCanWithNameplate, listDialects } from '@/services/guantou';
+import { createCanForFlavor, createCanWithNameplate, listDialects } from '@/services/guantou';
 import { playAudio } from '@/utils/audio';
 
 export default {
   data() {
     return {
       submitting: false,
+      targetFlavor: {
+        id: '',
+        name: '',
+      },
       optionalOpen: false,
       recorderManager: null,
       recording: false,
@@ -216,8 +227,18 @@ export default {
         && this.form.audio_url,
       );
     },
+    pageTitle() {
+      return this.targetFlavor.id ? '补录乡音' : '装一罐';
+    },
   },
-  async onLoad() {
+  async onLoad(options = {}) {
+    if (options.flavor) {
+      this.targetFlavor = {
+        id: options.flavor,
+        name: decodeURIComponent(options.flavor_name || ''),
+      };
+      this.form.concept_text = this.targetFlavor.name;
+    }
     const res = await listDialects();
     this.dialects = res.results || res;
     this.initRecorder();
@@ -286,10 +307,16 @@ export default {
       this.submitting = true;
       try {
         const uploaded = await uploadFile(this.form.audio_url);
-        const can = await createCanWithNameplate({
-          can: { ...this.form, audio_url: uploaded.url },
-          label: this.label,
-        });
+        const canPayload = { ...this.form, audio_url: uploaded.url };
+        const can = this.targetFlavor.id
+          ? await createCanForFlavor({
+            can: canPayload,
+            flavorId: this.targetFlavor.id,
+          })
+          : await createCanWithNameplate({
+            can: canPayload,
+            label: this.label,
+          });
         uni.redirectTo({ url: `/pages/cans/details?id=${can.id}` });
       } finally {
         this.submitting = false;
@@ -341,6 +368,16 @@ export default {
   background: #fff;
   padding: 22rpx;
   font-size: 30rpx;
+}
+
+.target-flavor {
+  background: #e8f1eb;
+  border: 1px solid #cbdcca;
+  border-radius: 12rpx;
+  color: #1f5c43;
+  padding: 22rpx;
+  margin-bottom: 24rpx;
+  font-weight: 700;
 }
 
 .optional-head {
