@@ -22,7 +22,15 @@ docker compose up --build
 - 前端：`http://localhost:8181`
 - 后端：`http://localhost:8000`
 
-后端 SQLite、媒体文件和日志挂载在 `data/backend/`。Docker H5 默认通过同源 `/api/` 访问后端；如果要模拟独立 API 子域名，可设置 `FRONTEND_BACKEND_URL`。
+后端 SQLite、媒体文件和日志挂载在 `data/backend/`。普通 Docker Compose 下，前端 nginx 只提供静态文件，H5 通过 `FRONTEND_BACKEND_URL` 访问后端，默认是 `http://localhost:8000`。
+
+如果想用接近生产的本地域名分流，可启动 Traefik 版本：
+
+```bash
+docker compose -f docker-compose.traefik.yml up --build
+```
+
+默认访问 `http://guantou.localhost`，后端访问 `http://api.guantou.localhost`。Traefik 按 host 分流，不按 path 前缀分流。前端 nginx 保留 H5 history fallback，因此直接打开 `/pages/...` 下的任意页面路径也会返回前端入口。
 
 ## 后端本地运行
 
@@ -35,7 +43,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-新业务代码优先放在 `guantou` app。`announcements` 只负责站内公告；`siteconfig` 负责后台可编辑的运营配置；邮箱验证码归入 `user`，文件上传归入 `files`，站内通知归入 `inbox`。部署环境变量仍由 `config/settings.py` 读取，不放入数据库。
+后端应用按领域划分，不要求所有新代码都塞进 `guantou` app。罐头、铭牌、义项、写法、集盒等核心实体归入 `guantou`；账户归入 `user`；公告归入 `announcements`；后台可编辑运营配置归入 `siteconfig`；邮箱验证码归入 `user`；文件上传归入 `files`；站内通知归入 `inbox`。更完整的边界说明见 `docs/BACKEND_GUIDE.md`。部署环境变量仍由 `config/settings.py` 读取，不放入数据库。
 
 离线方言材料处理脚本放在根目录 `tools/materials/`。跨方言通用逻辑进入 `common/`，莆仙话拼音、IPA 和旧表格清洗逻辑进入 `puxian/`。这些脚本不属于 Django 后端运行依赖。
 
@@ -53,7 +61,7 @@ yarn dev:h5
 VITE_BACKEND_URL=http://localhost:8000 yarn dev:h5
 ```
 
-新页面优先使用 `src/services/guantou.js` 调用 `/api/` 资源接口，不再引入词典式旧客户端流程。
+新页面优先使用 `src/services/guantou.js` 调用根路径资源接口，不再引入词典式旧客户端流程，也不要新增 api 前缀。页面、服务层和组件约定见 `docs/FRONTEND_GUIDE.md`。
 
 ## 前端工具边界
 

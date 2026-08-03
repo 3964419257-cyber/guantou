@@ -9,7 +9,7 @@
 ## 当前结构
 
 - 后端新增 `guantou` 业务 app，核心实体为 `Can / Nameplate / Flavor / Package / Dialect / Shelf`。
-- API 新入口为 `/api/`，使用 Django REST Framework 的 `ModelViewSet` 和 router。
+- 资源实体 API 使用根路径，例如 `/cans/`、`/flavors/`、`/packages/`，并由 Django REST Framework 的 `ModelViewSet` 和 router 暴露。
 - 前端第一屏改为“集盒 / 装罐 / 图鉴 / 我的”，新增装罐、罐头详情、图鉴、集盒页面。
 - 本仓库按新项目初始化处理，不保留旧词典 API；材料处理脚本按地域归档在 `tools/materials/`，少量前端迁移兼容层仅在测试保护下暂存。
 
@@ -28,7 +28,7 @@
 
 ## Docker 启动
 
-根目录是唯一 Docker 入口：
+普通 Docker Compose 会启动前端静态 nginx 和后端 Django，前端通过 `FRONTEND_BACKEND_URL` 访问后端：
 
 ```bash
 cp .env.example .env
@@ -39,6 +39,19 @@ docker compose up --build
 
 - 前端：http://localhost:8181
 - 后端：http://localhost:8000
+
+如果想用本地域名分流，可以启动 Traefik 版本：
+
+```bash
+docker compose -f docker-compose.traefik.yml up --build
+```
+
+默认访问：
+
+- 前端：http://guantou.localhost
+- 后端：http://api.guantou.localhost
+
+Traefik 只按域名分流，不按 path 前缀分流。前端 nginx 已配置 SPA fallback，直接打开 `http://guantou.localhost/pages/cans/index` 这类页面路径也会返回 H5 入口。
 
 后端容器启动时会自动执行数据库迁移，运行数据默认挂载到 `data/backend/`。
 
@@ -84,6 +97,7 @@ yarn build:mp-weixin
 
 cd ..
 docker compose config
+docker compose -f docker-compose.traefik.yml config
 ```
 
 ## 产品原则
