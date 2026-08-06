@@ -151,13 +151,20 @@ import {
   getFlavor,
   listDialects,
 } from '@/services/guantou';
-import { requireAuth } from '@/services/authGuard';
 import {
-  getCanDraft,
+  isLoggedIn,
+  requireAuth,
+  saveInterceptIntent,
+} from '@/services/authGuard';
+import {
+  createCanDraftId,
+  getCanDraftOwnerScope,
+  getCanDraftWithAudio,
   listCanDrafts,
   removeCanDraft,
   saveCanDraft,
 } from '@/services/canDrafts';
+import { releaseDraftAudioUrl } from '@/services/canDraftAudio';
 
 function initialForm() {
   return {
@@ -190,19 +197,25 @@ export default {
     return {
       submitting: false,
       submitted: false,
+      draftAccessBlocked: false,
       draftId: '',
+      draftOwnerScope: getCanDraftOwnerScope(),
+      draftSavePromise: null,
       mode: 'free',
       targetFlavor: {
         id: '',
         name: '',
       },
       optionalOpen: false,
+      draftDialectName: '',
       dialects: [],
       audio: {
         path: '',
         name: '',
         durationMs: 0,
         origin: '',
+        available: true,
+        invalid: false,
       },
       form: initialForm(),
       label: initialLabel(),
@@ -231,11 +244,18 @@ export default {
     },
     dialectLabel() {
       const dialect = this.dialects.find((item) => item.id === this.form.dialect);
-      return dialect ? dialect.name : '请选择方言点';
+      return dialect ? dialect.name : (this.draftDialectName || '请选择方言点');
     },
     canSubmit() {
-      const hasConcept = this.mode === 'flavor' || this.form.concept_text.trim();
-      return Boolean(hasConcept && this.form.dialect && this.audio.path);
+      const hasConcept = this.mode === 'flavor'
+        ? Boolean(this.targetFlavor.id)
+        : this.form.concept_text.trim();
+      return Boolean(
+        hasConcept
+        && this.form.dialect
+        && this.audio.path
+        && !this.audio.invalid,
+      );
     },
     pageTitle() {
       return this.mode === 'flavor' ? '补录乡音' : '装一罐';
@@ -245,6 +265,7 @@ export default {
         this.form.concept_text
         || this.form.dialect
         || this.audio.path
+        || this.audio.invalid
         || this.label.text_content
         || this.label.definition
         || this.form.source_note,
@@ -252,19 +273,50 @@ export default {
     },
   },
   async onLoad(options = {}) {
-    await this.loadDialects();
     await this.resolveMode(options);
-    this.restoreDraftIfNeeded(options);
+    await this.restoreDraftIfNeeded(options);
+    await this.loadDialects();
+  },
+  onShow() {
+    this.ensureCurrentDraftOwner();
+  },
+  onHide() {
+    this.persistDirtyDraft('page_hidden');
   },
   onUnload() {
-    if (!this.submitted && this.isDirty) {
-      this.saveDraft('leave_page');
-    }
+    this.persistDirtyDraft('leave_page').finally(() => {
+      releaseDraftAudioUrl(this.audio);
+    });
   },
   methods: {
+    ensureCurrentDraftOwner() {
+      if (this.draftAccessBlocked) return false;
+      const currentOwnerScope = getCanDraftOwnerScope();
+      const previousOwnerIsUser = this.draftOwnerScope.startsWith('user:');
+      const currentOwnerIsUser = currentOwnerScope.startsWith('user:');
+      if (
+        previousOwnerIsUser
+        && currentOwnerIsUser
+        && this.draftOwnerScope !== currentOwnerScope
+      ) {
+        this.draftAccessBlocked = true;
+        releaseDraftAudioUrl(this.audio);
+        uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
+        uni.reLaunch({ url: '/pages/index?status=me' });
+        return false;
+      }
+      if (this.draftOwnerScope.startsWith('anonymous:') && currentOwnerIsUser) {
+        this.draftOwnerScope = currentOwnerScope;
+      }
+      return true;
+    },
     async loadDialects() {
-      const res = await listDialects();
-      this.dialects = res.results || res;
+      try {
+        const res = await listDialects();
+        this.dialects = res.results || res;
+      } catch (error) {
+        uni.showToast({ title: '方言点加载失败，可稍后重试', icon: 'none' });
+      }
     },
     async resolveMode(options) {
       if (options.flavor) {
@@ -282,30 +334,45 @@ export default {
         this.mode = 'flavor';
       }
     },
-    restoreDraftIfNeeded(options) {
+    async restoreDraftIfNeeded(options) {
       if (options.draft) {
-        this.restoreDraft(options.draft);
+        await this.restoreDraft(options.draft);
         return;
       }
-      const latestDraft = listCanDrafts()[0];
+      const drafts = listCanDrafts();
+      const latestDraft = this.targetFlavor.id
+        ? drafts.find((draft) => (
+          draft.mode === 'flavor'
+          && String(draft.targetFlavor?.id || '') === String(this.targetFlavor.id)
+        ))
+        : drafts[0];
       if (!latestDraft) return;
       uni.showModal({
         title: '发现未完成草稿',
         content: '是否恢复上次没提交成功的装罐内容？',
-        success: (res) => {
-          if (res.confirm) this.restoreDraft(latestDraft.id);
+        success: async (res) => {
+          if (res.confirm) await this.restoreDraft(latestDraft.id);
         },
       });
     },
-    restoreDraft(id) {
-      const draft = getCanDraft(id);
+    async restoreDraft(id) {
+      const draft = await getCanDraftWithAudio(id);
       if (!draft) return;
       this.draftId = draft.id;
-      this.mode = draft.mode || 'free';
+      this.draftOwnerScope = draft.ownerScope;
+      this.draftAccessBlocked = false;
+      const flavorDraft = draft.mode === 'flavor' && draft.targetFlavor?.id;
+      this.mode = flavorDraft ? 'flavor' : 'free';
       this.form = { ...initialForm(), ...draft.form };
       this.label = { ...initialLabel(), ...draft.label };
       this.audio = draft.audio || this.audio;
-      this.targetFlavor = draft.targetFlavor || this.targetFlavor;
+      if (draft.audio?.invalid) {
+        uni.showToast({ title: '草稿录音已失效，请重新录制', icon: 'none' });
+      }
+      this.draftDialectName = draft.dialectName || '';
+      this.targetFlavor = flavorDraft
+        ? draft.targetFlavor
+        : { id: '', name: '' };
       this.optionalOpen = Boolean(
         this.label.text_content || this.label.definition || this.form.source_note,
       );
@@ -328,61 +395,133 @@ export default {
     onDialectChange(e) {
       const dialect = this.dialects[e.detail.value];
       this.form.dialect = dialect.id;
+      this.draftDialectName = dialect.name;
       this.form.county = this.form.county || dialect.county || '';
       this.form.town = this.form.town || dialect.town || '';
     },
     onAudioChange(audio) {
+      if (this.audio.path && this.audio.path !== audio.path) releaseDraftAudioUrl(this.audio);
       this.audio = audio;
       this.form.duration_ms = audio.durationMs || 0;
+      this.persistDirtyDraft('audio_changed');
     },
     clearAudio() {
+      releaseDraftAudioUrl(this.audio);
       this.audio = {
         path: '',
         name: '',
         durationMs: 0,
         origin: '',
+        available: true,
+        invalid: false,
       };
       this.form.duration_ms = 0;
+      if (this.draftId) {
+        this.saveDraft('audio_cleared').catch(() => {
+          uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
+        });
+      }
     },
-    saveDraft(reason) {
-      const draft = saveCanDraft(this.form, this.label, {
-        id: this.draftId,
-        mode: this.mode,
-        targetFlavor: this.targetFlavor,
-        audio: this.audio,
-        reason,
-      });
-      this.draftId = draft.id;
-      return draft;
+    adoptPersistedDraftAudio(sourcePath, persistedAudio) {
+      if (
+        !persistedAudio?.persisted
+        || !persistedAudio.available
+        || this.audio.path !== sourcePath
+      ) return;
+      this.audio = {
+        ...this.audio,
+        ...persistedAudio,
+        path: persistedAudio.path || this.audio.path,
+      };
+    },
+    async saveDraft(reason) {
+      if (!this.draftId) this.draftId = createCanDraftId();
+      const previousSave = this.draftSavePromise || Promise.resolve();
+      const saveTask = previousSave
+        .catch(() => {})
+        .then(async () => {
+          const form = { ...this.form };
+          const label = { ...this.label };
+          const meta = {
+            id: this.draftId,
+            ownerScope: this.draftOwnerScope,
+            mode: this.mode,
+            targetFlavor: { ...this.targetFlavor },
+            dialectName: this.dialectLabel === '请选择方言点' ? '' : this.dialectLabel,
+            audio: { ...this.audio },
+            reason,
+          };
+          let draft;
+          try {
+            draft = await saveCanDraft(form, label, meta);
+          } catch (error) {
+            this.adoptPersistedDraftAudio(meta.audio.path, error.persistedDraftAudio);
+            throw error;
+          }
+          this.draftId = draft.id;
+          this.draftOwnerScope = draft.ownerScope;
+          this.adoptPersistedDraftAudio(meta.audio.path, draft.audio);
+          return draft;
+        });
+      this.draftSavePromise = saveTask;
+      return saveTask;
+    },
+    persistDirtyDraft(reason) {
+      if (!this.submitted && !this.draftAccessBlocked && this.isDirty) {
+        return this.saveDraft(reason).catch(() => {
+          uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
+        });
+      }
+      return Promise.resolve();
     },
     validateForm() {
       if (this.mode !== 'flavor' && !this.form.concept_text.trim()) {
         uni.showToast({ title: '先写一个普通话概念', icon: 'none' });
         return false;
       }
+      if (this.mode === 'flavor' && !this.targetFlavor.id) {
+        uni.showToast({ title: '请重新选择要补录的义项', icon: 'none' });
+        return false;
+      }
       if (!this.form.dialect) {
         uni.showToast({ title: '请选择方言点', icon: 'none' });
         return false;
       }
-      if (!this.audio.path) {
-        uni.showToast({ title: '请先录音或上传音频', icon: 'none' });
+      if (!this.audio.path || this.audio.invalid) {
+        const title = this.audio.invalid
+          ? '草稿录音已失效，请重新录制'
+          : '请先录音或上传音频';
+        uni.showToast({ title, icon: 'none' });
         return false;
       }
       return true;
     },
     async submit() {
+      if (!this.ensureCurrentDraftOwner()) return;
       if (!this.validateForm()) return;
-      if (!requireAuth('record_can', {
-        page: 'can_create',
-        mode: this.mode,
-        flavorId: this.targetFlavor.id || undefined,
-      })) {
-        this.saveDraft('login_required');
+      if (!isLoggedIn()) {
+        let draft;
+        try {
+          draft = await this.saveDraft('login_required');
+        } catch (error) {
+          uni.showToast({ title: '草稿保存失败，请稍后重试', icon: 'none' });
+          return;
+        }
+        requireAuth('record_can', {
+          page: 'can_create',
+          returnRoute: '/pages/cans/create',
+          mode: this.mode,
+          flavorId: this.targetFlavor.id || undefined,
+          draftId: draft.id,
+          ownerScope: draft.ownerScope,
+        });
         return;
       }
 
       this.submitting = true;
       try {
+        if (this.draftSavePromise) await this.draftSavePromise.catch(() => {});
+        if (!this.ensureCurrentDraftOwner()) return;
         const uploaded = await uploadFile(this.audio.path);
         const canPayload = {
           ...this.form,
@@ -398,11 +537,48 @@ export default {
             label: this.label,
           });
         this.submitted = true;
-        if (this.draftId) removeCanDraft(this.draftId);
+        if (this.draftSavePromise) await this.draftSavePromise.catch(() => {});
+        if (this.draftId) await removeCanDraft(this.draftId, this.draftOwnerScope);
+        releaseDraftAudioUrl(this.audio);
         uni.redirectTo({ url: `/pages/cans/details?id=${can.id}` });
       } catch (error) {
-        this.saveDraft(error.code || error.message || 'submit_failed');
-        uni.showToast({ title: '提交失败，已保存草稿', icon: 'none' });
+        let draft;
+        try {
+          draft = await this.saveDraft(error.code || error.message || 'submit_failed');
+        } catch (draftError) {
+          if (error.statusCode === 401) {
+            saveInterceptIntent({
+              action: 'record_can',
+              context: {
+                page: 'can_create',
+                returnRoute: '/pages/cans/create',
+                mode: this.mode,
+                flavorId: this.targetFlavor.id || undefined,
+                draftId: this.draftId,
+                ownerScope: this.draftOwnerScope,
+              },
+            });
+          }
+          uni.showToast({ title: '提交失败，草稿也未能保存', icon: 'none' });
+          return;
+        }
+        if (error.statusCode === 401) {
+          saveInterceptIntent({
+            action: 'record_can',
+            context: {
+              page: 'can_create',
+              returnRoute: '/pages/cans/create',
+              mode: this.mode,
+              flavorId: this.targetFlavor.id || undefined,
+              draftId: draft.id,
+              ownerScope: draft.ownerScope,
+            },
+          });
+        }
+        const title = this.audio.path && !draft.audio?.available
+          ? '表单已保存，录音未能持久保留'
+          : '提交失败，已保存草稿';
+        uni.showToast({ title, icon: 'none' });
       } finally {
         this.submitting = false;
       }
