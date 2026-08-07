@@ -33,23 +33,23 @@
 
       <SectionBlock
         title="读音变体"
-        :empty="!flavor.variants.length"
+        :empty="!flavor.pronunciations.length"
         empty-title="暂无读音变体"
       >
         <view
-          v-for="variant in flavor.variants"
-          :key="variant.id"
+          v-for="pronunciation in flavor.pronunciations"
+          :key="pronunciation.id"
           class="variant"
         >
-          <text>{{ variant.dialect_detail ? variant.dialect_detail.name : '未标方言点' }}</text>
-          <text>{{ variant.romanization || variant.ipa || '未标音' }}</text>
+          <text>{{ pronunciation.dialect ? pronunciation.dialect.qualified_code : '未标方言点' }}</text>
+          <text>{{ pronunciationLabel(pronunciation) }}</text>
         </view>
       </SectionBlock>
 
       <SectionBlock title="相关罐头">
         <CanList
           :fetcher="listCans"
-          :query="{ flavor: id }"
+          :query="{ flavor_id: id }"
           :scroll="false"
           empty-title="还没有相关罐头"
           empty-description="可以用自己的方言为这个义项补录一版。"
@@ -69,6 +69,15 @@ import SectionBlock from '@/components/SectionBlock.vue';
 import { requireAuth } from '@/services/authGuard';
 import { getFlavor, listCans } from '@/services/guantou';
 
+export function formatPronunciationLabel(pronunciation) {
+  const base = pronunciation.base_romanization;
+  const surface = pronunciation.surface_romanization;
+  if (base && surface && base !== surface) {
+    return `本调 ${base} → 变调 ${surface}`;
+  }
+  return surface || base || pronunciation.ipa || '未标音';
+}
+
 export default {
   components: {
     CanList,
@@ -84,6 +93,7 @@ export default {
   },
   methods: {
     listCans,
+    pronunciationLabel: formatPronunciationLabel,
     async refresh() {
       this.flavor = await getFlavor(this.id);
     },

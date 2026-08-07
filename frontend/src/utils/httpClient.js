@@ -61,16 +61,18 @@ function hideLoading(options) {
 
 export function createApiError(error) {
   const statusCode = error && error.statusCode ? error.statusCode : 0;
-  const data = (error && error.data) || {};
-  const message = data.msg
-    || data.message
+  const payload = (error && error.data) || {};
+  const message = payload.message
     || error.errMsg
     || error.message
     || '';
   return {
     statusCode,
+    code: payload.code || statusCode,
     message,
-    data,
+    data: payload.data || {},
+    requestId: payload.request_id || '',
+    payload,
     raw: error,
   };
 }
@@ -110,7 +112,7 @@ export function request(method = 'GET', url = '', data = {}, options = {}) {
     }).then((res) => {
       persistVisitorId(res);
       hideLoading(resolvedOptions);
-      if (res.statusCode >= 200 && res.statusCode < 400) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
         resolve(res.data);
         return;
       }
@@ -154,7 +156,7 @@ export function upload(file, options = {}) {
     }).then((res) => {
       persistVisitorId(res);
       hideLoading(resolvedOptions);
-      if (res.statusCode >= 200 && res.statusCode < 400) {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
         resolve(parseUploadResponseData(res.data));
         return;
       }

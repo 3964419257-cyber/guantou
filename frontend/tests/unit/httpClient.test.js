@@ -79,12 +79,20 @@ describe('httpClient compatibility wrappers', () => {
     vi.useFakeTimers();
     uni.request.mockResolvedValue({
       statusCode: 401,
-      data: { msg: '未登录' },
+      data: {
+        code: 401,
+        message: '未登录',
+        data: { reason: 'token_expired' },
+        request_id: 'request-1',
+      },
     });
 
     await expect(request.get('/users/1')).rejects.toMatchObject({
       statusCode: 401,
+      code: 401,
       message: '未登录',
+      data: { reason: 'token_expired' },
+      requestId: 'request-1',
     });
 
     expect(uni.showToast).toHaveBeenCalledWith(expect.objectContaining({
@@ -100,7 +108,7 @@ describe('httpClient compatibility wrappers', () => {
     vi.useFakeTimers();
     uni.request.mockResolvedValue({
       statusCode: 401,
-      data: { msg: '未登录' },
+      data: { message: '未登录' },
     });
 
     await expect(request.get('/users/1', null, true)).rejects.toMatchObject({
@@ -115,7 +123,7 @@ describe('httpClient compatibility wrappers', () => {
   it('rawRequest remains silent and does not redirect on 401', async () => {
     uni.request.mockResolvedValue({
       statusCode: 401,
-      data: { msg: '用户名或密码错误' },
+      data: { message: '用户名或密码错误' },
     });
 
     await expect(rawRequest.post('/login', { username: 'a' })).rejects.toMatchObject({
@@ -152,7 +160,7 @@ describe('httpClient compatibility wrappers', () => {
   it('rawRequest still accepts legacy boolean silent argument', async () => {
     uni.request.mockResolvedValue({
       statusCode: 500,
-      data: { msg: 'server failed' },
+      data: { message: 'server failed' },
     });
 
     await expect(rawRequest.get('/legacy', null, false)).rejects.toMatchObject({
@@ -164,6 +172,19 @@ describe('httpClient compatibility wrappers', () => {
       title: 'server failed',
       icon: 'error',
     }));
+  });
+
+  it('treats redirects as non-success responses', async () => {
+    uni.request.mockResolvedValue({
+      statusCode: 302,
+      data: { message: '请求被重定向' },
+    });
+
+    await expect(rawRequest.get('/redirect')).rejects.toMatchObject({
+      statusCode: 302,
+      code: 302,
+      message: '请求被重定向',
+    });
   });
 
   it('upload uses the shared token and parses JSON response data', async () => {
