@@ -6,12 +6,33 @@
     @action="toCreate"
   >
     <view class="hero">
+      <view class="eyebrow">
+        方言词典 · 真实乡音
+      </view>
       <view class="brand">
         {{ appName }}
       </view>
       <view class="subtitle">
-        把每一段乡音装进可校验的资料库
+        {{ heroSubtitle }}
       </view>
+      <view
+        v-if="primaryDialect"
+        class="identity-note"
+      >
+        主方言 · {{ primaryDialect.qualified_code || primaryDialect.name }}
+      </view>
+    </view>
+
+    <view
+      v-if="isGuest"
+      class="guest-note"
+    >
+      <text class="guest-note-title">
+        不登录也能查、能听
+      </text>
+      <text class="guest-note-copy">
+        先逛词典和公开罐头；需要提交乡音或支持铭牌时，我们再请你登录。
+      </text>
     </view>
 
     <view
@@ -22,7 +43,10 @@
         ⌕
       </text>
       <text class="search-placeholder">
-        搜索方言、正字、拼音、普通话概念
+        搜方言词、写法、拼音或普通话概念
+      </text>
+      <text class="search-action">
+        去查词
       </text>
     </view>
 
@@ -43,19 +67,19 @@
     </view>
 
     <SectionBlock
-      title="待贴铭牌"
+      :title="canSectionTitle"
       action-text="全部"
       @action="toCans"
     >
       <CanList
         ref="homeCanList"
         :fetcher="listCans"
-        :query="{ needs_label: 'true' }"
+        :query="canQuery"
         :scroll="false"
         :show-load-more="false"
         :max-items="5"
-        empty-title="还没有待贴铭牌的罐头"
-        empty-description="可以先装一罐乡音，后面的人就能继续贴铭牌。"
+        :empty-title="canEmptyTitle"
+        :empty-description="canEmptyDescription"
         empty-action-text="装一罐"
         @open="toCan"
         @empty-action="toCreate"
@@ -78,11 +102,35 @@ export default {
     SectionBlock,
   },
   data() {
+    const app = typeof getApp === 'function' ? getApp() : null;
     return {
       appName: APP_NAME,
+      primaryDialect: app?.globalData?.userInfo?.primary_dialect || null,
     };
   },
   computed: {
+    isGuest() {
+      return !uni.getStorageSync('token');
+    },
+    heroSubtitle() {
+      return this.isGuest
+        ? '先查一个词，再听听它在不同地方怎么说'
+        : '把每一段乡音装进可校验的资料库';
+    },
+    canSectionTitle() {
+      return this.isGuest ? '公开乡音' : '待贴铭牌';
+    },
+    canQuery() {
+      return this.isGuest ? {} : { needs_label: 'true' };
+    },
+    canEmptyTitle() {
+      return this.isGuest ? '还没有公开罐头' : '还没有待贴铭牌的罐头';
+    },
+    canEmptyDescription() {
+      return this.isGuest
+        ? '可以先查词看看，或者录下第一段公开乡音。'
+        : '可以先装一罐乡音，后面的人就能继续贴铭牌。';
+    },
     quickEntries() {
       return [
         {
@@ -118,6 +166,10 @@ export default {
       path: '/pages/index',
     };
   },
+  onShow() {
+    const app = typeof getApp === 'function' ? getApp() : null;
+    this.primaryDialect = app?.globalData?.userInfo?.primary_dialect || null;
+  },
   methods: {
     listCans,
     toSearch() {
@@ -150,6 +202,14 @@ export default {
   margin-bottom: 30rpx;
 }
 
+.eyebrow {
+  margin-bottom: 12rpx;
+  color: #7b4f2f;
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 5rpx;
+}
+
 .brand {
   font-size: 54rpx;
   line-height: 1.1;
@@ -161,6 +221,41 @@ export default {
   margin-top: 12rpx;
   color: #5d6b61;
   font-size: 27rpx;
+}
+
+.identity-note {
+  display: inline-block;
+  margin-top: 16rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: #e8f1eb;
+  color: #1f5c43;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.guest-note {
+  margin-bottom: 24rpx;
+  padding: 22rpx 24rpx;
+  border: 1px solid #d8e4d5;
+  border-left: 8rpx solid #1f5c43;
+  border-radius: 12rpx;
+  background: #f1f7ef;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.guest-note-title {
+  color: #1f5c43;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.guest-note-copy {
+  color: #526258;
+  font-size: 25rpx;
+  line-height: 1.55;
 }
 
 .search-box {
@@ -181,10 +276,18 @@ export default {
 }
 
 .search-placeholder {
+  flex: 1;
   min-width: 0;
   color: #7a867d;
   font-size: 28rpx;
   overflow-wrap: anywhere;
+}
+
+.search-action {
+  flex: 0 0 auto;
+  color: #1f5c43;
+  font-size: 25rpx;
+  font-weight: 800;
 }
 
 .quick-grid {
