@@ -60,6 +60,25 @@ class SiteSettingsTests(TestCase):
         ]
         self.assertEqual(ids, [second.id, first.id])
 
+    def test_featured_announcements_tolerate_null_author(self):
+        orphan = Announcement.objects.create(
+            author=None,
+            title="无作者精选",
+            description="",
+            content="",
+            visibility=True,
+        )
+        settings = SiteSettings.get_solo()
+        settings.featured_announcements = [orphan.id]
+        settings.save(update_fields=["featured_announcements"])
+
+        response = self.client.get("/site-settings/featured-announcements")
+        self.assertEqual(response.status_code, 200)
+        item = response.json()["featured_announcements"][0]
+        self.assertEqual(item["announcement"]["id"], orphan.id)
+        self.assertIsNone(item["author"]["id"])
+        self.assertEqual(item["author"]["nickname"], "已注销用户")
+
     def test_announcement_settings_reject_dangling_hidden_and_duplicate_ids(self):
         visible = Announcement.objects.create(
             author=self.author,

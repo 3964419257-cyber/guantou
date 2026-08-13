@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 import demjson3
 from django.conf import settings

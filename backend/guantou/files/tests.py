@@ -1,4 +1,4 @@
-﻿import shutil
+import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
 
