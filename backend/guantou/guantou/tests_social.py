@@ -257,6 +257,38 @@ class CanSocialApiTests(TestCase):
         self.assertEqual(private.status_code, 400)
         self.assertEqual(CanPost.objects.count(), 0)
 
+    def test_repost_kind_stores_forward_from_in_source(self):
+        origin = self.client.post(
+            "/posts/",
+            {
+                "can_id": self.same_can.id,
+                "text": "原帖表达",
+                "visibility": "public",
+            },
+            format="json",
+        )
+        self.assertEqual(origin.status_code, 201)
+
+        repost = self.client.post(
+            "/posts/",
+            {
+                "can_id": self.same_can.id,
+                "text": "",
+                "visibility": "public",
+                "kind": "repost",
+                "forward_from_post_id": origin.data["id"],
+            },
+            format="json",
+        )
+        self.assertEqual(repost.status_code, 201)
+        self.assertEqual(repost.data["source"]["kind"], "repost")
+        self.assertIsNone(repost.data["source"]["use_same_from"])
+        self.assertEqual(
+            repost.data["source"]["forward_from"]["post_id"],
+            origin.data["id"],
+        )
+        self.assertIn("author_name", repost.data["source"]["forward_from"])
+
     def test_use_same_creates_post_count_reference_and_owner_notification(self):
         created = self.client.post(
             "/posts/",

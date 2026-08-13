@@ -12,20 +12,23 @@
           @tap="toUserInfoPage"
         />
         <view>
-          <view class="name">
-            {{ nickname || '未登录' }}
+          <view class="name-row">
+            <view class="name">
+              {{ nickname || '未登录' }}
+            </view>
+            <DialectBadge :dialect="primaryDialect" />
           </view>
           <view
-            v-if="primaryDialect"
-            class="dialect-badge"
-          >
-            {{ dialectBadgeText }}
-          </view>
-          <view
-            v-else
+            v-if="!primaryDialect"
             class="meta"
           >
             未填写方言点
+          </view>
+          <view
+            v-else-if="region"
+            class="meta"
+          >
+            家乡 · {{ region }}
           </view>
         </view>
       </view>
@@ -182,19 +185,21 @@ import { requireAuth } from '@/services/authGuard';
 import { openLoginFromMine } from '@/services/authJourney';
 import { redirectIfNeedsDialectOnboarding } from '@/services/dialectOnboarding';
 import DemoAuthBoard from '@/components/DemoAuthBoard.vue';
+import DialectBadge from '@/components/DialectBadge.vue';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { applyTheme, getThemePreference } from '@/services/theme';
 
 const app = getApp();
 
 export default {
-  components: { DemoAuthBoard, ThemeSwitcher },
+  components: { DemoAuthBoard, DialectBadge, ThemeSwitcher },
   data() {
     return {
       id: '',
       avatar: '',
       nickname: '',
       primaryDialect: null,
+      region: '',
       cansCount: 0,
       flavorsCount: 0,
       nameplatesCount: 0,
@@ -207,12 +212,6 @@ export default {
     };
   },
   computed: {
-    dialectBadgeText() {
-      const dialectName = this.primaryDialect?.name
-        || this.primaryDialect?.qualified_code;
-      if (!dialectName) return '';
-      return `${this.nickname || '…'} · ${dialectName}`;
-    },
     boardUser() {
       if (!this.loggedIn || !this.id) return null;
       return {
@@ -269,6 +268,7 @@ export default {
       this.avatar = userInfo.user.avatar;
       this.nickname = userInfo.user.nickname || userInfo.user.username;
       this.primaryDialect = userInfo.user.primary_dialect;
+      this.region = userInfo.user.region || '';
       this.cansCount = userInfo.contribution.cans_uploaded || 0;
       this.flavorsCount = userInfo.contribution.flavors_uploaded || 0;
       this.nameplatesCount = userInfo.contribution.nameplates || 0;
@@ -416,6 +416,13 @@ export default {
   background: #dfe5da;
 }
 
+.name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rpx;
+}
+
 .name {
   font-size: 38rpx;
   font-weight: 800;
@@ -424,16 +431,6 @@ export default {
 .meta {
   margin-top: 8rpx;
   color: #6c776e;
-}
-
-.dialect-badge {
-  display: inline-flex;
-  margin-top: 10rpx;
-  padding: 7rpx 16rpx;
-  border-radius: 999rpx;
-  background: #e4eee5;
-  color: #285e45;
-  font-size: 23rpx;
 }
 
 .stats {

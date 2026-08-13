@@ -921,7 +921,11 @@ class CanPostViewSet(viewsets.ModelViewSet):
                 NameplateCardSerializer(primary, context={"request": self.request}).data
             )
             primary_snapshot["definition"] = primary.definition
+        kind = str(self.request.data.get("kind") or "use_same").strip()
+        if kind not in {"use_same", "repost"}:
+            kind = "use_same"
         snapshot = {
+            "kind": kind,
             "can_id": can.id,
             "audio_url": can.audio_url,
             "concept_text": can.concept_text,
@@ -930,19 +934,59 @@ class CanPostViewSet(viewsets.ModelViewSet):
             "submitted_dialect": preview.get("submitted_dialect"),
             "primary_nameplate": primary_snapshot,
         }
+        forward_from_post_id = self.request.data.get("forward_from_post_id")
+        if kind == "repost" and forward_from_post_id:
+            try:
+                origin = CanPost.objects.select_related(
+                    "author", "author__user_info"
+                ).get(pk=int(forward_from_post_id))
+                snapshot["forward_from"] = {
+                    "post_id": origin.id,
+                    "author_id": origin.author_id,
+                    "author_name": (
+                        origin.author.user_info.nickname or origin.author.username
+                    ),
+                    "snippet": (origin.text or can.concept_text or "")[:80],
+                    "can_subtitle": can.concept_text or "",
+                }
+            except (CanPost.DoesNotExist, TypeError, ValueError):
+                snapshot["forward_from"] = {
+                    "post_id": None,
+                    "author_name": (
+                        (preview.get("recorder") or {}).get("nickname")
+                        or (preview.get("recorder") or {}).get("username")
+                        or "原作者"
+                    ),
+                    "snippet": (can.concept_text or "")[:80],
+                    "source_unavailable": True,
+                }
+        elif kind == "repost":
+            recorder = preview.get("recorder") or {}
+            snapshot["forward_from"] = {
+                "post_id": None,
+                "can_id": can.id,
+                "author_id": recorder.get("id"),
+                "author_name": recorder.get("nickname")
+                or recorder.get("username")
+                or "原作者",
+                "snippet": (can.concept_text or "")[:80],
+                "can_subtitle": can.concept_text or "",
+            }
         post = serializer.save(author=self.request.user, source_snapshot=snapshot)
-        send_event_notification(
-            actor=self.request.user,
-            recipient=can.recorder,
-            verb=Notification.Verb.CAN_REUSE,
-            description=post.text or f"用了你的罐头「{can.concept_text or can.id}」",
-            action_object=post,
-            metadata={
-                "target_type": "can_post",
-                "target_id": post.id,
-                "target_url": f"/pages/posts/details?id={post.id}",
-            },
-        )
+        if kind == "use_same":
+            send_event_notification(
+                actor=self.request.user,
+                recipient=can.recorder,
+                verb=Notification.Verb.CAN_REUSE,
+                description=post.text
+                or f"用了你的罐头「{can.concept_text or can.id}」",
+                action_object=post,
+                metadata={
+                    "target_type": "can_post",
+                    "target_id": post.id,
+                    "target_url": f"/pages/posts/details?id={post.id}",
+                },
+            )
 
 
 class NameplateViewSet(viewsets.ModelViewSet):

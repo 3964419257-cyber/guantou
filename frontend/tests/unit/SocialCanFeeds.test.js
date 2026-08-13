@@ -37,4 +37,24 @@ describe('SocialCanFeeds', () => {
     await flushPromises();
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  it('shows dialect-weighted recommend hint on recommended tab', async () => {
+    const fetcher = vi.fn(async () => ({ results: [], next: null }));
+    const wrapper = mount(SocialCanFeeds, {
+      props: { fetcher, dialectName: '四川话' },
+      global: {
+        stubs: {
+          CanCard: true,
+          EmptyState: true,
+          'uni-load-more': true,
+          'scroll-view': { template: '<div><slot /></div>' },
+        },
+      },
+    });
+    await flushPromises();
+    wrapper.vm.activate('recommended');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.activeFeed).toBe('recommended');
+    expect(wrapper.text()).toContain('为你推荐 · 仍偏四川话乡音');
+  });
 });

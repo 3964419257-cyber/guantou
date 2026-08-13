@@ -1,13 +1,24 @@
 <template>
-  <PageShell title="罐头详情">
-    <template v-if="can">
+  <PageShell title="博文详情">
+    <view
+      v-if="!can && loading"
+      class="skeleton"
+    >
+      <view class="sk-row" />
+      <view class="sk-block" />
+      <view class="sk-block tall" />
+    </view>
+    <view
+      v-else-if="!can && loadError"
+      class="state-card error"
+    >
+      <view>{{ loadError }}</view>
+      <button @tap="refresh">
+        重试
+      </button>
+    </view>
+    <template v-else-if="can">
       <SectionBlock>
-        <view class="hero-title">
-          {{ primaryText }}
-        </view>
-        <view class="hero-copy">
-          {{ can.concept_text || '未填写普通话概念' }}
-        </view>
         <view
           v-if="can.recorder"
           class="recorder"
@@ -18,40 +29,34 @@
             :src="can.recorder.avatar"
             mode="aspectFill"
           />
-          <text>{{ can.recorder.nickname || can.recorder.username }}</text>
-          <text class="recorder-link">
-            作者主页 ›
-          </text>
+          <view class="recorder-main">
+            <view class="recorder-name-row">
+              <text>{{ can.recorder.nickname || can.recorder.username }}</text>
+              <DialectBadge :dialect="can.recorder.primary_dialect || can.submitted_dialect" />
+            </view>
+            <text class="recorder-time">
+              {{ formatRelative(can.created_at) }}
+            </text>
+          </view>
         </view>
-        <button
-          class="primary-button"
-          @tap="playAudio(can.audio_url)"
-        >
-          播放乡音
-        </button>
-        <view class="social-actions">
-          <button
-            class="social-button"
-            :class="{ active: can.liked_by_me }"
-            :disabled="likeBusy"
-            @tap="toggleLike"
-          >
-            {{ can.liked_by_me ? '♥ 已点赞' : '♡ 点赞' }} {{ can.like_count || 0 }}
-          </button>
-          <button
-            class="social-button"
-            @tap="useSame"
-          >
-            用同款 {{ can.use_count || 0 }}
-          </button>
-          <button
-            class="social-button"
-            open-type="share"
-            @tap="shareCurrent"
-          >
-            分享
-          </button>
+        <view class="hero-title">
+          {{ primaryText }}
         </view>
+        <view class="hero-copy">
+          {{ can.concept_text || '未填写普通话概念' }}
+        </view>
+        <CanPlayer
+          :audio-url="can.audio_url || ''"
+          :duration-ms="can.duration_ms || 0"
+          :subtitle="can.concept_text || ''"
+          :dialect-label="dialectText"
+          :auto-continue="true"
+        />
+        <WordCard
+          v-if="wordSummary"
+          :word="wordSummary"
+          :audio-url="can.audio_url || ''"
+        />
       </SectionBlock>
 
       <SectionBlock title="产地与状态">
@@ -143,17 +148,21 @@
         />
       </SectionBlock>
 
-      <SectionBlock :title="`评论 · ${can.comment_count || comments.length}`">
+      <SectionBlock
+        id="comments"
+        :title="`评论 · ${can.comment_count || comments.length}`"
+      >
         <view class="comment-composer">
           <textarea
             v-model="commentText"
             class="comment-input"
             maxlength="500"
-            placeholder="说说你听到的内容（1–500 字）"
+            :focus="focusComment"
+            placeholder="说点什么…"
           />
           <button
             class="comment-submit"
-            :disabled="commentSubmitting"
+            :disabled="commentSubmitting || !commentText.trim()"
             @tap="submitComment"
           >
             {{ commentSubmitting ? '发送中…' : '发表评论' }}
@@ -163,7 +172,7 @@
           v-if="!comments.length"
           class="comment-empty"
         >
-          还没有评论，欢迎留下第一条真实反馈。
+          来发第一条评论
         </view>
         <view
           v-for="comment in comments"
@@ -177,9 +186,12 @@
           />
           <view class="comment-body">
             <view class="comment-head">
-              <text class="comment-author">
-                {{ comment.author.nickname || comment.author.username }}
-              </text>
+              <view class="comment-author-row">
+                <text class="comment-author">
+                  {{ comment.author.nickname || comment.author.username }}
+                </text>
+                <DialectBadge :dialect="comment.author.primary_dialect" />
+              </view>
               <button
                 v-if="canDeleteComment(comment)"
                 class="comment-delete"
@@ -211,15 +223,32 @@
           查看全部 {{ can.comment_count }} 条评论
         </button>
       </SectionBlock>
+      <view class="bottom-spacer" />
+      <SocialBottomBar
+        :liked="Boolean(can.liked_by_me)"
+        :like-count="Number(can.like_count || 0)"
+        :comment-count="Number(can.comment_count || comments.length)"
+        :like-busy="likeBusy"
+        :repost-busy="repostBusy"
+        @like="toggleLike"
+        @comment="focusComments"
+        @repost="repost"
+        @use-same="useSame"
+        @share="shareCurrent"
+      />
     </template>
   </PageShell>
 </template>
 
 <script>
+import CanPlayer from '@/components/CanPlayer.vue';
+import DialectBadge from '@/components/DialectBadge.vue';
 import NameplateCard from '@/components/NameplateCard.vue';
 import NameplateComposer from '@/components/NameplateComposer.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
+import SocialBottomBar from '@/components/SocialBottomBar.vue';
+import WordCard from '@/components/WordCard.vue';
 import {
   createNameplate,
   getCan,
@@ -236,12 +265,13 @@ import {
   likeCan,
   likeCanComment,
   listCanComments,
+  repostCan,
   unlikeCan,
   unlikeCanComment,
 } from '@/services/canSocial';
 import { requireAuth } from '@/services/authGuard';
 import { openCanPost, startUseSame } from '@/services/canPostJourney';
-import { playAudio } from '@/utils/audio';
+import { notify, notifySuccess } from '@/services/feedback';
 import { toUserPage } from '@/routers/user';
 import { canSharePayload, shareCanOnWeb } from '@/utils/shareCan';
 
@@ -289,12 +319,33 @@ function currentSessionUser() {
   };
 }
 
+function formatRelative(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value).replace('T', ' ').slice(0, 16);
+  }
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return `${minutes} 分钟前`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} 天前`;
+  return String(value).replace('T', ' ').slice(0, 10);
+}
+
 export default {
   components: {
+    CanPlayer,
+    DialectBadge,
     NameplateCard,
     NameplateComposer,
     PageShell,
     SectionBlock,
+    SocialBottomBar,
+    WordCard,
   },
   data() {
     return {
@@ -308,8 +359,12 @@ export default {
       posts: [],
       commentSubmitting: false,
       commentText: '',
+      focusComment: false,
       likeBusy: false,
+      loadError: '',
+      loading: true,
       nameplateInputFocused: false,
+      repostBusy: false,
       submittingNameplate: false,
       transitionBusy: '',
       transitionReason: '',
@@ -320,23 +375,40 @@ export default {
       return this.can.primary_nameplate ? this.can.primary_nameplate.display_text : '无标罐头';
     },
     dialectText() {
-      const primary = this.can.nameplates.find((plate) => plate.is_primary);
+      const primary = this.can.nameplates?.find((plate) => plate.is_primary);
       if (primary?.dialect) {
-        return primary.dialect.qualified_code;
+        return primary.dialect.qualified_code || primary.dialect.name;
       }
-      return this.can.submitted_dialect?.qualified_code || '未标方言点';
+      return this.can.submitted_dialect?.qualified_code
+        || this.can.submitted_dialect?.name
+        || '未标方言点';
+    },
+    wordSummary() {
+      const plate = this.can?.primary_nameplate;
+      if (!plate?.display_text && !plate?.flavor?.id) return null;
+      return {
+        id: plate.flavor?.id || null,
+        text: plate.display_text || '',
+        dialect: plate.dialect?.name || plate.dialect?.qualified_code || this.dialectText,
+        gloss: plate.definition || this.can.concept_text || '',
+      };
     },
     transitionActions() {
       return availableCanTransitions(this.can, this.currentUser);
     },
   },
-  async onLoad(options) {
+  async onLoad(options = {}) {
     this.id = options.id;
+    const shouldFocusComments = options.scrollTo === 'comments'
+      || options.focusComment === '1';
     await Promise.all([
       this.refresh(),
       this.loadComments(),
       this.loadClaimOptions(),
     ]);
+    if (shouldFocusComments) {
+      this.$nextTick(() => this.focusComments());
+    }
   },
   onShow() {
     this.currentUser = currentSessionUser();
@@ -345,14 +417,26 @@ export default {
     return canSharePayload(this.can || { id: this.id });
   },
   methods: {
-    playAudio,
+    formatRelative,
     statusText(status) {
       return statusLabels[status] || status;
     },
     async refresh() {
-      this.can = await getCan(this.id);
-      this.comments = this.can.recent_comments || [];
-      this.posts = this.can.recent_posts || [];
+      this.loading = true;
+      this.loadError = '';
+      try {
+        this.can = await getCan(this.id);
+        this.comments = this.can.recent_comments || [];
+        this.posts = this.can.recent_posts || [];
+      } catch (error) {
+        const status = error?.statusCode || error?.code;
+        this.can = null;
+        this.loadError = status === 404
+          ? '帖子不存在或已删除'
+          : (error.message || '加载失败，请检查网络后重试');
+      } finally {
+        this.loading = false;
+      }
     },
     async loadClaimOptions() {
       try {
@@ -390,16 +474,54 @@ export default {
     },
     async toggleLike() {
       if (!requireAuth('like', { page: 'can_detail', canId: this.id })) return;
-      if (this.likeBusy) return;
+      if (this.likeBusy || !this.can) return;
+      const previousLiked = Boolean(this.can.liked_by_me);
+      const previousCount = Number(this.can.like_count || 0);
+      this.can.liked_by_me = !previousLiked;
+      this.can.like_count = Math.max(0, previousCount + (this.can.liked_by_me ? 1 : -1));
       this.likeBusy = true;
       try {
-        const response = this.can.liked_by_me
+        const response = previousLiked
           ? await unlikeCan(this.id)
           : await likeCan(this.id);
         this.can.liked_by_me = response.liked;
         this.can.like_count = response.like_count;
+        uni.$emit('can-like-changed', {
+          canId: Number(this.id),
+          liked: this.can.liked_by_me,
+          likeCount: this.can.like_count,
+        });
+      } catch (error) {
+        this.can.liked_by_me = previousLiked;
+        this.can.like_count = previousCount;
+        notify({ title: error?.message || '点赞失败' });
       } finally {
         this.likeBusy = false;
+      }
+    },
+    focusComments() {
+      uni.pageScrollTo({ selector: '#comments', duration: 200 });
+      if (!requireAuth('comment', {
+        page: 'can_detail',
+        canId: this.id,
+        scrollTo: 'comments',
+      })) return;
+      this.focusComment = false;
+      this.$nextTick(() => {
+        this.focusComment = true;
+      });
+    },
+    async repost() {
+      if (!requireAuth('repost', { page: 'can_detail', canId: this.id })) return;
+      if (this.repostBusy) return;
+      this.repostBusy = true;
+      try {
+        await repostCan(this.id);
+        notifySuccess('转发成功');
+      } catch (error) {
+        notify({ title: error?.message || '转发失败' });
+      } finally {
+        this.repostBusy = false;
       }
     },
     async submitComment() {
@@ -451,6 +573,12 @@ export default {
       // #ifdef H5
       await shareCanOnWeb(this.can);
       // #endif
+      // #ifndef H5
+      uni.setClipboardData({
+        data: `/pages/cans/details?id=${this.id}`,
+        success: () => notifySuccess('已复制'),
+      });
+      // #endif
     },
     useSame() {
       startUseSame(this.id, { page: 'can_detail' });
@@ -490,6 +618,52 @@ export default {
 </script>
 
 <style scoped>
+.skeleton {
+  padding: 24rpx 0 120rpx;
+}
+
+.sk-row,
+.sk-block {
+  margin-bottom: 18rpx;
+  border-radius: 12rpx;
+  background: linear-gradient(90deg, #e9ede6 25%, #f4f6f2 50%, #e9ede6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite linear;
+}
+
+.sk-row {
+  height: 72rpx;
+}
+
+.sk-block {
+  height: 120rpx;
+}
+
+.sk-block.tall {
+  height: 220rpx;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.state-card {
+  margin-top: 40rpx;
+  padding: 36rpx 28rpx;
+  border-radius: 16rpx;
+  background: #f7faf5;
+  color: #425148;
+  text-align: center;
+}
+
+.state-card.error button {
+  margin-top: 20rpx;
+  background: #1f5c43;
+  color: #fff;
+  border-radius: 999rpx;
+}
+
 .hero-title {
   font-size: 46rpx;
   font-weight: 800;
@@ -508,6 +682,29 @@ export default {
   margin-top: 20rpx;
   color: #56645b;
   font-size: 25rpx;
+}
+
+.recorder-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.recorder-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.recorder-time {
+  display: block;
+  margin-top: 4rpx;
+  color: #8a958c;
+  font-size: 22rpx;
+}
+
+.bottom-spacer {
+  height: calc(140rpx + env(safe-area-inset-bottom));
 }
 
 .review-box {
@@ -670,6 +867,15 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.comment-author-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rpx;
+  min-width: 0;
+  flex: 1;
 }
 
 .comment-author {

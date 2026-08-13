@@ -12,6 +12,7 @@ class UserInfoForm(forms.ModelForm):
             "telephone",
             "avatar",
             "primary_dialect",
+            "region",
         )
 
 

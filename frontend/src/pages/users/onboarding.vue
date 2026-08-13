@@ -5,7 +5,7 @@
   >
     <view class="intro">
       <view class="step-mark">
-        {{ step }}/3
+        {{ step }}/4
       </view>
       <view
         v-if="forcedHint"
@@ -54,7 +54,7 @@
           主方言（必选）
         </view>
         <view class="field-hint">
-          选项来自词典方言树；先选最贴近你日常乡音的一项。
+          选项来自词典方言树；主方言决定你看到的同方言流。
         </view>
         <view
           v-if="loadingDialects"
@@ -130,13 +130,13 @@
       </view>
     </view>
 
-    <view v-else>
+    <view v-else-if="step === 3">
       <view class="dialect-card">
         <view class="field-label">
           还会哪些方言（可多选，可跳过）
         </view>
         <view class="field-hint">
-          主方言会自动保留；这里可再勾选你会说的其他方言。
+          主方言会自动保留；这里可再勾选你会说的其他方言。跳过时 dialects 仅含主方言。
         </view>
         <view class="chip-row">
           <view
@@ -159,8 +159,62 @@
       <view class="button-row triple">
         <button
           class="secondary-button"
-          :disabled="saving"
           @tap="step = 2"
+        >
+          上一步
+        </button>
+        <button
+          class="secondary-button"
+          @tap="skipSecondary"
+        >
+          跳过
+        </button>
+        <button
+          class="primary-button finish-button"
+          @tap="nextFromSecondary"
+        >
+          下一步
+        </button>
+      </view>
+    </view>
+
+    <view v-else>
+      <view class="dialect-card">
+        <view class="field-label">
+          家乡 / 常住地（可选）
+        </view>
+        <view class="field-hint">
+          方便以后看到同城乡音（同城流）。本周只保存字段，同城流后续再做。
+        </view>
+        <input
+          v-model="region"
+          class="nickname-input"
+          maxlength="100"
+          placeholder="例如：成都"
+        >
+        <view class="chip-row region-chips">
+          <view
+            v-for="city in regionSuggestions"
+            :key="city"
+            :class="['chip', region === city ? 'selected' : '']"
+            @tap="region = city"
+          >
+            {{ city }}
+          </view>
+        </view>
+      </view>
+
+      <view
+        v-if="error"
+        class="error"
+      >
+        {{ error }}
+      </view>
+      <view class="button-row triple">
+        <button
+          class="secondary-button"
+          :disabled="saving"
+          @tap="step = 3"
         >
           上一步
         </button>
@@ -192,7 +246,7 @@
 
 <script>
 import PageShell from '@/components/PageShell.vue';
-import { toIndexPage } from '@/routers';
+import { peekInterceptIntent } from '@/services/authGuard';
 import {
   completeOnboarding,
   exampleWordForDialect,
@@ -203,7 +257,12 @@ import {
 import { listAllDialects } from '@/services/guantou';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
 import { clearUserInfo } from '@/services/user';
+import { toFollowRecommendations } from '@/routers/user';
 import { playAudio } from '@/utils/audio';
+
+const REGION_SUGGESTIONS = [
+  '成都', '重庆', '广州', '上海', '北京', '郑州', '长沙', '武汉', '福州', '厦门',
+];
 
 export default {
   components: { PageShell },
@@ -218,11 +277,14 @@ export default {
       loadingSample: false,
       nickname: fallbackNickname,
       reason: ONBOARDING_REASONS.MISSING_DIALECT,
+      region: user.region || '',
+      regionSuggestions: REGION_SUGGESTIONS,
       sample: null,
       sampleRequestId: 0,
       saving: false,
       secondarySelectedIds: [],
       selectedDialectId: user.primary_dialect?.id || null,
+      skipSecondaryDialects: false,
       step: 1,
       userId: user.id || uni.getStorageSync('id'),
     };
@@ -236,7 +298,6 @@ export default {
     },
     pageTitle() {
       if (this.isNewUser) return '欢迎加入乡音罐头';
-      // missing_dialect / forced / incomplete: 老用户补选文案（W1-E6）
       return '补选主方言';
     },
     stepTitle() {
@@ -244,7 +305,8 @@ export default {
         return this.isNewUser ? '先取个昵称' : '确认你的昵称';
       }
       if (this.step === 2) return '选择你的主方言';
-      return '还会哪些方言？';
+      if (this.step === 3) return '还会哪些方言？';
+      return '家乡 / 常住地';
     },
     stepCopy() {
       if (this.step === 1) {
@@ -252,8 +314,13 @@ export default {
           ? '先取个昵称，一步步选好你的乡音'
           : '还没有主方言，补选后才能进入同方言首页';
       }
-      if (this.step === 2) return '主方言是同方言流的基础，必选一项后可试听例词。';
-      return '可多选，也可直接跳过；完成后会写入你的方言身份。';
+      if (this.step === 2) {
+        return '主方言决定你看到的同方言流，必选一项后可试听例词。';
+      }
+      if (this.step === 3) {
+        return '可多选，也可直接跳过；主方言会始终写入 dialects。';
+      }
+      return '可选；方便以后看到同城乡音（同城流）。';
     },
     primaryDialectChoices() {
       return this.dialects;
@@ -323,6 +390,17 @@ export default {
       }
       this.secondarySelectedIds = [...this.secondarySelectedIds, dialect.id];
     },
+    skipSecondary() {
+      this.skipSecondaryDialects = true;
+      this.secondarySelectedIds = [];
+      this.error = '';
+      this.step = 4;
+    },
+    nextFromSecondary() {
+      this.skipSecondaryDialects = false;
+      this.error = '';
+      this.step = 4;
+    },
     async loadSample(dialectId) {
       const requestId = this.sampleRequestId + 1;
       this.sampleRequestId = requestId;
@@ -343,7 +421,7 @@ export default {
       }
       playAudio(this.sample.audio_url);
     },
-    async finish(skipSecondary) {
+    async finish(skipRegion) {
       if (!this.selectedDialectId) {
         this.error = '请选择主方言';
         this.step = 2;
@@ -352,18 +430,21 @@ export default {
       this.error = '';
       this.saving = true;
       try {
-        const dialectIds = skipSecondary
+        const dialectIds = this.skipSecondaryDialects
           ? [this.selectedDialectId]
           : [this.selectedDialectId, ...this.secondarySelectedIds];
         await completeOnboarding(this.userId, {
           nickname: this.nickname || this.defaultNickname,
           primaryDialectId: this.selectedDialectId,
           dialectIds,
+          region: skipRegion ? '' : String(this.region || '').trim(),
         });
         uni.showToast({ title: '方言身份已设置', icon: 'success' });
-        if (!(await resumeInterruptedPageAfterLogin(this.userId))) {
-          toIndexPage(true);
+        // 有拦截意图：优先回流；否则进入推荐关注（W3-E1 → W3-E2）
+        if (peekInterceptIntent()) {
+          if (await resumeInterruptedPageAfterLogin(this.userId)) return;
         }
+        toFollowRecommendations(true);
       } finally {
         this.saving = false;
       }
@@ -409,9 +490,11 @@ export default {
 }
 
 .intro-copy,
-.field-hint {
+.field-hint,
+.loading-copy,
+.sample-empty {
   margin-top: 12rpx;
-  color: #627067;
+  color: #607067;
   font-size: 26rpx;
   line-height: 1.6;
 }
@@ -419,26 +502,27 @@ export default {
 .form-card,
 .dialect-card,
 .sample-card {
-  border: 1px solid #dfe5da;
-  border-radius: 16rpx;
-  background: #ffffff;
+  border: 1px solid #dce5d8;
+  border-radius: 18rpx;
+  background: #fff;
   padding: 28rpx;
 }
 
+.sample-card {
+  margin-top: 22rpx;
+}
+
 .field-label {
-  color: #1d2a24;
-  font-size: 29rpx;
+  font-size: 28rpx;
   font-weight: 800;
 }
 
 .nickname-input {
-  height: 86rpx;
-  margin-top: 20rpx;
-  padding: 0 22rpx;
-  border: 1px solid #ccd6ca;
+  margin-top: 18rpx;
+  padding: 18rpx 22rpx;
   border-radius: 12rpx;
-  background: #f8f9f6;
-  font-size: 30rpx;
+  background: #f4f7f2;
+  font-size: 28rpx;
 }
 
 .chip-row {
@@ -448,111 +532,96 @@ export default {
   margin-top: 20rpx;
 }
 
+.region-chips {
+  margin-top: 18rpx;
+}
+
 .chip {
-  padding: 14rpx 22rpx;
+  padding: 12rpx 22rpx;
   border: 1px solid #d5ddd2;
   border-radius: 999rpx;
-  background: #f7f8f4;
-  color: #33463b;
-  font-size: 26rpx;
+  background: #f7faf5;
+  color: #355445;
+  font-size: 24rpx;
 }
 
 .chip.selected {
-  border-color: #1f5c43;
-  background: #edf5eb;
-  color: #1f5c43;
-  font-weight: 700;
-}
-
-.primary-button,
-.secondary-button,
-.sample-button,
-.logout-button {
-  border-radius: 999rpx;
-  font-size: 27rpx;
-}
-
-.primary-button {
-  margin-top: 28rpx;
-  background: #1f5c43;
-  color: #ffffff;
-}
-
-.primary-button::after,
-.secondary-button::after,
-.sample-button::after,
-.logout-button::after {
-  border: 0;
-}
-
-.loading-copy,
-.sample-empty {
-  padding: 28rpx 0 8rpx;
-  color: #748078;
-  font-size: 25rpx;
-  line-height: 1.5;
-}
-
-.sample-card {
-  margin-top: 20rpx;
-  border-color: #eadbc9;
-  background: #fffaf2;
+  border-color: #1f6549;
+  background: #e7f2ea;
+  color: #1f6549;
+  font-weight: 800;
 }
 
 .sample-title {
-  margin-top: 14rpx;
-  color: #32261c;
+  margin-top: 10rpx;
   font-size: 32rpx;
-  font-weight: 800;
-  line-height: 1.4;
+  font-weight: 850;
 }
 
 .sample-meta {
   margin-top: 8rpx;
-  color: #786a5e;
-  font-size: 24rpx;
+  color: #7a867d;
+  font-size: 22rpx;
 }
 
-.sample-button {
-  margin: 22rpx 0 0;
-  border: 1px solid #d9bea0;
-  background: #ffffff;
-  color: #7b4f2f;
+.sample-button,
+.primary-button,
+.secondary-button,
+.logout-button {
+  margin-top: 22rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
 }
 
-.error {
-  margin-top: 18rpx;
-  color: #a13b2c;
-  font-size: 25rpx;
+.sample-button,
+.primary-button {
+  background: #1f6549;
+  color: #fff;
+}
+
+.secondary-button,
+.logout-button {
+  border: 1px solid #cfd9cc;
+  background: #fff;
+  color: #315b49;
 }
 
 .button-row {
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 16rpx;
-  margin-top: 24rpx;
+  grid-template-columns: 0.8fr 1.4fr;
+  gap: 14rpx;
+  margin-top: 8rpx;
 }
 
 .button-row.triple {
-  grid-template-columns: 1fr 1.2fr 1.2fr;
+  grid-template-columns: 0.7fr 0.9fr 1.2fr;
 }
 
-.secondary-button,
-.finish-button {
+.button-row .primary-button,
+.button-row .secondary-button {
+  margin-top: 22rpx;
   width: 100%;
-  margin: 0;
 }
 
-.secondary-button {
-  border: 1px solid #cbd6c9;
-  background: #ffffff;
-  color: #1f5c43;
+.finish-button {
+  margin-top: 22rpx;
+}
+
+.error {
+  margin-top: 16rpx;
+  color: #a14436;
+  font-size: 24rpx;
 }
 
 .logout-button {
-  margin: 36rpx auto 10rpx;
-  background: transparent;
-  color: #7b4f2f;
-  font-size: 24rpx;
+  margin-top: 36rpx;
+  margin-bottom: 40rpx;
+}
+
+.sample-button::after,
+.primary-button::after,
+.secondary-button::after,
+.logout-button::after {
+  border: 0;
 }
 </style>

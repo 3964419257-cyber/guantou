@@ -94,6 +94,7 @@ describe('dialect onboarding service', () => {
       nickname: ' 川娃 ',
       primaryDialectId: 4,
       dialectIds: [4, 9],
+      region: '成都',
     });
 
     expect(request.put).toHaveBeenCalledWith('/users/7', {
@@ -101,6 +102,7 @@ describe('dialect onboarding service', () => {
         nickname: '川娃',
         primary_dialect_id: 4,
         followed_dialect_ids: [4, 9],
+        region: '成都',
       },
     });
     expect(uni.setStorageSync).toHaveBeenCalledWith('token', 'new-token');

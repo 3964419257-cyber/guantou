@@ -9,6 +9,18 @@
       >
         {{ tab.label }}
       </button>
+      <button
+        class="feed-tab disabled"
+        disabled
+      >
+        同城
+      </button>
+    </view>
+    <view
+      v-if="activeFeed === 'recommended'"
+      class="recommend-hint"
+    >
+      为你推荐 · 仍偏{{ dialectHint }}乡音
     </view>
     <view
       v-for="(tab, index) in tabs"
@@ -23,11 +35,13 @@
         :query="tab.query"
         :empty-title="tab.emptyTitle"
         :empty-description="tab.emptyDescription"
+        :empty-action-text="tab.emptyActionText"
         social
         @author="$emit('author', $event)"
         @comment="$emit('comment', $event)"
         @open="$emit('open', $event)"
         @share="$emit('share', $event)"
+        @empty-action="onEmptyAction(tab.key)"
         @loaded="markLoaded(index)"
       />
     </view>
@@ -35,6 +49,7 @@
 </template>
 
 <script>
+import { toFollowRecommendations } from '@/routers/user';
 import CanList from './CanList.vue';
 
 export default {
@@ -45,26 +60,33 @@ export default {
       type: Function,
       required: true,
     },
+    dialectName: {
+      type: String,
+      default: '你的方言',
+    },
   },
-  emits: ['author', 'comment', 'open', 'share'],
+  emits: ['author', 'comment', 'open', 'share', 'empty-create', 'empty-recommend'],
   data() {
     return {
       activeFeed: 'dialect',
       loaded: {},
+      scrollMemory: {},
       tabs: [
         {
           key: 'dialect',
           query: { feed: 'dialect' },
           label: '同方言',
-          emptyTitle: '还没有同方言罐头',
-          emptyDescription: '主方言及其下级方言暂无公开录音。',
+          emptyTitle: '这个方言暂时还少',
+          emptyDescription: '去录第一罐 / 去发现热罐 / 切换看看推荐里的乡音',
+          emptyActionText: '录第一罐',
         },
         {
           key: 'following',
           query: { feed: 'following' },
           label: '关注',
           emptyTitle: '关注流还是空的',
-          emptyDescription: '关注方言或真实作者后，他们的公开罐头会出现在这里。',
+          emptyDescription: '去认识几位同方言的人，关注流就会有内容',
+          emptyActionText: '去推荐关注',
         },
         {
           key: 'recommended',
@@ -72,17 +94,27 @@ export default {
           label: '推荐',
           emptyTitle: '暂时没有推荐',
           emptyDescription: '公开罐头增加后，这里会优先展示与你方言相关的内容。',
+          emptyActionText: '',
         },
       ],
     };
+  },
+  computed: {
+    dialectHint() {
+      return this.dialectName || '你的方言';
+    },
   },
   mounted() {
     this.$nextTick(() => this.loadActive());
   },
   methods: {
     activate(key) {
+      this.rememberActiveScroll();
       this.activeFeed = key;
-      this.$nextTick(() => this.loadActive());
+      this.$nextTick(() => {
+        this.loadActive();
+        this.restoreActiveScroll();
+      });
     },
     activeIndex() {
       return this.tabs.findIndex((tab) => tab.key === this.activeFeed);
@@ -101,6 +133,47 @@ export default {
       const tab = this.tabs[index];
       if (tab) this.loaded = { ...this.loaded, [tab.key]: true };
     },
+    rememberActiveScroll() {
+      const index = this.activeIndex();
+      const list = this.feedList(index);
+      if (!list || typeof list.captureScroll !== 'function') return;
+      this.scrollMemory = {
+        ...this.scrollMemory,
+        [this.activeFeed]: list.captureScroll(),
+      };
+    },
+    restoreActiveScroll() {
+      const memory = this.scrollMemory[this.activeFeed];
+      if (!memory) return;
+      const index = this.activeIndex();
+      const list = this.feedList(index);
+      if (list && typeof list.restoreScroll === 'function') {
+        list.restoreScroll(memory.scrollTop || 0);
+      }
+    },
+    captureAllScroll() {
+      this.rememberActiveScroll();
+      return {
+        activeFeed: this.activeFeed,
+        scrollMemory: { ...this.scrollMemory },
+      };
+    },
+    restoreAllScroll(snapshot) {
+      if (!snapshot) return;
+      if (snapshot.activeFeed) this.activeFeed = snapshot.activeFeed;
+      this.scrollMemory = { ...(snapshot.scrollMemory || {}) };
+      this.$nextTick(() => this.restoreActiveScroll());
+    },
+    onEmptyAction(key) {
+      if (key === 'following') {
+        this.$emit('empty-recommend');
+        toFollowRecommendations();
+        return;
+      }
+      if (key === 'dialect') {
+        this.$emit('empty-create');
+      }
+    },
   },
 };
 </script>
@@ -116,7 +189,7 @@ export default {
 
 .feed-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   padding: 7rpx;
   border: 1px solid #dce3d8;
   border-radius: 999rpx;
@@ -128,7 +201,7 @@ export default {
   border-radius: 999rpx;
   background: transparent;
   color: #657168;
-  font-size: 25rpx;
+  font-size: 23rpx;
   line-height: 60rpx;
 }
 
@@ -139,8 +212,19 @@ export default {
   box-shadow: 0 3rpx 12rpx rgb(40 75 57 / 10%);
 }
 
+.feed-tab.disabled {
+  opacity: 0.45;
+  color: #8a958c;
+}
+
 .feed-tab::after {
   border: 0;
+}
+
+.recommend-hint {
+  margin-top: 16rpx;
+  color: #7a867d;
+  font-size: 22rpx;
 }
 
 .feed-pane {

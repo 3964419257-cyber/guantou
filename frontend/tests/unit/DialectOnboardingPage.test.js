@@ -25,12 +25,20 @@ vi.mock('@/services/login', () => ({
   resumeInterruptedPageAfterLogin: vi.fn(async () => false),
 }));
 
+vi.mock('@/services/authGuard', () => ({
+  peekInterceptIntent: vi.fn(() => null),
+}));
+
 vi.mock('@/services/user', () => ({
   clearUserInfo: vi.fn(),
 }));
 
 vi.mock('@/routers', () => ({
   toIndexPage: vi.fn(),
+}));
+
+vi.mock('@/routers/user', () => ({
+  toFollowRecommendations: vi.fn(),
 }));
 
 vi.mock('@/utils/audio', () => ({
@@ -48,8 +56,9 @@ import {
   completeOnboarding,
   loadDialectSample,
 } from '@/services/dialectOnboarding';
+import { peekInterceptIntent } from '@/services/authGuard';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
-import { toIndexPage } from '@/routers';
+import { toFollowRecommendations } from '@/routers/user';
 
 const { default: DialectOnboardingPage } = await import('@/pages/users/onboarding.vue');
 
@@ -68,6 +77,7 @@ function mountPage() {
 describe('dialect onboarding page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    peekInterceptIntent.mockReturnValue(null);
     globalThis.uni = {
       getStorageSync: vi.fn((key) => (key === 'id' ? 7 : '')),
       reLaunch: vi.fn(),
@@ -87,25 +97,26 @@ describe('dialect onboarding page', () => {
       id: 7,
       nickname: '采集者',
       primary_dialect: { id: 3, name: '四川话' },
+      region: '成都',
     });
   });
 
   it('blocks step 2 without a primary dialect and allows default nickname', async () => {
     const wrapper = mountPage();
-    expect(wrapper.text()).toContain('1/3');
+    expect(wrapper.text()).toContain('1/4');
     wrapper.vm.nickname = '';
     wrapper.vm.nextFromNickname();
     await wrapper.vm.$nextTick();
     expect(wrapper.vm.step).toBe(2);
     expect(wrapper.vm.nickname).toBe('采集者');
-    expect(wrapper.text()).toContain('2/3');
+    expect(wrapper.text()).toContain('2/4');
 
     wrapper.vm.nextFromPrimary();
     expect(wrapper.vm.error).toBe('请选择主方言');
     expect(completeOnboarding).not.toHaveBeenCalled();
   });
 
-  it('shows example word, completes after step 3 skip, and returns home', async () => {
+  it('shows example word, saves region, and opens recommend follow', async () => {
     const wrapper = mountPage();
     await wrapper.vm.$options.onLoad.call(wrapper.vm, { reason: 'new_user' });
     await flushPromises();
@@ -114,7 +125,10 @@ describe('dialect onboarding page', () => {
     expect(wrapper.vm.exampleWord.word).toBe('巴适');
     wrapper.vm.nextFromPrimary();
     expect(wrapper.vm.step).toBe(3);
-    await wrapper.vm.finish(true);
+    wrapper.vm.skipSecondary();
+    expect(wrapper.vm.step).toBe(4);
+    wrapper.vm.region = '成都';
+    await wrapper.vm.finish(false);
     await flushPromises();
 
     expect(loadDialectSample).toHaveBeenCalledWith(3);
@@ -122,9 +136,10 @@ describe('dialect onboarding page', () => {
       nickname: '采集者',
       primaryDialectId: 3,
       dialectIds: [3],
+      region: '成都',
     });
-    expect(resumeInterruptedPageAfterLogin).toHaveBeenCalledWith(7);
-    expect(toIndexPage).toHaveBeenCalledWith(true);
+    expect(resumeInterruptedPageAfterLogin).not.toHaveBeenCalled();
+    expect(toFollowRecommendations).toHaveBeenCalledWith(true);
   });
 
   it('uses 补选文案 for missing_dialect old users', async () => {

@@ -1,87 +1,47 @@
 <template>
   <PageShell
-    title="认识一些乡音"
+    title="推荐关注"
     :show-back="false"
   >
     <view class="intro-card">
       <view class="step-mark">
-        方言身份 · 下一步
+        冷启动 · 推荐关注
       </view>
       <view class="intro-title">
-        让关注流从乡音开始
+        关注几位同方言的人，首页会更有意思
       </view>
       <view class="intro-copy">
-        主方言已经自动关注。你也可以订阅别的方言，或认识几位真正上传过公开罐头的作者。
+        先关注几位说{{ dialectLabel }}的人，关注流就不会空
       </view>
       <view
         v-if="primaryDialect"
         class="primary-badge"
       >
-        主方言 · {{ primaryDialect.qualified_code || primaryDialect.name }}
+        主方言 · {{ dialectLabel }}
       </view>
     </view>
 
-    <view class="section-card">
+    <view class="section-card creator-section">
       <view class="section-kicker">
-        关注方言
+        候选人
       </view>
       <view class="section-title">
-        还想听哪些地方的乡音？
+        同方言作者 · 官方 · 圈主
+      </view>
+      <view class="section-hint">
+        默认可选中若干高质量账号；也可全选或跳过。
       </view>
       <view
         v-if="loading"
         class="loading-copy"
       >
-        正在读取真实方言树…
-      </view>
-      <scroll-view
-        v-else
-        scroll-y
-        class="dialect-list"
-      >
-        <view
-          v-for="dialect in dialects"
-          :key="dialect.id"
-          :class="['dialect-row', isDialectSelected(dialect.id) ? 'selected' : '']"
-          :style="dialectIndent(dialect)"
-          @tap="toggleDialect(dialect.id)"
-        >
-          <view class="choice-mark">
-            {{ isDialectSelected(dialect.id) ? '●' : '○' }}
-          </view>
-          <view class="dialect-copy">
-            <view class="dialect-name">
-              {{ dialect.name }}
-            </view>
-            <view class="dialect-code">
-              {{ dialect.qualified_code }}
-            </view>
-          </view>
-          <view
-            v-if="dialect.id === primaryDialect?.id"
-            class="locked-mark"
-          >
-            主方言
-          </view>
-        </view>
-      </scroll-view>
-    </view>
-
-    <view class="section-card creator-section">
-      <view class="section-kicker">
-        真实贡献者
-      </view>
-      <view class="section-title">
-        同方言作者
-      </view>
-      <view class="section-hint">
-        只推荐有公开罐头的真实用户，不足时不会用演示账号补位。
+        正在读取推荐…
       </view>
       <view
-        v-if="!loading && !candidates.length"
+        v-else-if="!candidates.length"
         class="empty-copy"
       >
-        暂时没有可推荐的同方言作者。主方言订阅已经生效，可以直接进入首页。
+        暂时没有可推荐的同方言作者。可以直接进入首页。
       </view>
       <view
         v-for="candidate in candidates"
@@ -95,17 +55,33 @@
           mode="aspectFill"
         />
         <view class="creator-copy">
-          <view class="creator-name">
-            {{ candidate.nickname || candidate.username }}
+          <view class="creator-name-row">
+            <text class="creator-name">
+              {{ candidate.nickname || candidate.username }}
+            </text>
+            <DialectBadge :dialect="candidate.primary_dialect" />
+            <text
+              v-if="candidate.role_label"
+              class="role-chip"
+            >
+              {{ candidate.role_label }}
+            </text>
           </view>
           <view class="creator-meta">
-            {{ candidate.primary_dialect?.qualified_code }} · {{ candidate.public_can_count }} 罐公开乡音
+            {{ candidate.bio || `${candidate.public_can_count || 0} 罐公开乡音` }}
           </view>
         </view>
         <view class="creator-check">
           {{ isAuthorSelected(candidate.id) ? '已选' : '选择' }}
         </view>
       </view>
+      <button
+        v-if="candidates.length"
+        class="select-all"
+        @tap="toggleSelectAll"
+      >
+        {{ allSelected ? '取消全选' : '全选推荐' }}
+      </button>
     </view>
 
     <view class="actions">
@@ -114,53 +90,55 @@
         :disabled="saving"
         @tap="skip"
       >
-        暂时跳过
+        跳过
       </button>
       <button
         class="primary-button"
         :disabled="saving"
         @tap="save"
       >
-        {{ saving ? '正在保存…' : actionText }}
+        {{ saving ? '正在关注…' : actionText }}
       </button>
     </view>
   </PageShell>
 </template>
 
 <script>
+import DialectBadge from '@/components/DialectBadge.vue';
 import PageShell from '@/components/PageShell.vue';
 import { toIndexPage } from '@/routers';
 import {
-  followDialect,
-  followUser,
+  batchFollowUsers,
   listFollowRecommendations,
-  unfollowDialect,
+  markRecommendFollowSeen,
 } from '@/services/following';
-import { listAllDialects } from '@/services/guantou';
 
 export default {
-  components: { PageShell },
+  components: { DialectBadge, PageShell },
   data() {
     const user = getApp().globalData.userInfo || {};
-    const followedIds = (user.followed_dialects || []).map((item) => item.id);
-    if (user.primary_dialect?.id && !followedIds.includes(user.primary_dialect.id)) {
-      followedIds.push(user.primary_dialect.id);
-    }
     return {
       candidates: [],
-      dialects: [],
-      initialDialectIds: [...followedIds],
       loading: true,
       primaryDialect: user.primary_dialect || null,
       saving: false,
       selectedAuthorIds: [],
-      selectedDialectIds: [...followedIds],
     };
   },
   computed: {
+    dialectLabel() {
+      return this.primaryDialect?.name
+        || this.primaryDialect?.qualified_code
+        || '你的方言';
+    },
+    allSelected() {
+      return this.candidates.length > 0
+        && this.candidates.every((item) => this.selectedAuthorIds.includes(item.id));
+    },
     actionText() {
       const total = this.selectedAuthorIds.length;
-      return total ? `关注已选作者（${total}）` : '进入首页';
+      if (!total) return '进入首页';
+      return `关注已选（${total}）`;
     },
   },
   async onLoad() {
@@ -169,11 +147,7 @@ export default {
       return;
     }
     try {
-      const [dialects, response] = await Promise.all([
-        listAllDialects(),
-        listFollowRecommendations(this.primaryDialect.id),
-      ]);
-      this.dialects = dialects;
+      const response = await listFollowRecommendations(this.primaryDialect.id);
       this.candidates = response.results || [];
       this.selectedAuthorIds = this.candidates.slice(0, 3).map((item) => item.id);
     } catch (error) {
@@ -183,66 +157,47 @@ export default {
     }
   },
   methods: {
-    dialectIndent(dialect) {
-      return { paddingLeft: `${20 + Number(dialect.depth || 0) * 20}rpx` };
-    },
-    isDialectSelected(id) {
-      return this.selectedDialectIds.includes(id);
-    },
     isAuthorSelected(id) {
       return this.selectedAuthorIds.includes(id);
-    },
-    toggleDialect(id) {
-      if (id === this.primaryDialect?.id) {
-        uni.showToast({ title: '主方言会始终保持关注', icon: 'none' });
-        return;
-      }
-      this.selectedDialectIds = this.isDialectSelected(id)
-        ? this.selectedDialectIds.filter((item) => item !== id)
-        : [...this.selectedDialectIds, id];
     },
     toggleAuthor(id) {
       this.selectedAuthorIds = this.isAuthorSelected(id)
         ? this.selectedAuthorIds.filter((item) => item !== id)
         : [...this.selectedAuthorIds, id];
     },
+    toggleSelectAll() {
+      this.selectedAuthorIds = this.allSelected
+        ? []
+        : this.candidates.map((item) => item.id);
+    },
     async save() {
       if (this.saving) return;
       this.saving = true;
-      const addedDialects = this.selectedDialectIds.filter(
-        (id) => !this.initialDialectIds.includes(id),
-      );
-      const removedDialects = this.initialDialectIds.filter(
-        (id) => id !== this.primaryDialect?.id && !this.selectedDialectIds.includes(id),
-      );
-      const jobs = [
-        ...addedDialects.map((id) => ({ id, type: 'add-dialect', run: () => followDialect(id) })),
-        ...removedDialects.map((id) => ({ id, type: 'remove-dialect', run: () => unfollowDialect(id) })),
-        ...this.selectedAuthorIds.map((id) => ({ id, type: 'follow-user', run: () => followUser(id) })),
-      ];
-      const results = await Promise.allSettled(jobs.map((job) => job.run()));
-      const failed = results.filter((result) => result.status === 'rejected').length;
-      const user = getApp().globalData.userInfo;
-      if (user) {
-        const followed = new Map((user.followed_dialects || []).map((item) => [item.id, item]));
-        jobs.forEach((job, index) => {
-          if (results[index].status === 'rejected') return;
-          if (job.type === 'add-dialect') {
-            const dialect = this.dialects.find((item) => item.id === job.id);
-            if (dialect) followed.set(job.id, dialect);
-          } else if (job.type === 'remove-dialect') {
-            followed.delete(job.id);
-          }
-        });
-        user.followed_dialects = [...followed.values()];
+      try {
+        markRecommendFollowSeen();
+        if (!this.selectedAuthorIds.length) {
+          toIndexPage(true);
+          return;
+        }
+        const { succeeded, failed } = await batchFollowUsers(this.selectedAuthorIds);
+        if (failed.length) {
+          uni.showToast({
+            title: `成功 ${succeeded.length} 人，失败 ${failed.length} 人`,
+            icon: 'none',
+          });
+        } else {
+          uni.showToast({ title: `已关注 ${succeeded.length} 人`, icon: 'success' });
+        }
+        if (succeeded.length) {
+          uni.showToast({ title: '去关注流看看他们', icon: 'none' });
+        }
+        toIndexPage(true);
+      } finally {
+        this.saving = false;
       }
-      uni.showToast({
-        title: failed ? `${jobs.length - failed} 项已保存，${failed} 项失败` : '关注已保存',
-        icon: failed ? 'none' : 'success',
-      });
-      toIndexPage(true);
     },
     skip() {
+      markRecommendFollowSeen();
       toIndexPage(true);
     },
   },
@@ -272,8 +227,9 @@ export default {
 
 .intro-title {
   margin-top: 14rpx;
-  font-size: 44rpx;
+  font-size: 40rpx;
   font-weight: 900;
+  line-height: 1.3;
 }
 
 .section-title {
@@ -303,45 +259,37 @@ export default {
   font-weight: 800;
 }
 
-.dialect-list {
-  height: 410rpx;
-  margin-top: 18rpx;
-  border-top: 1px solid #edf0e9;
-}
-
-.dialect-row,
 .creator-row {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  min-height: 86rpx;
+  min-height: 96rpx;
   border-bottom: 1px solid #edf0e9;
   box-sizing: border-box;
+  padding: 12rpx 0;
 }
 
-.dialect-row.selected,
 .creator-row.selected {
   background: #f0f6ed;
 }
 
-.choice-mark {
-  color: #1f6549;
-  font-size: 25rpx;
-}
-
-.dialect-copy,
 .creator-copy {
   min-width: 0;
   flex: 1;
 }
 
-.dialect-name,
+.creator-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rpx;
+}
+
 .creator-name {
   font-size: 28rpx;
   font-weight: 800;
 }
 
-.dialect-code,
 .creator-meta {
   margin-top: 5rpx;
   color: #7a867d;
@@ -349,7 +297,15 @@ export default {
   overflow-wrap: anywhere;
 }
 
-.locked-mark,
+.role-chip {
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  background: #f3ebe2;
+  color: #885331;
+  font-size: 18rpx;
+  font-weight: 700;
+}
+
 .creator-check {
   flex: 0 0 auto;
   color: #1f6549;
@@ -366,6 +322,18 @@ export default {
   height: 74rpx;
   border-radius: 50%;
   background: #e6ebe3;
+}
+
+.select-all {
+  margin-top: 18rpx;
+  border-radius: 999rpx;
+  background: #f4f7f2;
+  color: #1f6549;
+  font-size: 24rpx;
+}
+
+.select-all::after {
+  border: 0;
 }
 
 .actions {

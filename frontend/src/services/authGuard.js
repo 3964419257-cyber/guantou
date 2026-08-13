@@ -7,6 +7,7 @@ export const PROTECTED_ACTIONS = {
   use_same: '用同款',
   like: '点赞',
   comment: '评论',
+  repost: '转发',
   follow: '关注',
   circle_join: '加入方言圈',
   dm: '私信',

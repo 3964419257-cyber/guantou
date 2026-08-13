@@ -36,11 +36,20 @@ export function getCanPost(postId) {
   return request.get(`/posts/${postId}/`);
 }
 
-export function createCanPost(canId, text = '', visibility = 'public') {
+export function createCanPost(canId, text = '', visibility = 'public', extra = {}) {
   return request.post('/posts/', {
     can_id: Number(canId),
     text: String(text || '').trim(),
     visibility,
+    kind: extra.kind || 'use_same',
+    forward_from_post_id: extra.forwardFromPostId || undefined,
+  });
+}
+
+export function repostCan(canId, { forwardFromPostId, text = '' } = {}) {
+  return createCanPost(canId, text, 'public', {
+    kind: 'repost',
+    forwardFromPostId,
   });
 }
 
@@ -58,6 +67,7 @@ export default {
   likeCanComment,
   listCanComments,
   listCanPosts,
+  repostCan,
   unlikeCan,
   unlikeCanComment,
 };

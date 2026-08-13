@@ -76,6 +76,7 @@ def user_all(user: User, *, private=False) -> dict:
                     if info.onboarding_done_at
                     else None
                 ),
+                "region": info.region or "",
                 "login_time": (
                     localtime(user.last_login).__format__("%Y-%m-%d %H:%M:%S")
                     if user.last_login

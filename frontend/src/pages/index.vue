@@ -94,10 +94,12 @@
       v-else
       ref="socialFeeds"
       :fetcher="listCans"
+      :dialect-name="dialectDisplayName"
       @author="toUser"
-      @comment="toCan"
+      @comment="toCanComments"
       @open="toCan"
       @share="prepareShare"
+      @empty-create="toCreate"
     />
   </PageShell>
 </template>
@@ -127,21 +129,24 @@ export default {
       appName: APP_NAME,
       primaryDialect: app?.globalData?.userInfo?.primary_dialect || null,
       pendingShareCan: null,
+      feedScrollSnapshot: null,
     };
   },
   computed: {
     isGuest() {
       return !uni.getStorageSync('token');
     },
+    dialectDisplayName() {
+      return this.primaryDialect?.name
+        || this.primaryDialect?.qualified_code
+        || '你的方言';
+    },
     heroSubtitle() {
       if (this.isGuest) {
         return '先查一个词，再听听它在不同地方怎么说';
       }
       if (this.primaryDialect) {
-        const dialectName = this.primaryDialect.name
-          || this.primaryDialect.qualified_code
-          || '乡音';
-        return `同方言 · ${dialectName}`;
+        return `同方言 · ${this.dialectDisplayName}`;
       }
       return '把每一段乡音装进可校验的资料库';
     },
@@ -210,6 +215,18 @@ export default {
   onShow() {
     const app = typeof getApp === 'function' ? getApp() : null;
     this.primaryDialect = app?.globalData?.userInfo?.primary_dialect || null;
+    this.$nextTick(() => {
+      const feeds = this.$refs.socialFeeds;
+      if (feeds && this.feedScrollSnapshot && typeof feeds.restoreAllScroll === 'function') {
+        feeds.restoreAllScroll(this.feedScrollSnapshot);
+      }
+    });
+  },
+  onHide() {
+    const feeds = this.$refs.socialFeeds;
+    if (feeds && typeof feeds.captureAllScroll === 'function') {
+      this.feedScrollSnapshot = feeds.captureAllScroll();
+    }
   },
   methods: {
     listCans,
@@ -226,6 +243,9 @@ export default {
     },
     toCan(id) {
       uni.navigateTo({ url: `/pages/cans/details?id=${id}` });
+    },
+    toCanComments(id) {
+      uni.navigateTo({ url: `/pages/cans/details?id=${id}&scrollTo=comments` });
     },
     toUser(id) {
       toUserPage(id);

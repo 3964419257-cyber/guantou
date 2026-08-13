@@ -71,7 +71,7 @@ describe('CanList', () => {
 
     expect(wrapper.vm.items.map((item) => item.id)).toEqual([1]);
     expect(wrapper.vm.loadingStatus).toBe('more');
-    expect(wrapper.text()).toContain('加载失败，点此重试');
+    expect(wrapper.text()).toContain('加载失败，请检查网络后重试');
   });
 
   it('shows empty action when the first page has no cans', async () => {
@@ -87,5 +87,23 @@ describe('CanList', () => {
 
     expect(wrapper.text()).toContain('还没有罐头');
     expect(wrapper.emitted('empty-action')).toHaveLength(1);
+  });
+
+  it('captures and restores scroll position', async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      results: [{ id: 1 }, { id: 2 }],
+      next: null,
+    });
+    const wrapper = mountCanList({ fetcher });
+    await flushPromises();
+
+    wrapper.vm.onScroll({ detail: { scrollTop: 240 } });
+    expect(wrapper.vm.captureScroll()).toEqual({
+      scrollTop: 240,
+      anchorPostId: 1,
+    });
+    wrapper.vm.restoreScroll(240);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.scrollTop).toBe(240);
   });
 });

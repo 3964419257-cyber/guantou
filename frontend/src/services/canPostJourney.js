@@ -17,12 +17,29 @@ export function startUseSame(canId, context = {}) {
   return true;
 }
 
-export function openCanPost(postId) {
+export function openCanPost(postId, options = {}) {
   if (!postId) return false;
+  const query = [`id=${encodeURIComponent(postId)}`];
+  if (options.scrollTo) query.push(`scrollTo=${encodeURIComponent(options.scrollTo)}`);
   uni.navigateTo({
-    url: `/pages/posts/details?id=${encodeURIComponent(postId)}`,
+    url: `/pages/posts/details?${query.join('&')}`,
   });
   return true;
 }
 
-export default { openCanPost, startUseSame, useSameUrl };
+export function openCanDetail(canId, options = {}) {
+  if (!canId) return false;
+  const query = [`id=${encodeURIComponent(canId)}`];
+  if (options.scrollTo) query.push(`scrollTo=${encodeURIComponent(options.scrollTo)}`);
+  uni.navigateTo({
+    url: `/pages/cans/details?${query.join('&')}`,
+  });
+  return true;
+}
+
+export default {
+  openCanDetail,
+  openCanPost,
+  startUseSame,
+  useSameUrl,
+};

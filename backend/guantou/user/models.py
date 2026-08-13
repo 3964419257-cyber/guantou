@@ -43,6 +43,12 @@ class UserInfo(models.Model):
         blank=True,
         verbose_name="方言身份引导完成时间",
     )
+    region = models.CharField(
+        blank=True,
+        default="",
+        max_length=100,
+        verbose_name="家乡/常住地",
+    )
     legacy_location = models.JSONField(
         default=dict,
         blank=True,

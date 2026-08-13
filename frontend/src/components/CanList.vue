@@ -4,7 +4,10 @@
     scroll-y
     class="can-list scroll-list"
     refresher-enabled
+    :scroll-top="scrollTop"
+    :scroll-with-animation="false"
     :refresher-triggered="refresherTriggered"
+    @scroll="onScroll"
     @scrolltolower="loadMore"
     @refresherrefresh="refresh"
   >
@@ -51,6 +54,7 @@
       <uni-load-more
         v-if="showLoadMore"
         :status="loadingStatus"
+        :content-text="loadMoreText"
       />
     </view>
   </scroll-view>
@@ -100,6 +104,7 @@
     <uni-load-more
       v-if="showLoadMore"
       :status="loadingStatus"
+      :content-text="loadMoreText"
     />
   </view>
 </template>
@@ -179,11 +184,18 @@ export default {
       page: 1,
       loadingStatus: 'more',
       refresherTriggered: false,
+      savedScrollTop: 0,
+      scrollTop: 0,
+      loadMoreText: {
+        contentdown: '上拉加载更多',
+        contentrefresh: '加载中…',
+        contentnomore: '没有更多乡音了',
+      },
     };
   },
   computed: {
     showEmpty() {
-      return this.loadingStatus === 'noMore' && !this.items.length;
+      return this.loadingStatus === 'noMore' && !this.items.length && !this.errorMessage;
     },
   },
   watch: {
@@ -198,6 +210,25 @@ export default {
     if (this.autoLoad) this.refresh();
   },
   methods: {
+    onScroll(event) {
+      const top = Number(event?.detail?.scrollTop || 0);
+      this.savedScrollTop = top;
+    },
+    captureScroll() {
+      return {
+        scrollTop: this.savedScrollTop,
+        anchorPostId: this.items[0]?.id || null,
+      };
+    },
+    restoreScroll(scrollTop = 0) {
+      const next = Number(scrollTop) || 0;
+      // Force scroll-view to accept the same value again after detail return.
+      this.scrollTop = next === 0 ? 0.01 : next - 0.01;
+      this.$nextTick(() => {
+        this.scrollTop = next;
+        this.savedScrollTop = next;
+      });
+    },
     removeItem(id) {
       this.items = this.items.filter((item) => Number(item.id) !== Number(id));
       if (!this.items.length) this.loadingStatus = 'noMore';
@@ -225,9 +256,10 @@ export default {
         const response = await this.fetcher({ ...this.query, page: this.page });
         this.items = this.uniqueItems(this.normalizedItems(response));
         this.loadingStatus = response.next && !this.maxItems ? 'more' : 'noMore';
+        this.restoreScroll(0);
         this.$emit('loaded', this.items);
       } catch (error) {
-        this.errorMessage = '加载失败，点此重试';
+        this.errorMessage = '加载失败，请检查网络后重试';
         this.loadingStatus = this.items.length ? previousStatus : 'more';
         this.$emit('error', error);
       } finally {
@@ -247,7 +279,7 @@ export default {
         this.loadingStatus = response.next ? 'more' : 'noMore';
         this.$emit('loaded', this.items);
       } catch (error) {
-        this.errorMessage = '加载更多失败，点此重试';
+        this.errorMessage = '加载失败，请检查网络后重试';
         this.loadingStatus = 'more';
         this.$emit('error', error);
       }

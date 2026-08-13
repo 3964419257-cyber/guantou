@@ -31,6 +31,7 @@ class UserLiteSerializer(serializers.Serializer):
     username = serializers.CharField()
     nickname = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
+    primary_dialect = serializers.SerializerMethodField()
 
     def get_nickname(self, obj):
         try:
@@ -43,6 +44,14 @@ class UserLiteSerializer(serializers.Serializer):
             return obj.user_info.avatar or ""
         except Exception:
             return ""
+
+    def get_primary_dialect(self, obj):
+        try:
+            from user.dto.user_all import dialect_ref
+
+            return dialect_ref(obj.user_info.primary_dialect)
+        except Exception:
+            return None
 
 
 class DialectRefSerializer(serializers.ModelSerializer):
@@ -1041,13 +1050,61 @@ class CanPostSerializer(serializers.ModelSerializer):
 
     def get_source(self, obj):
         snapshot = obj.source_snapshot or {}
-        return {
+        unavailable = not bool(obj.can_id and obj.can and obj.can.visibility)
+        kind = snapshot.get("kind") or "use_same"
+        recorder = snapshot.get("recorder") or {}
+        if obj.can and obj.can.recorder_id:
+            try:
+                info = obj.can.recorder.user_info
+                recorder = {
+                    "id": obj.can.recorder_id,
+                    "username": obj.can.recorder.username,
+                    "nickname": info.nickname or obj.can.recorder.username,
+                    "avatar": info.avatar or "",
+                }
+            except Exception:
+                pass
+        base = {
+            "kind": kind,
             "can_id": obj.can_id or snapshot.get("can_id"),
-            "recorder": snapshot.get("recorder"),
-            "source_unavailable": not bool(
-                obj.can_id and obj.can and obj.can.visibility
+            "recorder": recorder,
+            "source_unavailable": unavailable,
+            "audio_url": (
+                obj.can.audio_url
+                if obj.can_id and obj.can and obj.can.visibility
+                else snapshot.get("audio_url", "")
+            ),
+            "duration_ms": (
+                obj.can.duration_ms
+                if obj.can_id and obj.can and obj.can.visibility
+                else snapshot.get("duration_ms", 0)
+            ),
+            "subtitle": (
+                obj.can.concept_text
+                if obj.can_id and obj.can and obj.can.visibility
+                else snapshot.get("concept_text", "")
             ),
         }
+        if kind == "repost":
+            forward = dict(snapshot.get("forward_from") or {})
+            if unavailable:
+                forward["source_unavailable"] = True
+            base["forward_from"] = forward
+            base["use_same_from"] = None
+        else:
+            base["forward_from"] = None
+            base["use_same_from"] = {
+                "can_id": base["can_id"],
+                "author_id": recorder.get("id"),
+                "author_name": recorder.get("nickname")
+                or recorder.get("username")
+                or "原作者",
+                "subtitle": base["subtitle"],
+                "audio_url": base["audio_url"],
+                "duration_ms": base["duration_ms"],
+                "source_unavailable": unavailable,
+            }
+        return base
 
     def get_is_owner(self, obj):
         request = self.context.get("request")

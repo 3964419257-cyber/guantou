@@ -18,6 +18,7 @@ export const DIALECT_EXAMPLE_WORDS = {
 
 const ALLOWED_WHILE_ONBOARDING = [
   'pages/users/onboarding',
+  'pages/users/recommend-follow',
   'pages/login/login',
   'pages/login/register',
   'pages/login/register/wechat',
@@ -101,6 +102,7 @@ export async function saveDialectProfile(userId, {
   nickname,
   primaryDialectId,
   dialectIds = [],
+  region = '',
 }) {
   const followedDialectIds = [...new Set(
     [primaryDialectId, ...(dialectIds || [])].filter(Boolean),
@@ -110,6 +112,7 @@ export async function saveDialectProfile(userId, {
       nickname: String(nickname || '').trim(),
       primary_dialect_id: primaryDialectId,
       followed_dialect_ids: followedDialectIds,
+      region: String(region || '').trim(),
     },
   });
   if (response.token) uni.setStorageSync('token', response.token);

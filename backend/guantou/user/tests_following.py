@@ -70,6 +70,10 @@ class UserFollowingApiTests(TestCase):
             [item["id"] for item in response.json()["results"]], [self.other.id]
         )
         self.assertEqual(response.json()["results"][0]["public_can_count"], 1)
+        self.assertEqual(response.json()["results"][0]["role"], "creator")
+        self.assertEqual(
+            response.json()["results"][0]["role_label"], "同方言创作者"
+        )
 
     def test_dialect_follow_and_private_subscription_list(self):
         follow = self.client.put(f"/dialects/{self.dialect.id}/follow/", **self.auth)

@@ -110,6 +110,26 @@ describe('auth journey', () => {
     });
   });
 
+  it('returns comment intents to detail with scrollTo=comments', () => {
+    expect(resolveAuthDestination({
+      action: 'comment',
+      context: { page: 'can_detail', canId: 19 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/cans/details',
+      url: '/pages/cans/details?id=19&scrollTo=comments',
+    });
+    expect(resolveAuthDestination({
+      action: 'comment',
+      context: { page: 'post_detail', postId: 8, canId: 19 },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/posts/details',
+      url: '/pages/posts/details?id=8&scrollTo=comments',
+      resumeAction: '',
+    });
+  });
+
   it('returns a use-same intent directly to the locked composer', () => {
     expect(resolveAuthDestination({
       action: 'use_same',

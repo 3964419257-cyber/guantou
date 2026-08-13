@@ -20,12 +20,18 @@ export const AUTH_RESUME_ACTIONS = {
   USE_SAME: 'use_same',
 };
 
-function canDetailsUrl(canId) {
-  return canId ? `/pages/cans/details?id=${encodeURIComponent(canId)}` : '';
+function canDetailsUrl(canId, extra = {}) {
+  if (!canId) return '';
+  const query = [`id=${encodeURIComponent(canId)}`];
+  if (extra.scrollTo) query.push(`scrollTo=${encodeURIComponent(extra.scrollTo)}`);
+  return `/pages/cans/details?${query.join('&')}`;
 }
 
-function postDetailsUrl(postId) {
-  return postId ? `/pages/posts/details?id=${encodeURIComponent(postId)}` : '';
+function postDetailsUrl(postId, extra = {}) {
+  if (!postId) return '';
+  const query = [`id=${encodeURIComponent(postId)}`];
+  if (extra.scrollTo) query.push(`scrollTo=${encodeURIComponent(extra.scrollTo)}`);
+  return `/pages/posts/details?${query.join('&')}`;
 }
 
 function userDetailsUrl(userId) {
@@ -130,24 +136,34 @@ export function resolveAuthDestination(intent) {
     };
   }
 
-  if (intent.action === 'like' || intent.action === 'tab_like' || intent.action === 'comment') {
-    if (context.canId) {
-      const destination = {
-        kind: AUTH_DESTINATION_KINDS.URL,
-        route: 'pages/cans/details',
-        url: canDetailsUrl(context.canId),
-      };
-      if (intent.action !== 'comment') {
-        destination.resumeAction = AUTH_RESUME_ACTIONS.LIKE;
-      }
-      return destination;
-    }
+  if (
+    intent.action === 'like'
+    || intent.action === 'tab_like'
+    || intent.action === 'comment'
+    || intent.action === 'repost'
+  ) {
     if (context.postId) {
       return {
         kind: AUTH_DESTINATION_KINDS.URL,
         route: 'pages/posts/details',
-        url: postDetailsUrl(context.postId),
+        url: postDetailsUrl(context.postId, {
+          scrollTo: context.scrollTo || (intent.action === 'comment' ? 'comments' : ''),
+        }),
+        resumeAction: intent.action === 'like' ? AUTH_RESUME_ACTIONS.LIKE : '',
       };
+    }
+    if (context.canId) {
+      const destination = {
+        kind: AUTH_DESTINATION_KINDS.URL,
+        route: 'pages/cans/details',
+        url: canDetailsUrl(context.canId, {
+          scrollTo: context.scrollTo || (intent.action === 'comment' ? 'comments' : ''),
+        }),
+      };
+      if (intent.action === 'like' || intent.action === 'tab_like') {
+        destination.resumeAction = AUTH_RESUME_ACTIONS.LIKE;
+      }
+      return destination;
     }
     return fallbackDestination('无法回到原内容');
   }

@@ -1,15 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/services/guantou', () => ({
-  listAllDialects: vi.fn(),
-}));
-
 vi.mock('@/services/following', () => ({
-  followDialect: vi.fn(),
-  followUser: vi.fn(),
+  batchFollowUsers: vi.fn(),
   listFollowRecommendations: vi.fn(),
-  unfollowDialect: vi.fn(),
+  markRecommendFollowSeen: vi.fn(),
 }));
 
 vi.mock('@/routers', () => ({
@@ -18,11 +13,10 @@ vi.mock('@/routers', () => ({
 
 import { toIndexPage } from '@/routers';
 import {
-  followDialect,
-  followUser,
+  batchFollowUsers,
   listFollowRecommendations,
+  markRecommendFollowSeen,
 } from '@/services/following';
-import { listAllDialects } from '@/services/guantou';
 
 const app = {
   globalData: {
@@ -42,7 +36,7 @@ function mountPage() {
     global: {
       stubs: {
         PageShell: { template: '<main><slot /></main>' },
-        'scroll-view': { template: '<div><slot /></div>' },
+        DialectBadge: { template: '<span class="badge" />' },
       },
     },
   });
@@ -51,52 +45,47 @@ function mountPage() {
 describe('follow recommendations page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    app.globalData.userInfo.followed_dialects = [{ id: 3, name: '四川话' }];
     globalThis.uni = {
       reLaunch: vi.fn(),
       showToast: vi.fn(),
+      setStorageSync: vi.fn(),
     };
-    listAllDialects.mockResolvedValue([
-      { id: 3, name: '四川话', qualified_code: '西南官话.四川', depth: 1 },
-      { id: 4, name: '客家话', qualified_code: '客家话', depth: 0 },
-    ]);
     listFollowRecommendations.mockResolvedValue({
       results: [{
         id: 12,
         username: 'real-author',
         nickname: '真实作者',
-        primary_dialect: { id: 3, qualified_code: '西南官话.四川' },
+        primary_dialect: { id: 3, name: '四川话', qualified_code: '西南官话.四川' },
         public_can_count: 2,
+        role: 'creator',
+        role_label: '同方言创作者',
+        bio: '2 罐公开乡音',
       }],
     });
-    followDialect.mockResolvedValue({ following: true });
-    followUser.mockResolvedValue({ following: true });
+    batchFollowUsers.mockResolvedValue({ succeeded: [12], failed: [], total: 1 });
   });
 
-  it('loads real same-dialect authors and saves selected follows', async () => {
+  it('loads candidates and batch-follows selected authors', async () => {
     const wrapper = mountPage();
     await wrapper.vm.$options.onLoad.call(wrapper.vm);
     await flushPromises();
 
     expect(listFollowRecommendations).toHaveBeenCalledWith(3);
     expect(wrapper.text()).toContain('真实作者');
+    expect(wrapper.text()).toContain('关注几位同方言的人，首页会更有意思');
 
-    wrapper.vm.toggleDialect(4);
     await wrapper.vm.save();
 
-    expect(followDialect).toHaveBeenCalledWith(4);
-    expect(followUser).toHaveBeenCalledWith(12);
+    expect(batchFollowUsers).toHaveBeenCalledWith([12]);
+    expect(markRecommendFollowSeen).toHaveBeenCalled();
     expect(toIndexPage).toHaveBeenCalledWith(true);
-    expect(app.globalData.userInfo.followed_dialects.map((item) => item.id)).toEqual([3, 4]);
   });
 
-  it('keeps the primary dialect when it is tapped and allows skipping', () => {
+  it('allows skipping without following', async () => {
     const wrapper = mountPage();
-
-    wrapper.vm.toggleDialect(3);
-    expect(wrapper.vm.selectedDialectIds).toEqual([3]);
-
     wrapper.vm.skip();
+    expect(markRecommendFollowSeen).toHaveBeenCalled();
+    expect(batchFollowUsers).not.toHaveBeenCalled();
     expect(toIndexPage).toHaveBeenCalledWith(true);
   });
 });

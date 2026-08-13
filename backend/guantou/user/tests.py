@@ -569,6 +569,22 @@ class UserPrimaryDialectTests(TestCase):
         self.assertEqual(response.json()["user"]["telephone"], "13800000000")
         self.assertIsNotNone(response.json()["user"]["onboarding_done_at"])
 
+    def test_owner_can_update_region_during_onboarding(self):
+        response = self.client.put(
+            f"/users/{self.user.id}",
+            data=(
+                f'{{"user": {{"primary_dialect_id": {self.dialect.id},'
+                f' "region": "成都"}}}}'
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(self.user)}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.user_info.refresh_from_db()
+        self.assertEqual(self.user.user_info.region, "成都")
+        self.assertEqual(response.json()["user"]["region"], "成都")
+
     def test_owner_can_set_followed_dialects_during_onboarding(self):
         secondary = Dialect.objects.create(name="粤语", code="粤")
         response = self.client.put(
