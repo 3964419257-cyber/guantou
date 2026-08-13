@@ -223,7 +223,9 @@ class PhoneAuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["demo_code"], "123456")
         self.assertEqual(response.json()["expires_in"], 300)
-        self.assertEqual(cache.get(phone_cache_key(self.phone)), "123456")
+        cached = cache.get(phone_cache_key(self.phone))
+        self.assertEqual(cached["code"], "123456")
+        self.assertGreater(cached["expires_at"], timezone.now().timestamp())
 
         throttled = self.client.post(
             "/users/phone-code",
@@ -231,6 +233,9 @@ class PhoneAuthenticationTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(throttled.status_code, 429)
+        throttled_body = throttled.json()
+        self.assertIn("秒后再试", throttled_body["message"])
+        self.assertGreaterEqual(throttled_body["data"]["retry_after"], 1)
         self.assertEqual(generate_phone_code.call_count, 1)
 
     @override_settings(PHONE_CODE_DEMO_MODE=False)
@@ -256,9 +261,14 @@ class PhoneAuthenticationTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["message"], "请输入合法的11位手机号")
 
     def test_verified_phone_auto_registers_then_logs_into_same_account(self):
-        cache.set(phone_cache_key(self.phone), "123456", 300)
+        cache.set(
+            phone_cache_key(self.phone),
+            {"code": "123456", "expires_at": timezone.now().timestamp() + 300},
+            300,
+        )
         first = self.client.post(
             "/login/phone",
             data={"phone": self.phone, "code": "123456"},
@@ -270,10 +280,16 @@ class PhoneAuthenticationTests(TestCase):
         user = User.objects.get(id=first.json()["id"])
         self.assertFalse(user.has_usable_password())
         self.assertEqual(user.user_info.telephone, self.phone)
+        self.assertEqual(user.user_info.nickname, "用户0000")
+        self.assertIsNone(user.user_info.primary_dialect_id)
         self.assertIsNone(cache.get(phone_cache_key(self.phone)))
 
         cache.delete(phone_throttle_cache_key(self.phone))
-        cache.set(phone_cache_key(self.phone), "654321", 300)
+        cache.set(
+            phone_cache_key(self.phone),
+            {"code": "654321", "expires_at": timezone.now().timestamp() + 300},
+            300,
+        )
         second = self.client.post(
             "/login/phone",
             data={"phone": self.phone, "code": "654321"},
@@ -285,13 +301,18 @@ class PhoneAuthenticationTests(TestCase):
         self.assertEqual(second.json()["id"], user.id)
 
     def test_code_is_one_time_and_wrong_code_is_rejected(self):
-        cache.set(phone_cache_key(self.phone), "123456", 300)
+        cache.set(
+            phone_cache_key(self.phone),
+            {"code": "123456", "expires_at": timezone.now().timestamp() + 300},
+            300,
+        )
         wrong = self.client.post(
             "/login/phone",
             data={"phone": self.phone, "code": "000000"},
             content_type="application/json",
         )
         self.assertEqual(wrong.status_code, 401)
+        self.assertEqual(wrong.json()["message"], "验证码错误")
 
         accepted = self.client.post(
             "/login/phone",
@@ -306,6 +327,21 @@ class PhoneAuthenticationTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(replay.status_code, 401)
+        self.assertEqual(replay.json()["message"], "请先获取验证码")
+
+    def test_expired_code_returns_dedicated_message(self):
+        cache.set(
+            phone_cache_key(self.phone),
+            {"code": "123456", "expires_at": timezone.now().timestamp() - 1},
+            300,
+        )
+        response = self.client.post(
+            "/login/phone",
+            data={"phone": self.phone, "code": "123456"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["message"], "验证码已过期，请重新获取")
 
     def test_nonempty_phone_identity_is_unique(self):
         first = User.objects.create_user(username="first")

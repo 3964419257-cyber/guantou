@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view
     class="page"
     :class="`theme-${resolvedTheme}`"
@@ -156,7 +156,7 @@
 </template>
 
 <script>
-import { toIndexPage } from '@/routers';
+import { toSearchPage } from '@/routers';
 import {
   bindingWechat as bindingWechatService,
   cancelBindingWechat as cancelBindingWechatService,
@@ -258,7 +258,8 @@ export default {
         success: async (res) => {
           if (res.confirm) {
             clearUserInfo();
-            await toIndexPage(uni.getSystemInfoSync().uniPlatform === 'web');
+            // W1-E3: logout keeps user data, clears session only, then guest search.
+            toSearchPage(true);
             uni.showToast({ title: '登出成功' });
           }
         },

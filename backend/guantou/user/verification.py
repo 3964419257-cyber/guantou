@@ -72,37 +72,86 @@ def phone_throttle_cache_key(phone):
     return f"phone_code_throttle:{normalize_phone(phone)}"
 
 
+class PhoneCodeThrottled(Exception):
+    def __init__(self, retry_after):
+        self.retry_after = max(1, int(retry_after))
+        super().__init__(f"请 {self.retry_after} 秒后再试")
+
+
+PHONE_CODE_MISSING = "missing"
+PHONE_CODE_EXPIRED = "expired"
+PHONE_CODE_WRONG = "wrong"
+PHONE_CODE_OK = "ok"
+
+PHONE_CODE_MESSAGES = {
+    PHONE_CODE_MISSING: "请先获取验证码",
+    PHONE_CODE_EXPIRED: "验证码已过期，请重新获取",
+    PHONE_CODE_WRONG: "验证码错误",
+}
+
+
 def generate_phone_code(length=6):
     return "".join(secrets.choice("0123456789") for _ in range(length))
+
+
+def _phone_code_payload(value):
+    if isinstance(value, dict):
+        return value
+    if value is None:
+        return None
+    # Backward-compatible plain-string cache entries from older demos.
+    return {"code": str(value), "expires_at": None}
 
 
 def issue_phone_code(phone):
     normalized = normalize_phone(phone)
     if not is_valid_phone(normalized):
-        raise ValueError("请输入有效的 11 位手机号")
+        raise ValueError("请输入合法的11位手机号")
     throttle_key = phone_throttle_cache_key(normalized)
-    if not cache.add(
+    now = timezone.now().timestamp()
+    sent_at = cache.get(throttle_key)
+    if sent_at is not None:
+        elapsed = now - float(sent_at)
+        remaining = settings.PHONE_CODE_THROTTLE_SECONDS - elapsed
+        raise PhoneCodeThrottled(remaining)
+    cache.set(
         throttle_key,
-        True,
+        now,
         timeout=settings.PHONE_CODE_THROTTLE_SECONDS,
-    ):
-        return None
+    )
     code = generate_phone_code()
+    # Keep the record a bit past expiry so login can return the expired copy.
     cache.set(
         phone_cache_key(normalized),
-        code,
-        timeout=settings.PHONE_CODE_TTL_SECONDS,
+        {
+            "code": code,
+            "expires_at": now + settings.PHONE_CODE_TTL_SECONDS,
+        },
+        timeout=settings.PHONE_CODE_TTL_SECONDS + 300,
     )
     return code
 
 
 def check_phone_code(phone, code):
+    """Backward-compatible boolean check used by older callers/tests."""
+    return consume_phone_code(phone, code) == PHONE_CODE_OK
+
+
+def consume_phone_code(phone, code):
     key = phone_cache_key(phone)
-    expected = cache.get(key)
-    if expected and hmac.compare_digest(str(expected), str(code).strip()):
+    payload = _phone_code_payload(cache.get(key))
+    if payload is None:
+        return PHONE_CODE_MISSING
+    expires_at = payload.get("expires_at")
+    if expires_at is not None and timezone.now().timestamp() > float(expires_at):
         cache.delete(key)
-        return True
-    return False
+        return PHONE_CODE_EXPIRED
+    expected = str(payload.get("code") or "")
+    submitted = str(code or "").strip()
+    if not expected or not submitted or not hmac.compare_digest(expected, submitted):
+        return PHONE_CODE_WRONG
+    cache.delete(key)
+    return PHONE_CODE_OK
 
 
 def issue_email_code(email, purpose, subject=""):
@@ -245,10 +294,16 @@ def phone_code(request):
         return JsonResponse({"message": "短信服务尚未配置"}, status=503)
     try:
         code = issue_phone_code(body.get("phone"))
+    except PhoneCodeThrottled as error:
+        return JsonResponse(
+            {
+                "message": str(error),
+                "retry_after": error.retry_after,
+            },
+            status=429,
+        )
     except ValueError as error:
         return JsonResponse({"message": str(error)}, status=400)
-    if code is None:
-        return JsonResponse({"message": "验证码发送过于频繁，请稍后再试"}, status=429)
     payload = {
         "expires_in": settings.PHONE_CODE_TTL_SECONDS,
         "retry_after": settings.PHONE_CODE_THROTTLE_SECONDS,

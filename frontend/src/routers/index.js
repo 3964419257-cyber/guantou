@@ -16,10 +16,16 @@ export function toIndexPage(closeAll = false) {
 /**
  * 前往搜索页面
  */
-export function toSearchPage() {
-  uni.navigateTo({
-    url: '/pages/search',
-  });
+export function toSearchPage(closeAll = false) {
+  if (closeAll) {
+    uni.reLaunch({
+      url: '/pages/search',
+    });
+  } else {
+    uni.navigateTo({
+      url: '/pages/search',
+    });
+  }
 }
 
 /**

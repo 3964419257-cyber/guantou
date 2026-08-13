@@ -10,8 +10,11 @@ from user.passwords import validate_password_policy
 from user.tokens import generate_token, get_authorization_token, token_check
 from user.avatar import upload_avatar
 from user.verification import (
+    PHONE_CODE_MESSAGES,
+    PHONE_CODE_OK,
     check_email_code,
-    check_phone_code,
+    consume_phone_code,
+    is_valid_phone,
     normalize_email,
     normalize_phone,
 )
@@ -121,8 +124,14 @@ def phone_login(request):
         return JsonResponse({"message": "Method Not Allowed"}, status=405)
     body = demjson3.decode(request.body)
     phone = normalize_phone(body.get("phone"))
-    if not check_phone_code(phone, body.get("code")):
-        return JsonResponse({"message": "手机号或验证码错误"}, status=401)
+    if not is_valid_phone(phone):
+        return JsonResponse({"message": "请输入合法的11位手机号"}, status=400)
+    code_status = consume_phone_code(phone, body.get("code"))
+    if code_status != PHONE_CODE_OK:
+        return JsonResponse(
+            {"message": PHONE_CODE_MESSAGES[code_status]},
+            status=401,
+        )
 
     is_new = False
     try:
@@ -140,7 +149,7 @@ def phone_login(request):
                 user.save()
                 user_info = UserInfo.objects.create(
                     user=user,
-                    nickname=f"乡友{phone[-4:]}",
+                    nickname=f"用户{phone[-4:]}",
                     telephone=phone,
                 )
                 is_new = True

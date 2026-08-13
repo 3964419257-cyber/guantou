@@ -60,8 +60,13 @@ describe('phone authentication', () => {
   });
 
   it('does not call the API for invalid input', async () => {
-    await expect(requestPhoneCode('123')).rejects.toThrow('请输入有效的 11 位手机号');
+    await expect(requestPhoneCode('123')).rejects.toThrow('请输入合法的11位手机号');
     await expect(loginWithPhone('13800000000', '')).rejects.toThrow('请输入验证码');
     expect(rawRequest.post).not.toHaveBeenCalled();
+  });
+
+  it('maps transport failures to the shared network copy', async () => {
+    rawRequest.post.mockRejectedValue(new Error('Failed to fetch'));
+    await expect(requestPhoneCode('13800000000')).rejects.toThrow('网络异常，请稍后重试');
   });
 });

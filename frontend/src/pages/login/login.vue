@@ -1,6 +1,6 @@
 <template>
   <view class="login-page">
-    <cu-custom title="登录" />
+    <cu-custom title="手机号登录" />
     <view
       v-if="intentText"
       class="intent-banner"
@@ -27,9 +27,10 @@
         <input
           v-model="phone"
           inputmode="numeric"
-          maxlength="13"
+          maxlength="11"
           name="phone"
           placeholder="请输入手机号"
+          @input="clearFormError"
         >
       </view>
       <view class="info code-row">
@@ -40,28 +41,36 @@
           maxlength="6"
           name="code"
           placeholder="请输入验证码"
+          @input="clearFormError"
         >
         <button
-          :disabled="countdown > 0 || sendingCode"
+          :disabled="countdown > 0 || sendingCode || loggingIn"
           class="code-button"
           @tap="sendPhoneCode"
         >
-          {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+          {{ codeButtonLabel }}
         </button>
       </view>
       <view
         v-if="demoCode"
         class="demo-code"
       >
-        Demo 验证码：<text>{{ demoCode }}</text>
+        模拟短信验证码：<text>{{ demoCode }}</text>
+      </view>
+      <view
+        v-if="formError"
+        class="form-error"
+      >
+        {{ formError }}
       </view>
       <view class="flex justify-center">
         <button
+          :disabled="loggingIn"
           class="cu-btn round bg-gradual-blue shadow text-df margin-top"
           form-type="submit"
           style="width: 65vw"
         >
-          登录 / 注册
+          {{ loggingIn ? '登录中…' : '登录' }}
         </button>
       </view>
     </form>
@@ -168,9 +177,11 @@ export default {
       phone: '',
       code: '',
       demoCode: '',
+      formError: '',
       countdown: 0,
       countdownTimer: null,
       sendingCode: false,
+      loggingIn: false,
       showPasswordLogin: false,
     };
   },
@@ -183,6 +194,11 @@ export default {
       if (this.intentVoluntary) return '验证身份后返回「我的」。';
       return `你刚才想${actionLabel(this.intent.action)}，验证身份后会回到原来的位置。`;
     },
+    codeButtonLabel() {
+      if (this.sendingCode) return '发送中…';
+      if (this.countdown > 0) return `${this.countdown}s`;
+      return '获取验证码';
+    },
   },
   onLoad() {
     this.intent = peekInterceptIntent();
@@ -193,6 +209,9 @@ export default {
   methods: {
     mpLogin,
     cancelLoginToSearch,
+    clearFormError() {
+      this.formError = '';
+    },
     clearCountdown() {
       if (this.countdownTimer) clearInterval(this.countdownTimer);
       this.countdownTimer = null;
@@ -206,24 +225,36 @@ export default {
       }, 1000);
     },
     async sendPhoneCode() {
-      if (this.countdown > 0 || this.sendingCode) return;
+      if (this.countdown > 0 || this.sendingCode || this.loggingIn) return;
+      this.formError = '';
       this.sendingCode = true;
       try {
         const response = await requestPhoneCode(this.phone);
         this.demoCode = response.demo_code || '';
         this.startCountdown(response.retry_after);
-        uni.showToast({ title: '验证码已生成', icon: 'success' });
       } catch (error) {
-        uni.showToast({ title: error.message || '验证码发送失败', icon: 'none' });
+        this.formError = error.message || '验证码发送失败';
+        const retryAfter = error.retry_after
+          || error.data?.retry_after
+          || error.payload?.retry_after
+          || error.payload?.data?.retry_after;
+        if (retryAfter) {
+          this.startCountdown(retryAfter);
+        }
       } finally {
         this.sendingCode = false;
       }
     },
     async phoneLogin() {
+      if (this.loggingIn) return;
+      this.formError = '';
+      this.loggingIn = true;
       try {
         await loginWithPhone(this.phone, this.code);
       } catch (error) {
-        uni.showToast({ title: error.message || '登录失败', icon: 'none' });
+        this.formError = error.message || '登录失败';
+      } finally {
+        this.loggingIn = false;
       }
     },
     passwordLogin(e) {
@@ -338,6 +369,14 @@ page {
 .demo-code text {
   font-weight: 800;
   letter-spacing: 4rpx;
+}
+
+.form-error {
+  width: 65vw;
+  margin: 0 auto 8rpx;
+  color: #c0392b;
+  font-size: 26rpx;
+  line-height: 1.4;
 }
 
 .password-toggle {
