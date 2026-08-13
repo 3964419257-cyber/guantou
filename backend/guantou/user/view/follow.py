@@ -11,7 +11,6 @@ from user.utils import get_user_by_id
 from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.unauthorized import UnauthorizedException
 
-
 ROLE_CREATOR = "creator"
 ROLE_OFFICIAL = "official"
 ROLE_CIRCLE_HOST = "circle_host"
@@ -137,9 +136,7 @@ class FollowRecommendations(View):
 
         # 方言圈主：该方言圈子最早加入的成员（无独立 owner 字段时的约定）
         circle = (
-            DialectCircle.objects.filter(
-                dialect_id__in=dialect_ids, is_active=True
-            )
+            DialectCircle.objects.filter(dialect_id__in=dialect_ids, is_active=True)
             .order_by("id")
             .first()
         )

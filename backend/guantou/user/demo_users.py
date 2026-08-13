@@ -46,9 +46,7 @@ def seed_demo_phone_users(*, reset=False):
         for item in DEMO_USERS:
             phone = item["phone"]
             info = (
-                UserInfo.objects.select_related("user")
-                .filter(telephone=phone)
-                .first()
+                UserInfo.objects.select_related("user").filter(telephone=phone).first()
             )
             primary = dialect if item["with_dialect"] else None
 

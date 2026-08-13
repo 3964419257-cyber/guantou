@@ -361,9 +361,9 @@ class PhoneAuthenticationTests(TestCase):
         body = response.json()
         self.assertEqual(body["created"] + body["updated"], 2)
 
-        with_dialect = UserInfo.objects.select_related(
-            "user", "primary_dialect"
-        ).get(telephone="13900000001")
+        with_dialect = UserInfo.objects.select_related("user", "primary_dialect").get(
+            telephone="13900000001"
+        )
         without = UserInfo.objects.select_related("user", "primary_dialect").get(
             telephone="13900000002"
         )
