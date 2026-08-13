@@ -6,6 +6,15 @@ import {
   peekInterceptIntent,
 } from '@/services/authGuard';
 import {
+  AUTH_DESTINATION_KINDS,
+  resolveAuthDestination,
+} from '@/services/authJourney';
+import {
+  needsDialectOnboarding,
+  ONBOARDING_REASONS,
+  toDialectOnboarding,
+} from '@/services/dialectOnboarding';
+import {
   claimAnonymousCanDrafts,
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
@@ -17,29 +26,42 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
   const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
   const previousRoute = previousPage ? previousPage.route : '';
   const interruptedIntent = peekInterceptIntent();
-  const previousIsCanCreate = previousRoute === 'pages/cans/create'
-    || previousRoute === '/pages/cans/create';
+  const destination = resolveAuthDestination(interruptedIntent);
 
-  if (interruptedIntent?.action !== 'record_can') return false;
-  const isCanCreateIntent = interruptedIntent.context?.page === 'can_create'
-    && interruptedIntent.context?.returnRoute === '/pages/cans/create';
-  if (!isCanCreateIntent) {
+  if (destination.kind === AUTH_DESTINATION_KINDS.DEFAULT) return false;
+
+  if (destination.kind === AUTH_DESTINATION_KINDS.ADJACENT_CAN_DRAFT) {
+    const previousIsCanCreate = previousRoute === 'pages/cans/create'
+      || previousRoute === '/pages/cans/create';
+    if (!previousIsCanCreate) {
+      clearInterceptIntent();
+      toIndexPage(true);
+      return true;
+    }
+    const intendedOwner = destination.ownerScope;
+    if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
+      clearInterceptIntent();
+      uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
+      toMePage(true);
+      return true;
+    }
     clearInterceptIntent();
-    return false;
-  }
-  if (!previousIsCanCreate) {
-    clearInterceptIntent();
-    return false;
-  }
-  const intendedOwner = interruptedIntent.context?.ownerScope || '';
-  if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
-    clearInterceptIntent();
-    uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
-    toMePage(true);
+    uni.navigateBack({ delta: 1 });
     return true;
   }
+
   clearInterceptIntent();
-  uni.navigateBack({ delta: 1 });
+  if (destination.kind === AUTH_DESTINATION_KINDS.URL) {
+    const normalizedPreviousRoute = String(previousRoute || '').replace(/^\//, '');
+    if (normalizedPreviousRoute === destination.route) {
+      uni.navigateBack({ delta: 1 });
+    } else {
+      uni.redirectTo({ url: destination.url });
+    }
+    return true;
+  }
+
+  toIndexPage(true);
   return true;
 }
 
@@ -49,17 +71,18 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
 export async function loadUserInfo() {
   const id = uni.getStorageSync('id');
   if (!id) {
-    return;
+    return null;
   }
   const app = getApp();
-  await rawRequest.get(`/users/${id}`).then((res) => {
+  return rawRequest.get(`/users/${id}`).then((res) => {
     app.globalData.userInfo = res.user;
     app.globalData.contribution = res.contribution;
     app.globalData.id = res.user.id;
+    return res.user;
   });
 }
 
-export async function afterLogin(res) {
+export async function afterLogin(res, options = {}) {
   uni.showToast({
     title: '登录成功',
     icon: 'success',
@@ -70,60 +93,59 @@ export async function afterLogin(res) {
   if (previousOwnerScope.startsWith('anonymous:')) {
     await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }
+<<<<<<< HEAD
   await loadUserInfo();
   const userInfo = getApp().globalData.userInfo;
   // 无主方言：先完善身份；回流意图保留到引导完成后再 resume
   if (needsDialectOnboarding(userInfo)) {
     toDialectOnboardingPage(true);
+=======
+  const user = await loadUserInfo();
+  if (needsDialectOnboarding(user)) {
+    const reason = options.isNew
+      ? ONBOARDING_REASONS.NEW_USER
+      : ONBOARDING_REASONS.MISSING_DIALECT;
+    toDialectOnboarding(reason, true);
+>>>>>>> main
     return;
   }
   if (resumeInterruptedPageAfterLogin(res.id)) return;
-  // #ifdef H5
   toIndexPage(true);
-  // #endif
-  // #ifndef H5
-  toMePage();
-// #endif
 }
 
 /**
  * 小程序一键登录
  */
-/**
- * 生成安全的随机密码
- */
-function generateSecurePassword(length = 16) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
-  let password = '';
+function generateUsernameSuffix(length = 10) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let suffix = '';
   for (let i = 0; i < length; i += 1) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    suffix += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return password;
+  return suffix;
 }
 
 /**
  * 使用微信 code 进行一键注册
  */
 async function registerWithWechatCode(code) {
-  // 自动生成用户名和密码
-  const username = `wx_${generateSecurePassword(8)}`;
-  const password = generateSecurePassword(16);
+  // 用户无需设置密码；后端会创建不可用密码，仅保留微信登录能力。
+  const username = `wx_${generateUsernameSuffix()}`;
 
   // 不再调用 uni.getUserProfile（小程序基础库限制），只提交必需字段
   // 发送注册请求（仅必填项）
   return rawRequest.post('/users/wechat/register', {
     jscode: code,
     username,
-    password,
   }, { auth: false })
     .then(async (res) => {
-      await afterLogin(res);
+      await afterLogin(res, { isNew: true });
       return res;
     })
     .catch((err) => {
       // 不在此处直接弹窗，保留原行为：提示给用户
       uni.showToast({
-        title: err.data && err.data.msg ? err.data.msg : (err.msg || '注册失败'),
+        title: err.message || '注册失败',
         icon: 'none',
       });
       throw err;
@@ -186,7 +208,7 @@ export async function mpLogin() {
               break;
             default:
               uni.showToast({
-                title: err.data.msg || '登录失败',
+                title: err.message || '登录失败',
               });
           }
         });
@@ -205,40 +227,43 @@ export async function mpLogin() {
  * @param username 用户名
  * @param password 密码
  */
-export async function normalLogin(username, password) {
+export async function normalLogin(username, password, options = {}) {
   if (!username) {
     uni.showToast({
       title: '请输入用户名',
       icon: 'error',
     });
-    return;
+    return null;
   }
   if (!password) {
     uni.showToast({
       title: '请输入密码',
       icon: 'error',
     });
-    return;
+    return null;
   }
-  rawRequest.post('/login', {
-    username,
-    password,
-  }, { auth: false }).then(async (res) => {
-    await afterLogin(res);
-  }).catch((err) => {
+  try {
+    const res = await rawRequest.post('/login', {
+      username,
+      password,
+    }, { auth: false });
+    await afterLogin(res, options);
+    return res;
+  } catch (err) {
     switch (err.statusCode) {
       case 401:
         uni.showToast({
-          title: err.data.msg || '用户名或密码错误',
+          title: err.message || '用户名或密码错误',
           icon: 'error',
         });
         break;
       default:
         uni.showToast({
-          title: err.data.msg || '登录失败',
+          title: err.message || '登录失败',
         });
     }
-  });
+    return null;
+  }
 }
 
 /**
@@ -263,7 +288,7 @@ export async function getLoginStatus() {
         uni.removeStorageSync('token');
         uni.removeStorageSync('id');
         uni.showToast({
-          title: err.data.msg || '登录已过期，请重新登录',
+          title: err.message || '登录已过期，请重新登录',
           icon: 'error',
         });
         break;

@@ -10,6 +10,18 @@ export function uploadFile(file) {
   return upload(file);
 }
 
+export function supportsAudioFileSelection() {
+  let supported = false;
+  // #ifdef H5
+  supported = typeof uni.chooseFile === 'function';
+  // #endif
+
+  // #ifndef H5
+  supported = typeof uni.chooseMessageFile === 'function';
+  // #endif
+  return supported;
+}
+
 export function chooseAudioFile() {
   return new Promise((resolve, reject) => {
     const success = (res) => {
@@ -30,11 +42,11 @@ export function chooseAudioFile() {
     };
 
     // #ifdef H5
-    if (typeof uni.chooseFile === 'function') {
+    if (supportsAudioFileSelection()) {
       uni.chooseFile({
         count: 1,
         type: 'all',
-        extension: ['.mp3', '.wav', '.m4a', '.aac'],
+        extension: ['.mp3', '.wav', '.m4a'],
         success,
         fail,
       });
@@ -43,11 +55,11 @@ export function chooseAudioFile() {
     // #endif
 
     // #ifndef H5
-    if (typeof uni.chooseMessageFile === 'function') {
+    if (supportsAudioFileSelection()) {
       uni.chooseMessageFile({
         count: 1,
         type: 'file',
-        extension: ['mp3', 'wav', 'm4a', 'aac'],
+        extension: ['mp3', 'wav', 'm4a'],
         success,
         fail,
       });

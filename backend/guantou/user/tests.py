@@ -1,11 +1,25 @@
 from unittest.mock import patch
+from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
+from django.utils import timezone
 
-from .tokens import generate_token
-from .verification import check_email_code, email_cache_key
+from guantou.models import Dialect
+from user.models import EmailVerification, UserInfo
+from user.view.wechat import OpenId
+from utils.exceptions.types.not_found import NotFoundException
+from utils.exceptions.types.unauthorized import InvalidTokenException
+
+from .tokens import generate_token, token_user
+from .verification import (
+    check_email_code,
+    issue_email_code,
+    phone_cache_key,
+    phone_throttle_cache_key,
+)
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -22,9 +36,23 @@ class EmailVerificationTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(cache.get(email_cache_key("user@example.com")), "123456")
-        self.assertTrue(check_email_code("user@example.com", "123456"))
-        self.assertFalse(check_email_code("user@example.com", "123456"))
+        record = EmailVerification.objects.get(normalized_email="user@example.com")
+        self.assertNotIn("123456", record.code_digest)
+        self.assertIsNotNone(record.delivered_at)
+        self.assertTrue(
+            check_email_code(
+                "user@example.com",
+                "123456",
+                EmailVerification.Purpose.REGISTER,
+            )
+        )
+        self.assertFalse(
+            check_email_code(
+                "user@example.com",
+                "123456",
+                EmailVerification.Purpose.REGISTER,
+            )
+        )
 
     def test_reject_invalid_email(self):
         response = self.client.post(
@@ -33,6 +61,327 @@ class EmailVerificationTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_rejects_email_already_bound_to_an_account(self):
+        User.objects.create_user(username="bound", email="bound@example.com")
+        response = self.client.post(
+            "/users/email-code",
+            data='{"email": "BOUND@example.com", "purpose": "register"}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 409)
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_email_registration_normalizes_address_and_preserves_password_hash(
+        self, _generate
+    ):
+        issue_email_code("New@Example.com", EmailVerification.Purpose.REGISTER)
+        response = self.client.post(
+            "/users",
+            data={
+                "username": "email-register",
+                "password": "new-pass-123",
+                "email": " New@Example.com ",
+                "code": "123456",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        user = User.objects.get(username="email-register")
+        self.assertEqual(user.email, "new@example.com")
+        self.assertTrue(user.check_password("new-pass-123"))
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_bind_purpose_is_required_and_email_binding_succeeds(self, _generate):
+        user = User.objects.create_user(username="binder", password="old-pass")
+        UserInfo.objects.create(user=user, nickname="Binder")
+        issue_email_code("bind@example.com", EmailVerification.Purpose.BIND)
+        self.assertFalse(
+            check_email_code(
+                "bind@example.com", "123456", EmailVerification.Purpose.REGISTER
+            )
+        )
+        response = self.client.put(
+            f"/users/{user.id}/email",
+            data={"email": "BIND@example.com", "code": "123456"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(user)}",
+        )
+        self.assertEqual(response.status_code, 200)
+        user.refresh_from_db()
+        self.assertEqual(user.email, "bind@example.com")
+
+    @override_settings(EMAIL_CODE_THROTTLE_SECONDS=0)
+    @patch("user.verification.generate_email_code", side_effect=["111111", "222222"])
+    def test_resend_invalidates_the_previous_code(self, _generate):
+        issue_email_code("resend@example.com", EmailVerification.Purpose.REGISTER)
+        issue_email_code("resend@example.com", EmailVerification.Purpose.REGISTER)
+        self.assertFalse(
+            check_email_code(
+                "resend@example.com", "111111", EmailVerification.Purpose.REGISTER
+            )
+        )
+        self.assertTrue(
+            check_email_code(
+                "resend@example.com", "222222", EmailVerification.Purpose.REGISTER
+            )
+        )
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_expired_code_is_rejected(self, _generate):
+        issue_email_code("expired@example.com", EmailVerification.Purpose.REGISTER)
+        EmailVerification.objects.filter(normalized_email="expired@example.com").update(
+            expires_at=timezone.now() - timedelta(seconds=1)
+        )
+        self.assertFalse(
+            check_email_code(
+                "expired@example.com", "123456", EmailVerification.Purpose.REGISTER
+            )
+        )
+
+    @override_settings(EMAIL_CODE_MAX_ATTEMPTS=2)
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_maximum_attempts_consumes_the_code(self, _generate):
+        issue_email_code("attempts@example.com", EmailVerification.Purpose.REGISTER)
+        for _ in range(2):
+            self.assertFalse(
+                check_email_code(
+                    "attempts@example.com",
+                    "000000",
+                    EmailVerification.Purpose.REGISTER,
+                )
+            )
+        self.assertFalse(
+            check_email_code(
+                "attempts@example.com", "123456", EmailVerification.Purpose.REGISTER
+            )
+        )
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_email_delivery_is_throttled(self, _generate):
+        first = self.client.post(
+            "/users/email-code",
+            data={"email": "throttle@example.com", "purpose": "register"},
+            content_type="application/json",
+        )
+        second = self.client.post(
+            "/users/email-code",
+            data={"email": "throttle@example.com", "purpose": "register"},
+            content_type="application/json",
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+
+    @patch("user.verification.generate_email_code", return_value="123456")
+    def test_password_reset_uses_username_scope_without_old_token(self, _generate):
+        user = User.objects.create_user(
+            username="forgotten", email="owner@example.com", password="old-pass"
+        )
+        UserInfo.objects.create(user=user, nickname="Owner")
+
+        lookup = self.client.get("/login/forget", {"username": "forgotten"})
+        self.assertEqual(lookup.status_code, 200)
+        self.assertNotIn("owner@example.com", lookup.content.decode())
+
+        sent = self.client.post(
+            "/login/forget",
+            data='{"username": "forgotten"}',
+            content_type="application/json",
+        )
+        self.assertEqual(sent.status_code, 200)
+
+        reset = self.client.put(
+            "/login/forget",
+            data='{"username": "forgotten", "code": "123456", "password": "new-pass-123"}',
+            content_type="application/json",
+        )
+        self.assertEqual(reset.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("new-pass-123"))
+
+
+@override_settings(
+    PHONE_CODE_DEMO_MODE=True,
+    PHONE_CODE_TTL_SECONDS=300,
+    PHONE_CODE_THROTTLE_SECONDS=60,
+)
+class PhoneAuthenticationTests(TestCase):
+    phone = "13800000000"
+
+    def setUp(self):
+        cache.clear()
+        self.client = Client()
+
+    @patch("user.verification.generate_phone_code", return_value="123456")
+    def test_demo_code_is_throttled_and_returned(self, generate_phone_code):
+        response = self.client.post(
+            "/users/phone-code",
+            data={"phone": "138 0000-0000"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["demo_code"], "123456")
+        self.assertEqual(response.json()["expires_in"], 300)
+        self.assertEqual(cache.get(phone_cache_key(self.phone)), "123456")
+
+        throttled = self.client.post(
+            "/users/phone-code",
+            data={"phone": self.phone},
+            content_type="application/json",
+        )
+        self.assertEqual(throttled.status_code, 429)
+        self.assertEqual(generate_phone_code.call_count, 1)
+
+    @override_settings(PHONE_CODE_DEMO_MODE=False)
+    @patch("user.verification.generate_phone_code", return_value="123456")
+    def test_phone_login_is_disabled_without_demo_or_sms_delivery(
+        self, generate_phone_code
+    ):
+        response = self.client.post(
+            "/users/phone-code",
+            data={"phone": self.phone},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("demo_code", response.json())
+        self.assertEqual(generate_phone_code.call_count, 0)
+
+    def test_invalid_phone_is_rejected(self):
+        response = self.client.post(
+            "/users/phone-code",
+            data={"phone": "23800000000"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_verified_phone_auto_registers_then_logs_into_same_account(self):
+        cache.set(phone_cache_key(self.phone), "123456", 300)
+        first = self.client.post(
+            "/login/phone",
+            data={"phone": self.phone, "code": "123456"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertTrue(first.json()["is_new"])
+        user = User.objects.get(id=first.json()["id"])
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(user.user_info.telephone, self.phone)
+        self.assertIsNone(cache.get(phone_cache_key(self.phone)))
+
+        cache.delete(phone_throttle_cache_key(self.phone))
+        cache.set(phone_cache_key(self.phone), "654321", 300)
+        second = self.client.post(
+            "/login/phone",
+            data={"phone": self.phone, "code": "654321"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(second.status_code, 200)
+        self.assertFalse(second.json()["is_new"])
+        self.assertEqual(second.json()["id"], user.id)
+
+    def test_code_is_one_time_and_wrong_code_is_rejected(self):
+        cache.set(phone_cache_key(self.phone), "123456", 300)
+        wrong = self.client.post(
+            "/login/phone",
+            data={"phone": self.phone, "code": "000000"},
+            content_type="application/json",
+        )
+        self.assertEqual(wrong.status_code, 401)
+
+        accepted = self.client.post(
+            "/login/phone",
+            data={"phone": self.phone, "code": "123456"},
+            content_type="application/json",
+        )
+        self.assertEqual(accepted.status_code, 200)
+
+        replay = self.client.post(
+            "/login/phone",
+            data={"phone": self.phone, "code": "123456"},
+            content_type="application/json",
+        )
+        self.assertEqual(replay.status_code, 401)
+
+    def test_nonempty_phone_identity_is_unique(self):
+        first = User.objects.create_user(username="first")
+        second = User.objects.create_user(username="second")
+        UserInfo.objects.create(user=first, telephone=self.phone)
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            UserInfo.objects.create(user=second, telephone=self.phone)
+
+
+class WechatPasswordlessRegistrationTests(TestCase):
+    @patch("user.view.wechat.OpenId.get_openid", return_value="openid-1")
+    def test_wechat_registration_requires_no_password(self, get_openid):
+        response = self.client.post(
+            "/users/wechat/register",
+            data={"jscode": "one-time-code", "username": "wx_demo_user"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user = User.objects.get(id=response.json()["id"])
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(user.user_info.wechat, "openid-1")
+
+    @patch("user.view.wechat.OpenId.get_openid", return_value="openid-1")
+    def test_wechat_login_matches_openid_exactly(self, get_openid):
+        partial = User.objects.create_user(username="partial")
+        UserInfo.objects.create(user=partial, wechat="prefix-openid-1-suffix")
+
+        missing = self.client.post(
+            "/login/wechat",
+            data={"jscode": "one-time-code"},
+            content_type="application/json",
+        )
+        self.assertEqual(missing.status_code, 404)
+
+        exact = User.objects.create_user(username="exact")
+        UserInfo.objects.create(user=exact, wechat="openid-1")
+        response = self.client.post(
+            "/login/wechat",
+            data={"jscode": "another-code"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], exact.id)
+
+
+@override_settings(APP_ID="mini-app-id", APP_SECRET="canonical-mini-secret")
+class WechatOpenIdTests(TestCase):
+    @patch("user.view.wechat.requests.get")
+    def test_uses_canonical_secret_params_and_timeout(self, request_get):
+        request_get.return_value.json.return_value = {
+            "openid": " openid-from-wechat ",
+            "session_key": "session-key",
+        }
+        self.assertEqual(OpenId("one-time-code").get_openid(), "openid-from-wechat")
+        request_get.assert_called_once_with(
+            "https://api.weixin.qq.com/sns/jscode2session",
+            params={
+                "appid": "mini-app-id",
+                "secret": "canonical-mini-secret",
+                "js_code": "one-time-code",
+                "grant_type": "authorization_code",
+            },
+            timeout=8,
+        )
+
+    @patch("user.view.wechat.requests.get")
+    def test_rejects_wechat_error_and_malformed_json(self, request_get):
+        request_get.return_value.json.return_value = {"errcode": 40029, "errmsg": "bad"}
+        with self.assertRaises(NotFoundException):
+            OpenId("expired-code").get_openid()
+
+        request_get.return_value.json.side_effect = ValueError("not json")
+        with self.assertRaises(NotFoundException):
+            OpenId("malformed-response").get_openid()
 
 
 class BearerTokenTests(TestCase):
@@ -65,3 +414,87 @@ class BearerTokenTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_token_is_invalid_after_account_username_is_replaced(self):
+        token = generate_token(self.user)
+        self.user.username = "replacement-login"
+        self.user.save(update_fields=["username"])
+
+        with self.assertRaises(InvalidTokenException):
+            token_user(token)
+
+
+class UserPrimaryDialectTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="collector", password="pw")
+        UserInfo.objects.create(
+            user=self.user,
+            nickname="采集者",
+            telephone="13800000000",
+        )
+        self.dialect = Dialect.objects.create(name="游洋", code="游洋")
+
+    def test_public_profile_uses_dialect_ref_without_private_fields(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+        response = self.client.get(f"/users/{self.user.id}")
+
+        self.assertEqual(response.status_code, 200)
+        profile = response.json()["user"]
+        self.assertIsNone(profile["primary_dialect"])
+        self.assertNotIn("telephone", profile)
+        self.assertNotIn("email", profile)
+        self.assertNotIn("is_staff", profile)
+
+    def test_owner_profile_exposes_staff_capability(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+
+        response = self.client.get(
+            f"/users/{self.user.id}",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(self.user)}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["user"]["is_staff"])
+        self.assertIsNone(response.json()["user"]["birthday"])
+        self.assertTrue(response.json()["user"]["avatar"])
+
+    def test_owner_cannot_claim_another_accounts_phone(self):
+        other = User.objects.create_user(username="other", password="pw")
+        UserInfo.objects.create(
+            user=other,
+            nickname="其他用户",
+            telephone="13900000000",
+        )
+
+        response = self.client.put(
+            f"/users/{self.user.id}",
+            data='{"user": {"telephone": "139 0000 0000"}}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(self.user)}",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["message"], "手机号已被其他账号使用")
+
+    def test_owner_can_update_primary_dialect_id(self):
+        response = self.client.put(
+            f"/users/{self.user.id}",
+            data=f'{{"user": {{"primary_dialect_id": {self.dialect.id}}}}}',
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(self.user)}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.user_info.refresh_from_db()
+        self.assertEqual(self.user.user_info.primary_dialect_id, self.dialect.id)
+        self.assertTrue(
+            self.user.user_info.followed_dialects.filter(id=self.dialect.id).exists()
+        )
+        self.assertEqual(
+            response.json()["user"]["primary_dialect"]["qualified_code"],
+            "游洋",
+        )
+        self.assertEqual(response.json()["user"]["telephone"], "13800000000")

@@ -7,14 +7,16 @@ class Announcement(models.Model):
 
     author = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="announcements",
+        null=True,
+        blank=True,
         verbose_name="发布者",
     )
     publish_time = models.DateTimeField(auto_now_add=True, verbose_name="发布时间")
     update_time = models.DateTimeField(auto_now=True, verbose_name="最近更新时间")
     title = models.CharField(max_length=100, verbose_name="标题")
-    description = models.TextField(verbose_name="摘要", max_length=300, blank=True)
+    description = models.CharField(verbose_name="摘要", max_length=300, blank=True)
     content = models.TextField(verbose_name="正文")
     cover = models.URLField(verbose_name="图片地址", blank=True)
     visibility = models.BooleanField(default=False, verbose_name="是否发布")

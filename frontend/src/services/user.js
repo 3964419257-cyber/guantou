@@ -1,5 +1,6 @@
 import request from '@/utils/request';
 import rawRequest from '@/utils/rawRequest';
+import { afterLogin } from '@/services/login';
 
 /**
  * US0101 新建用户（普通）
@@ -15,19 +16,19 @@ export async function registerUser(username, password, email, code) {
       switch (err.statusCode) {
         case 401:
           uni.showToast({
-            title: err.data.msg || '验证码错误',
+            title: err.message || '验证码错误',
             icon: 'error',
           });
           break;
         case 409:
           uni.showToast({
-            title: err.data.msg || '用户名已存在',
+            title: err.message || '用户名已存在',
             icon: 'error',
           });
           break;
         default:
           uni.showToast({
-            title: err.data.msg || '注册失败',
+            title: err.message || '注册失败',
             icon: 'error',
           });
       }
@@ -51,24 +52,19 @@ export function registerWechatUser(username, password, nickname) {
           password,
           jscode: res.code,
           nickname,
-        }, { auth: false }).then(async () => {
-          uni.showToast({
-            title: '注册成功',
-          });
-          uni.navigateBack({
-            delta: 1,
-          });
+        }, { auth: false }).then(async (response) => {
+          await afterLogin(response, { isNew: true });
         }).catch((err) => {
           switch (err.statusCode) {
             case 409:
               uni.showToast({
-                title: err.data.msg || '用户名已存在',
+                title: err.message || '用户名已存在',
                 icon: 'error',
               });
               break;
             default:
               uni.showToast({
-                title: err.data.msg || '注册失败',
+                title: err.message || '注册失败',
                 icon: 'error',
               });
           }
@@ -163,10 +159,10 @@ export async function bindingWechat(id, overwrite) {
         }
         try {
           await request.put(`/users/${id}/wechat`, { jscode: res.code, overwrite });
-          resolve({ success: true, msg: '绑定成功' });
+          resolve({ success: true, message: '绑定成功' });
         } catch (err) {
           // 传递错误给调用方，由调用方统一显示提示
-          reject(err instanceof Error ? err : new Error((err && (err.msg || JSON.stringify(err))) || '绑定失败'));
+          reject(err instanceof Error ? err : new Error((err && (err.message || JSON.stringify(err))) || '绑定失败'));
         }
       },
       fail() {
@@ -204,11 +200,15 @@ export function clearUserInfo() {
  * @returns {Promise<unknown>}
  */
 export function getEmailByUsername(username) {
-  return request.get('/login/forget', { username });
+  return rawRequest.get('/login/forget', { username }, { auth: false });
 }
 
-export function resetPassword(username, password, email, code) {
-  return request.put('/login/forget', {
-    username, password, email, code,
-  });
+export function requestPasswordResetCode(username) {
+  return rawRequest.post('/login/forget', { username }, { auth: false });
+}
+
+export function resetPassword(username, password, code) {
+  return rawRequest.put('/login/forget', {
+    username, password, code,
+  }, { auth: false });
 }

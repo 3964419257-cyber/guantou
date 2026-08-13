@@ -12,19 +12,24 @@ from .view.wechat import (
 from .views import *
 from .view.manage import *
 from .view.forget import *
-from .verification import email_code
+from .view.follow import FollowManage, FollowRecommendations
+from .verification import email_code, phone_code
 
 app_name = "users"
 
 urlpatterns = [
     path("app", app),
+    path("phone", phone_login),
     path("email-code", email_code),
+    path("phone-code", phone_code),
     path("forget", csrf_exempt(Forget.as_view())),  # get LG0201 put LG0202
 ]
 
 # 用户信息管理
 urlpatterns += [
+    path("recommendations", csrf_exempt(FollowRecommendations.as_view())),
     path("<int:id>", csrf_exempt(Manage.as_view())),  # get US0201 put US0301
+    path("<int:id>/follow", csrf_exempt(FollowManage.as_view())),
     path("<int:id>/password", csrf_exempt(ManagePassword.as_view())),  # put US0302
     path("<int:id>/password/reset", csrf_exempt(WechatManage.as_view())),  # post US0307
     path(

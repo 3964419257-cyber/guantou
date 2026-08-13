@@ -2,6 +2,8 @@
   <PageShell
     title="义项图鉴"
     :scroll="true"
+    action-text="浏览写法"
+    @action="toPackages"
   >
     <view class="search-row">
       <input
@@ -59,10 +61,13 @@ export default {
       this.flavors = res.results || res;
     },
     flavorMeta(item) {
-      return `${(item.variants || []).length} 个变体 · ${(item.package_links || []).length} 个写法`;
+      return `${(item.pronunciations || []).length} 个读音 · ${(item.package_links || []).length} 个写法`;
     },
     toDetail(id) {
       uni.navigateTo({ url: `/pages/flavors/details?id=${id}` });
+    },
+    toPackages() {
+      uni.navigateTo({ url: '/pages/packages/index' });
     },
   },
 };

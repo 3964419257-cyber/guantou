@@ -9,6 +9,18 @@
       "style": {}
     },
     {
+      "path": "pages/discovery/index",
+      "style": {}
+    },
+    {
+      "path": "pages/circles/index",
+      "style": {}
+    },
+    {
+      "path": "pages/circles/details",
+      "style": {}
+    },
+    {
       "path": "pages/cans/index",
       "style": {}
     },
@@ -21,7 +33,23 @@
       "style": {}
     },
     {
+      "path": "pages/cans/library",
+      "style": {}
+    },
+    {
       "path": "pages/cans/details",
+      "style": {}
+    },
+    {
+      "path": "pages/cans/comments",
+      "style": {}
+    },
+    {
+      "path": "pages/posts/compose",
+      "style": {}
+    },
+    {
+      "path": "pages/posts/details",
       "style": {}
     },
     {
@@ -37,6 +65,14 @@
       "style": {}
     },
     {
+      "path": "pages/packages/index",
+      "style": {}
+    },
+    {
+      "path": "pages/pronunciations/create",
+      "style": {}
+    },
+    {
       "path": "pages/shelves/index",
       "style": {}
     },
@@ -49,6 +85,14 @@
       "style": {
         "component": true
       }
+    },
+    {
+      "path": "pages/users/onboarding",
+      "style": {}
+    },
+    {
+      "path": "pages/users/recommend-follow",
+      "style": {}
     },
     {
       "path": "pages/users/details",

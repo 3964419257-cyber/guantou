@@ -1,4 +1,6 @@
 import demjson3
+from django.contrib.auth.models import User
+from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views import View
@@ -14,8 +16,10 @@ from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.forbidden import ForbiddenException
 from utils.exceptions.types.unauthorized import WrongPassword
 from user.tokens import get_request_user, generate_token
-from user.verification import check_email_code
-from user.models import UserInfo
+from user.models import EmailVerification
+from user.verification import check_email_code, normalize_email
+from user.verification import is_valid_phone, normalize_phone
+from user.models import UserFollow, UserInfo
 
 
 class Manage(View):
@@ -28,8 +32,24 @@ class Manage(View):
             user.userinfo = UserInfo.objects.create(user=user, nickname=user.username)
             user.save()
 
+        request_user = get_request_user(request)
+        is_owner = request_user.id == id
+        profile = user_all(user, private=is_owner)
+        profile.update(
+            {
+                "follower_count": user.follower_relationships.count(),
+                "following_count": user.following_relationships.count(),
+                "is_following": bool(
+                    request_user.is_authenticated
+                    and request_user.id != user.id
+                    and UserFollow.objects.filter(
+                        follower=request_user, followed=user
+                    ).exists()
+                ),
+            }
+        )
         response = {
-            "user": user_all(user),
+            "user": profile,
             "contribution": {
                 "cans": Can.objects.filter(recorder=user, visibility=True).count(),
                 "cans_uploaded": Can.objects.filter(recorder=user).count(),
@@ -44,9 +64,8 @@ class Manage(View):
             },
         }
 
-        request_user = get_request_user(request)
         # 如果是本人额外返回邮件
-        if request_user.id == id:
+        if is_owner:
             sent = Notification.objects.filter(actor_id=id)
             received = Notification.objects.filter(recipient_id=id)
             unread = received.filter(unread=True)
@@ -65,6 +84,7 @@ class Manage(View):
         return JsonResponse(response, status=200)
 
     # US0301 修改用户信息
+    @transaction.atomic
     def put(self, request, id):
         request_user = get_request_user(request)
         if request_user.id != id:
@@ -72,6 +92,7 @@ class Manage(View):
         user = get_user_by_id(id)
         body = demjson3.decode(request.body)
         info = body["user"]
+<<<<<<< HEAD
         user_info_form = UserInfoForm(info)
         if not user_info_form.is_valid:
             raise ValueError
@@ -79,6 +100,40 @@ class Manage(View):
         for key in user_info_form.fields:
             if key in info:
                 setattr(user.user_info, key, info[key])
+=======
+        mutable_info = dict(info)
+        if "primary_dialect_id" in mutable_info:
+            mutable_info["primary_dialect"] = mutable_info.pop("primary_dialect_id")
+        elif isinstance(mutable_info.get("primary_dialect"), dict):
+            mutable_info["primary_dialect"] = mutable_info["primary_dialect"].get("id")
+        if "telephone" in mutable_info:
+            telephone = normalize_phone(mutable_info["telephone"])
+            if telephone and not is_valid_phone(telephone):
+                return JsonResponse({"message": "请输入有效的 11 位手机号"}, status=400)
+            if (
+                telephone
+                and UserInfo.objects.exclude(user_id=id)
+                .filter(telephone=telephone)
+                .exists()
+            ):
+                return JsonResponse({"message": "手机号已被其他账号使用"}, status=409)
+            mutable_info["telephone"] = telephone
+        form_data = {
+            field: (
+                user.user_info.primary_dialect_id
+                if field == "primary_dialect"
+                else getattr(user.user_info, field)
+            )
+            for field in UserInfoForm.Meta.fields
+        }
+        form_data.update(mutable_info)
+        user_info_form = UserInfoForm(form_data, instance=user.user_info)
+        if not user_info_form.is_valid():
+            raise ValueError(user_info_form.errors)
+        user_info_form.save()
+        if user.user_info.primary_dialect_id:
+            user.user_info.followed_dialects.add(user.user_info.primary_dialect_id)
+>>>>>>> main
         # special fields
         if "avatar" in info:
             user.user_info.avatar = upload_avatar(user.id, info["avatar"])
@@ -87,7 +142,7 @@ class Manage(View):
 
         return JsonResponse(
             {
-                "user": user_all(user),
+                "user": user_all(user, private=True),
                 "token": generate_token(user),
             },
             status=200,
@@ -154,7 +209,7 @@ class ManagePassword(View):
         user.save()
         return JsonResponse(
             {
-                "user": user_all(user),
+                "user": user_all(user, private=True),
                 "token": generate_token(user),
             },
             status=200,
@@ -168,11 +223,22 @@ class ManageEmail(View):
         if user.id != id:
             raise ForbiddenException
         body = demjson3.decode(request.body)
-        if not check_email_code(body["email"], body["code"]):
-            raise BadRequestException("验证码错误")
-        user.email = body["email"]
-        user.save()
-        return JsonResponse({"user": user_all(user)}, status=200)
+        email = normalize_email(body["email"])
+        if User.objects.exclude(pk=user.pk).filter(email__iexact=email).exists():
+            return JsonResponse({"msg": "该邮箱已被绑定"}, status=409)
+        try:
+            with transaction.atomic():
+                if not check_email_code(
+                    email,
+                    body["code"],
+                    EmailVerification.Purpose.BIND,
+                ):
+                    raise BadRequestException("验证码错误")
+                user.email = email
+                user.save(update_fields=["email"])
+        except IntegrityError:
+            return JsonResponse({"msg": "该邮箱已被绑定"}, status=409)
+        return JsonResponse({"user": user_all(user, private=True)}, status=200)
 
     # US0306 解绑邮箱
     def delete(self, request, id) -> JsonResponse:
@@ -184,15 +250,15 @@ class ManageEmail(View):
             return JsonResponse({"msg": "未绑定微信，无法解绑邮箱"}, status=403)
         user.email = ""
         user.save()
-        return JsonResponse({"user": user_all(user)}, status=200)
+        return JsonResponse({"user": user_all(user, private=True)}, status=200)
 
 
 class ManagePoints(View):
     # US0204 获取用户积分信息
     def get(self, request, id) -> JsonResponse:
         user = get_user_by_id(id)
-        points_sum = int(user_all(user)["points_sum"])
-        points_now = int(user_all(user)["points_now"])
+        points_sum = int(user_all(user, private=True)["points_sum"])
+        points_now = int(user_all(user, private=True)["points_now"])
         return JsonResponse(
             {
                 "points_sum": points_sum,

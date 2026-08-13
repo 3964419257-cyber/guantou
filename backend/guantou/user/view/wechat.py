@@ -28,7 +28,7 @@ class OpenId:
     def __init__(self, jscode):
         self.url = "https://api.weixin.qq.com/sns/jscode2session"
         self.app_id = settings.APP_ID
-        self.app_secret = settings.APP_SECRECT
+        self.app_secret = settings.APP_SECRET
         self.jscode = jscode
         # Cache the API response to avoid multiple requests with same jscode
         self.response_data = None
@@ -39,16 +39,29 @@ class OpenId:
         Caches the response to avoid redundant API calls
         """
         if self.response_data is None:
-            url = (
-                f"{self.url}?appid={self.app_id}&secret={self.app_secret}&js_code={self.jscode}"
-                f"&grant_type=authorization_code"
-            )
-            res = requests.get(url)
-            data = res.json()
-            if "errcode" in data:
-                raise NotFoundException(
-                    f"微信登录失败: {data.get('errmsg', '未知错误')}"
+            if not self.app_id or self.app_id.startswith("DEFAULT_"):
+                raise NotFoundException("微信小程序尚未配置")
+            if not self.app_secret or self.app_secret.startswith("DEFAULT_"):
+                raise NotFoundException("微信小程序尚未配置")
+            try:
+                res = requests.get(
+                    self.url,
+                    params={
+                        "appid": self.app_id,
+                        "secret": self.app_secret,
+                        "js_code": self.jscode,
+                        "grant_type": "authorization_code",
+                    },
+                    timeout=8,
                 )
+                res.raise_for_status()
+                data = res.json()
+            except (requests.RequestException, ValueError) as exc:
+                raise NotFoundException("微信登录服务暂时不可用") from exc
+            if "errcode" in data:
+                raise NotFoundException("微信登录凭证无效或已过期")
+            if not str(data.get("openid", "")).strip():
+                raise NotFoundException("微信登录响应缺少用户标识")
             self.response_data = data
 
     def get_openid(self) -> str:
@@ -67,7 +80,7 @@ class WechatLogin(View):
         body = demjson3.decode(request.body)
         jscode = body["jscode"]
         openid = OpenId(jscode).get_openid()
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if not user_info.exists():
             raise NotFoundException("当前微信未绑定账号")
         user = user_info[0].user
@@ -84,7 +97,7 @@ class WechatRegister(View):
         jscode = body["jscode"]
         #   获取微信信息
         openid = OpenId(jscode).get_openid()
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if user_info.exists():  # 微信号有记录了
             return JsonResponse({"msg": "该微信已绑定账户"}, status=409)
         if not user_form.is_valid():
@@ -100,8 +113,7 @@ class WechatRegister(View):
                 )
         else:
             user = user_form.save(commit=False)
-            validate_password_policy(user_form.cleaned_data["password"])
-            user.set_password(user_form.cleaned_data["password"])
+            user.set_unusable_password()
             # Set empty email for WeChat-only registration
             if not user.email:
                 user.email = ""
@@ -163,7 +175,7 @@ class WechatManage(View):
         jscode = body["jscode"]
         openid = OpenId(jscode).get_openid()
         #   基于jscode获取的用户
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if user_info[0].user != user:
             raise ForbiddenException
         validate_password_policy(body["newpassword"])
@@ -171,7 +183,7 @@ class WechatManage(View):
         user.save()
         return JsonResponse(
             {
-                "user": user_all(user),
+                "user": user_all(user, private=True),
                 "token": generate_token(user),
             },
             status=200,
@@ -183,30 +195,34 @@ class WechatWebAuth:
 
     def __init__(self, code):
         self.code = code
-        self.app_id = (
-            settings.WEB_APP_ID if hasattr(settings, "WEB_APP_ID") else settings.APP_ID
-        )
-        self.app_secret = (
-            settings.WEB_APP_SECRET
-            if hasattr(settings, "WEB_APP_SECRET")
-            else settings.APP_SECRECT
-        )
+        self.app_id = settings.WEB_APP_ID
+        self.app_secret = settings.WEB_APP_SECRET
         self.response_data = None
 
     def _fetch_access_token(self):
         """Fetch access token from WeChat Web OAuth API"""
         if self.response_data is None:
-            url = (
-                f"https://api.weixin.qq.com/sns/oauth2/access_token"
-                f"?appid={self.app_id}&secret={self.app_secret}"
-                f"&code={self.code}&grant_type=authorization_code"
-            )
-            res = requests.get(url)
-            data = res.json()
-            if "errcode" in data:
-                raise NotFoundException(
-                    f"微信网页授权失败: {data.get('errmsg', '未知错误')}"
+            if not self.app_id or not self.app_secret:
+                raise NotFoundException("微信网页授权尚未配置")
+            try:
+                res = requests.get(
+                    "https://api.weixin.qq.com/sns/oauth2/access_token",
+                    params={
+                        "appid": self.app_id,
+                        "secret": self.app_secret,
+                        "code": self.code,
+                        "grant_type": "authorization_code",
+                    },
+                    timeout=8,
                 )
+                res.raise_for_status()
+                data = res.json()
+            except (requests.RequestException, ValueError) as exc:
+                raise NotFoundException("微信网页授权服务暂时不可用") from exc
+            if "errcode" in data:
+                raise NotFoundException("微信网页授权失败或已过期")
+            if not data.get("openid") or not data.get("access_token"):
+                raise NotFoundException("微信网页授权响应不完整")
             self.response_data = data
 
     def get_openid(self) -> str:
@@ -219,13 +235,22 @@ class WechatWebAuth:
         self._fetch_access_token()
         access_token = self.response_data["access_token"]
         openid = self.response_data["openid"]
-        url = f"https://api.weixin.qq.com/sns/userinfo?access_token={access_token}&openid={openid}&lang=zh_CN"
-        res = requests.get(url)
-        user_info = res.json()
-        if "errcode" in user_info:
-            raise NotFoundException(
-                f"获取微信用户信息失败: {user_info.get('errmsg', '未知错误')}"
+        try:
+            res = requests.get(
+                "https://api.weixin.qq.com/sns/userinfo",
+                params={
+                    "access_token": access_token,
+                    "openid": openid,
+                    "lang": "zh_CN",
+                },
+                timeout=8,
             )
+            res.raise_for_status()
+            user_info = res.json()
+        except (requests.RequestException, ValueError) as exc:
+            raise NotFoundException("微信用户信息服务暂时不可用") from exc
+        if "errcode" in user_info:
+            raise NotFoundException("获取微信用户信息失败")
         return user_info
 
 
@@ -237,7 +262,7 @@ class WechatWebLogin(View):
         code = body["code"]
         wechat_auth = WechatWebAuth(code)
         openid = wechat_auth.get_openid()
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if not user_info.exists():
             raise NotFoundException("当前微信未绑定账号")
         user = user_info[0].user
@@ -265,7 +290,7 @@ class WechatWebRegister(View):
         openid = wechat_auth.get_openid()
 
         # Check if WeChat already bound
-        user_info = UserInfo.objects.filter(wechat__contains=openid)
+        user_info = UserInfo.objects.filter(wechat=openid)
         if user_info.exists():
             return JsonResponse({"msg": "该微信已绑定账户"}, status=409)
 
@@ -292,8 +317,7 @@ class WechatWebRegister(View):
 
         # Create user
         user = user_form.save(commit=False)
-        validate_password_policy(user_form.cleaned_data["password"])
-        user.set_password(user_form.cleaned_data["password"])
+        user.set_unusable_password()
         if not user.email:
             user.email = ""
 

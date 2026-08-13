@@ -11,11 +11,15 @@ class UserInfoForm(forms.ModelForm):
             "birthday",
             "telephone",
             "avatar",
+<<<<<<< HEAD
             "county",
             "town",
             "primary_dialect",
             "dialects",
             "region",
+=======
+            "primary_dialect",
+>>>>>>> main
         )
 
 
@@ -25,13 +29,10 @@ class UserForm(forms.ModelForm):
         fields = ("username", "password", "email")
 
     def clean_email(self):
-        cd = self.cleaned_data
-        if str(cd["email"]).find("@") == -1:
-            raise forms.ValidationError("Invalid Email")
-        return cd["email"]
+        return str(self.cleaned_data["email"]).strip().lower()
 
 
 class UserFormByWechat(forms.ModelForm):
     class Meta:
         model = User
-        fields = ("username", "password")
+        fields = ("username",)
