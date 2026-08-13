@@ -13,8 +13,10 @@ vi.mock('@/utils/request', () => ({
 import { listCans } from '@/services/guantou';
 import {
   ensureDialectOnboarding,
+  exampleWordForDialect,
   loadDialectSample,
   needsDialectOnboarding,
+  redirectIfNeedsDialectOnboarding,
   saveDialectProfile,
 } from '@/services/dialectOnboarding';
 import request from '@/utils/request';
@@ -24,26 +26,42 @@ describe('dialect onboarding service', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    app = { globalData: { userInfo: {}, id: null } };
+    app = { globalData: { userInfo: { primary_dialect: null }, id: null } };
     globalThis.getApp = vi.fn(() => app);
     globalThis.getCurrentPages = vi.fn(() => [{ route: 'pages/index' }]);
     globalThis.uni = {
       reLaunch: vi.fn(),
       redirectTo: vi.fn(),
       setStorageSync: vi.fn(),
+      getStorageSync: vi.fn((key) => (key === 'token' ? 'token' : '')),
     };
   });
 
-  it('uses primary_dialect as the single source of truth', () => {
+  it('uses isNew and primary_dialect as the shared gate', () => {
     expect(needsDialectOnboarding(null)).toBe(false);
     expect(needsDialectOnboarding({ primary_dialect: null })).toBe(true);
     expect(needsDialectOnboarding({ primary_dialect: { id: 3 } })).toBe(false);
+    expect(needsDialectOnboarding({ primary_dialect: { id: 3 } }, true)).toBe(true);
   });
 
-  it('routes a signed-in incomplete profile to the missing-dialect flow', () => {
-    expect(ensureDialectOnboarding({ primary_dialect: null }, 'missing_dialect')).toBe(true);
+  it('forces incomplete profiles away from the home route', () => {
+    expect(ensureDialectOnboarding({ primary_dialect: null }, 'forced')).toBe(true);
     expect(uni.reLaunch).toHaveBeenCalledWith({
-      url: '/pages/users/onboarding?reason=missing_dialect',
+      url: '/pages/users/onboarding?reason=forced',
+    });
+  });
+
+  it('redirects authenticated incomplete users trying to open home', () => {
+    expect(redirectIfNeedsDialectOnboarding()).toBe(true);
+    expect(uni.reLaunch).toHaveBeenCalledWith({
+      url: '/pages/users/onboarding?reason=forced',
+    });
+  });
+
+  it('maps example words for known dialect names', () => {
+    expect(exampleWordForDialect({ name: '四川话' })).toMatchObject({
+      word: '巴适',
+      meaning: '舒服、好、妥帖',
     });
   });
 
@@ -59,7 +77,7 @@ describe('dialect onboarding service', () => {
     });
   });
 
-  it('persists nickname and primary dialect through the existing profile API', async () => {
+  it('persists nickname, primary dialect and secondary dialects once', async () => {
     request.put.mockResolvedValue({
       token: 'new-token',
       user: { id: 7, nickname: '川娃', primary_dialect: { id: 4 } },
@@ -68,10 +86,15 @@ describe('dialect onboarding service', () => {
     const user = await saveDialectProfile(7, {
       nickname: ' 川娃 ',
       primaryDialectId: 4,
+      dialectIds: [4, 9],
     });
 
     expect(request.put).toHaveBeenCalledWith('/users/7', {
-      user: { nickname: '川娃', primary_dialect_id: 4 },
+      user: {
+        nickname: '川娃',
+        primary_dialect_id: 4,
+        followed_dialect_ids: [4, 9],
+      },
     });
     expect(uni.setStorageSync).toHaveBeenCalledWith('token', 'new-token');
     expect(app.globalData.userInfo).toEqual(user);

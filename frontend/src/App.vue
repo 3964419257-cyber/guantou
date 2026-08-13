@@ -44,9 +44,16 @@ export default {
     if (loggedIn) {
       ensureDialectOnboarding(
         this.globalData.userInfo,
-        ONBOARDING_REASONS.MISSING_DIALECT,
+        ONBOARDING_REASONS.FORCED,
       );
     }
+  },
+  onShow() {
+    if (!uni.getStorageSync('token')) return;
+    ensureDialectOnboarding(
+      this.globalData.userInfo,
+      ONBOARDING_REASONS.FORCED,
+    );
   },
   globalData: {
     userInfo: {

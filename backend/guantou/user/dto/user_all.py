@@ -71,6 +71,11 @@ def user_all(user: User, *, private=False) -> dict:
                 "followed_dialects": [
                     dialect_ref(dialect) for dialect in info.followed_dialects.all()
                 ],
+                "onboarding_done_at": (
+                    int(localtime(info.onboarding_done_at).timestamp() * 1000)
+                    if info.onboarding_done_at
+                    else None
+                ),
                 "login_time": (
                     localtime(user.last_login).__format__("%Y-%m-%d %H:%M:%S")
                     if user.last_login

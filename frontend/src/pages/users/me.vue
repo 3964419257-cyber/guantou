@@ -171,6 +171,7 @@ import { toMailsPage } from '@/routers/mail';
 import { listCanDrafts } from '@/services/canDrafts';
 import { requireAuth } from '@/services/authGuard';
 import { openLoginFromMine } from '@/services/authJourney';
+import { redirectIfNeedsDialectOnboarding } from '@/services/dialectOnboarding';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { applyTheme, getThemePreference } from '@/services/theme';
 
@@ -228,6 +229,7 @@ export default {
     },
     toCreate() {
       if (!requireAuth('tab_publish', { page: 'mine_publish' })) return;
+      if (redirectIfNeedsDialectOnboarding()) return;
       uni.navigateTo({ url: '/pages/cans/create' });
     },
     toDrafts() {

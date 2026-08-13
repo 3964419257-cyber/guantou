@@ -108,6 +108,7 @@ import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import SocialCanFeeds from '@/components/SocialCanFeeds.vue';
 import { requireAuth } from '@/services/authGuard';
+import { redirectIfNeedsDialectOnboarding } from '@/services/dialectOnboarding';
 import { listCans } from '@/services/guantou';
 import { APP_NAME, SHARE_TITLE } from '@/const/branding';
 import { toUserPage } from '@/routers/user';
@@ -133,9 +134,16 @@ export default {
       return !uni.getStorageSync('token');
     },
     heroSubtitle() {
-      return this.isGuest
-        ? '先查一个词，再听听它在不同地方怎么说'
-        : '把每一段乡音装进可校验的资料库';
+      if (this.isGuest) {
+        return '先查一个词，再听听它在不同地方怎么说';
+      }
+      if (this.primaryDialect) {
+        const dialectName = this.primaryDialect.name
+          || this.primaryDialect.qualified_code
+          || '乡音';
+        return `同方言 · ${dialectName}`;
+      }
+      return '把每一段乡音装进可校验的资料库';
     },
     canSectionTitle() {
       return this.isGuest ? '公开乡音' : '待贴铭牌';
@@ -210,6 +218,7 @@ export default {
     },
     toCreate() {
       if (!requireAuth('tab_publish', { page: 'home_publish' })) return;
+      if (redirectIfNeedsDialectOnboarding()) return;
       uni.navigateTo({ url: '/pages/cans/create' });
     },
     toCans() {

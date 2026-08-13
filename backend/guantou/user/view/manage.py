@@ -2,6 +2,7 @@ import demjson3
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views import View
 
 from guantou.models import Can, Flavor, Nameplate
@@ -108,6 +109,7 @@ class Manage(View):
             ):
                 return JsonResponse({"message": "手机号已被其他账号使用"}, status=409)
             mutable_info["telephone"] = telephone
+        followed_dialect_ids = mutable_info.pop("followed_dialect_ids", None)
         form_data = {
             field: (
                 user.user_info.primary_dialect_id
@@ -121,8 +123,21 @@ class Manage(View):
         if not user_info_form.is_valid():
             raise ValueError(user_info_form.errors)
         user_info_form.save()
-        if user.user_info.primary_dialect_id:
+        if followed_dialect_ids is not None:
+            if not isinstance(followed_dialect_ids, list):
+                raise ValueError("followed_dialect_ids must be a list")
+            dialect_ids = []
+            for item in followed_dialect_ids:
+                dialect_ids.append(int(item))
+            if user.user_info.primary_dialect_id:
+                dialect_ids.insert(0, user.user_info.primary_dialect_id)
+            # Preserve order while ensuring uniqueness.
+            dialect_ids = list(dict.fromkeys(dialect_ids))
+            user.user_info.followed_dialects.set(dialect_ids)
+        elif user.user_info.primary_dialect_id:
             user.user_info.followed_dialects.add(user.user_info.primary_dialect_id)
+        if user.user_info.primary_dialect_id and not user.user_info.onboarding_done_at:
+            user.user_info.onboarding_done_at = timezone.now()
         # special fields
         if "avatar" in info:
             user.user_info.avatar = upload_avatar(user.id, info["avatar"])

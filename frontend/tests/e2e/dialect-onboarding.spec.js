@@ -32,6 +32,7 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
             username: 'collector',
             nickname: '采集者',
             primary_dialect: dialect,
+            onboarding_done_at: Date.now(),
           },
         },
       });
@@ -77,32 +78,24 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
       },
     });
   });
-  await page.route('**/users/recommendations**', async (route) => {
-    await route.fulfill({
-      json: {
-        results: [],
-      },
-    });
-  });
 
   await page.goto('/pages/users/onboarding?reason=new_user');
-  await expect(page.getByText('欢迎加入乡声集盒')).toBeVisible();
+  await expect(page.getByText('欢迎加入乡音罐头')).toBeVisible();
+  await expect(page.getByText('1/3')).toBeVisible();
   await page.locator('.nickname-input input, input.nickname-input').fill('采集者');
-  await page.getByText('下一步 · 选主方言').click();
+  await page.getByRole('button', { name: '下一步' }).click();
   await page.getByText('四川话', { exact: true }).click();
-  await expect(page.getByText('巴适')).toBeVisible();
+  await expect(page.getByText('例词「巴适」')).toBeVisible();
   if (process.env.E2E_SCREENSHOT_DIR) {
     await page.screenshot({
       path: `${process.env.E2E_SCREENSHOT_DIR}/dialect-onboarding.png`,
       fullPage: true,
     });
   }
-  await page.getByText('完成设置').click();
+  await page.getByRole('button', { name: '下一步' }).click();
+  await expect(page.getByText('3/3')).toBeVisible();
+  await page.getByRole('button', { name: '跳过并完成' }).click();
 
-  await expect(page).toHaveURL(/\/pages\/users\/recommend-follow$/);
-  await expect(page.getByText('暂时没有可推荐的同方言作者')).toBeVisible();
-  await page.getByText('暂时跳过').click();
-
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator('.brand')).toHaveText('乡声集盒');
+  await expect(page).toHaveURL(/\/(pages\/index)?$/);
+  await expect(page.getByText('同方言 · 四川话')).toBeVisible();
 });

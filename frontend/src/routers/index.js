@@ -1,7 +1,10 @@
+import { redirectIfNeedsDialectOnboarding } from '@/services/dialectOnboarding';
+
 /**
  * 跳转至首页
  */
 export function toIndexPage(closeAll = false) {
+  if (redirectIfNeedsDialectOnboarding()) return;
   if (closeAll) {
     uni.reLaunch({
       url: '/pages/index',
@@ -17,6 +20,7 @@ export function toIndexPage(closeAll = false) {
  * 前往搜索页面
  */
 export function toSearchPage(closeAll = false) {
+  if (redirectIfNeedsDialectOnboarding()) return;
   if (closeAll) {
     uni.reLaunch({
       url: '/pages/search',

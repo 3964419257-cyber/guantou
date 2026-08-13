@@ -23,10 +23,13 @@ vi.mock('@/services/canDrafts', () => ({
 }));
 
 vi.mock('@/services/dialectOnboarding', () => ({
-  needsDialectOnboarding: vi.fn((user) => !user.primary_dialect),
+  needsDialectOnboarding: vi.fn((user, isNew = false) => (
+    Boolean(user) && (Boolean(isNew) || !user.primary_dialect)
+  )),
   ONBOARDING_REASONS: {
     MISSING_DIALECT: 'missing_dialect',
     NEW_USER: 'new_user',
+    FORCED: 'forced',
   },
   toDialectOnboarding: vi.fn(),
 }));
@@ -60,6 +63,18 @@ describe('post-login dialect branch', () => {
   it('sends a new user without a primary dialect to welcome onboarding', async () => {
     rawRequest.get.mockResolvedValue({
       user: { id: 7, primary_dialect: null },
+      contribution: {},
+    });
+
+    await afterLogin({ id: 7, token: 'token' }, { isNew: true });
+
+    expect(toDialectOnboarding).toHaveBeenCalledWith('new_user', true);
+    expect(toIndexPage).not.toHaveBeenCalled();
+  });
+
+  it('still forces onboarding for isNew even if primary_dialect is present', async () => {
+    rawRequest.get.mockResolvedValue({
+      user: { id: 7, primary_dialect: { id: 3 } },
       contribution: {},
     });
 

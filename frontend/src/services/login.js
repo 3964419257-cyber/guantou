@@ -101,7 +101,7 @@ export async function afterLogin(res, options = {}) {
     await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }
   const user = await loadUserInfo();
-  if (needsDialectOnboarding(user)) {
+  if (needsDialectOnboarding(user, Boolean(options.isNew))) {
     // Keep intercept intent across dialect onboarding (W1-E4 / 4.B.4).
     const reason = options.isNew
       ? ONBOARDING_REASONS.NEW_USER

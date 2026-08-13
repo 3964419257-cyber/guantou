@@ -529,8 +529,29 @@ class UserPrimaryDialectTests(TestCase):
         self.assertTrue(
             self.user.user_info.followed_dialects.filter(id=self.dialect.id).exists()
         )
+        self.assertIsNotNone(self.user.user_info.onboarding_done_at)
         self.assertEqual(
             response.json()["user"]["primary_dialect"]["qualified_code"],
             "游洋",
         )
         self.assertEqual(response.json()["user"]["telephone"], "13800000000")
+        self.assertIsNotNone(response.json()["user"]["onboarding_done_at"])
+
+    def test_owner_can_set_followed_dialects_during_onboarding(self):
+        secondary = Dialect.objects.create(name="粤语", code="粤")
+        response = self.client.put(
+            f"/users/{self.user.id}",
+            data=(
+                f'{{"user": {{"primary_dialect_id": {self.dialect.id},'
+                f' "followed_dialect_ids": [{secondary.id}]}}}}'
+            ),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {generate_token(self.user)}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.user_info.refresh_from_db()
+        self.assertEqual(
+            set(self.user.user_info.followed_dialects.values_list("id", flat=True)),
+            {self.dialect.id, secondary.id},
+        )

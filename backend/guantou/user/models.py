@@ -38,6 +38,11 @@ class UserInfo(models.Model):
         blank=True,
         verbose_name="关注的方言点",
     )
+    onboarding_done_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="方言身份引导完成时间",
+    )
     legacy_location = models.JSONField(
         default=dict,
         blank=True,

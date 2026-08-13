@@ -5,7 +5,13 @@
   >
     <view class="intro">
       <view class="step-mark">
-        {{ step }}/2
+        {{ step }}/3
+      </view>
+      <view
+        v-if="forcedHint"
+        class="forced-banner"
+      >
+        请先选择主方言
       </view>
       <view class="intro-title">
         {{ stepTitle }}
@@ -36,19 +42,19 @@
       </view>
       <button
         class="primary-button"
-        @tap="next"
+        @tap="nextFromNickname"
       >
-        下一步 · 选主方言
+        下一步
       </button>
     </view>
 
-    <view v-else>
+    <view v-else-if="step === 2">
       <view class="dialect-card">
         <view class="field-label">
           主方言（必选）
         </view>
         <view class="field-hint">
-          列表来自真实方言树；选择最接近你日常乡音的节点。
+          选项来自词典方言树；先选最贴近你日常乡音的一项。
         </view>
         <view
           v-if="loadingDialects"
@@ -56,61 +62,49 @@
         >
           正在加载方言树…
         </view>
-        <template v-else>
+        <view
+          v-else
+          class="chip-row"
+        >
           <view
-            v-for="dialect in dialects"
+            v-for="dialect in primaryDialectChoices"
             :key="dialect.id"
-            :class="['dialect-option', selectedDialectId === dialect.id ? 'selected' : '']"
-            :style="dialectIndent(dialect)"
-            @tap="selectDialect(dialect)"
+            :class="['chip', selectedDialectId === dialect.id ? 'selected' : '']"
+            @tap="selectPrimaryDialect(dialect)"
           >
-            <view class="dialect-radio">
-              {{ selectedDialectId === dialect.id ? '●' : '○' }}
-            </view>
-            <view>
-              <view class="dialect-name">
-                {{ dialect.name }}
-              </view>
-              <view class="dialect-code">
-                {{ dialect.qualified_code }}
-              </view>
-            </view>
+            {{ dialect.name }}
           </view>
-        </template>
+        </view>
       </view>
 
       <view
-        v-if="selectedDialectId"
+        v-if="selectedDialectId && exampleWord"
         class="sample-card"
       >
         <view class="sample-kicker">
-          真实乡音样本
+          例词卡
         </view>
-        <view
-          v-if="loadingSample"
-          class="loading-copy"
+        <view class="sample-title">
+          例词「{{ exampleWord.word }}」：{{ exampleWord.meaning }}
+        </view>
+        <view class="sample-meta">
+          {{ selectedDialectLabel }}
+          <text v-if="sampleDuration">
+            · {{ sampleDuration }}
+          </text>
+        </view>
+        <button
+          class="sample-button"
+          :disabled="!sample?.audio_url"
+          @tap="playSample"
         >
-          正在寻找公开录音…
-        </view>
-        <template v-else-if="sample">
-          <view class="sample-title">
-            {{ sampleTitle }}
-          </view>
-          <view class="sample-meta">
-            {{ selectedDialectLabel }} · {{ sampleDuration }}
-          </view>
-          <button
-            class="sample-button"
-            @tap="playSample"
-          >
-            ▶ 试听这段乡音
-          </button>
-        </template>
+          ▶ 试听例词
+        </button>
         <view
-          v-else
+          v-if="!loadingSample && !sample?.audio_url"
           class="sample-empty"
         >
-          这个方言点暂时没有公开录音，仍然可以选为主方言。
+          词典暂无该方言公开录音，仍可继续选择。
         </view>
       </view>
 
@@ -123,17 +117,66 @@
       <view class="button-row">
         <button
           class="secondary-button"
-          :disabled="saving"
           @tap="step = 1"
         >
           上一步
         </button>
         <button
           class="primary-button finish-button"
-          :disabled="saving"
-          @tap="finish"
+          @tap="nextFromPrimary"
         >
-          {{ saving ? '正在保存…' : '完成设置' }}
+          下一步
+        </button>
+      </view>
+    </view>
+
+    <view v-else>
+      <view class="dialect-card">
+        <view class="field-label">
+          还会哪些方言（可多选，可跳过）
+        </view>
+        <view class="field-hint">
+          主方言会自动保留；这里可再勾选你会说的其他方言。
+        </view>
+        <view class="chip-row">
+          <view
+            v-for="dialect in secondaryDialectChoices"
+            :key="dialect.id"
+            :class="['chip', secondarySelectedIds.includes(dialect.id) ? 'selected' : '']"
+            @tap="toggleSecondaryDialect(dialect)"
+          >
+            {{ dialect.name }}
+          </view>
+        </view>
+      </view>
+
+      <view
+        v-if="error"
+        class="error"
+      >
+        {{ error }}
+      </view>
+      <view class="button-row triple">
+        <button
+          class="secondary-button"
+          :disabled="saving"
+          @tap="step = 2"
+        >
+          上一步
+        </button>
+        <button
+          class="secondary-button"
+          :disabled="saving"
+          @tap="finish(true)"
+        >
+          跳过并完成
+        </button>
+        <button
+          class="primary-button finish-button"
+          :disabled="saving"
+          @tap="finish(false)"
+        >
+          {{ saving ? '正在保存…' : '完成' }}
         </button>
       </view>
     </view>
@@ -149,12 +192,13 @@
 
 <script>
 import PageShell from '@/components/PageShell.vue';
-import { toFollowRecommendations } from '@/routers/user';
+import { toIndexPage } from '@/routers';
 import {
+  completeOnboarding,
+  exampleWordForDialect,
   loadDialectSample,
   normalizeOnboardingReason,
   ONBOARDING_REASONS,
-  saveDialectProfile,
 } from '@/services/dialectOnboarding';
 import { listAllDialects } from '@/services/guantou';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
@@ -165,16 +209,19 @@ export default {
   components: { PageShell },
   data() {
     const user = getApp().globalData.userInfo || {};
+    const fallbackNickname = user.nickname || user.username || '';
     return {
+      defaultNickname: fallbackNickname,
       dialects: [],
       error: '',
       loadingDialects: true,
       loadingSample: false,
-      nickname: user.nickname || user.username || '',
+      nickname: fallbackNickname,
       reason: ONBOARDING_REASONS.MISSING_DIALECT,
       sample: null,
       sampleRequestId: 0,
       saving: false,
+      secondarySelectedIds: [],
       selectedDialectId: user.primary_dialect?.id || null,
       step: 1,
       userId: user.id || uni.getStorageSync('id'),
@@ -184,20 +231,29 @@ export default {
     isNewUser() {
       return this.reason === ONBOARDING_REASONS.NEW_USER;
     },
+    forcedHint() {
+      return this.reason === ONBOARDING_REASONS.FORCED;
+    },
     pageTitle() {
-      return this.isNewUser ? '欢迎加入乡声集盒' : '补选主方言';
+      if (this.isNewUser) return '欢迎加入乡音罐头';
+      if (this.forcedHint) return '完善方言身份';
+      return '完善方言身份';
     },
     stepTitle() {
-      if (this.step === 1) return this.isNewUser ? '先认识一下' : '确认你的昵称';
-      return '哪一种是你的乡音？';
+      if (this.step === 1) return '先取个昵称';
+      if (this.step === 2) return '选择你的主方言';
+      return '还会哪些方言？';
     },
     stepCopy() {
-      if (this.step === 1) {
-        return this.isNewUser
-          ? '昵称和主方言会组成你的基础方言身份。'
-          : '你的账号还没有主方言，补全后才能继续贡献。';
-      }
-      return '主方言用于默认标注和后续个性化，不会限制你浏览其他方言。';
+      if (this.step === 1) return '先取个昵称，一步步选好你的乡音';
+      if (this.step === 2) return '主方言是同方言流的基础，必选一项后可试听例词。';
+      return '可多选，也可直接跳过；完成后会写入你的方言身份。';
+    },
+    primaryDialectChoices() {
+      return this.dialects;
+    },
+    secondaryDialectChoices() {
+      return this.dialects.filter((dialect) => dialect.id !== this.selectedDialectId);
     },
     selectedDialect() {
       return this.dialects.find((dialect) => dialect.id === this.selectedDialectId) || null;
@@ -205,14 +261,12 @@ export default {
     selectedDialectLabel() {
       return this.selectedDialect?.qualified_code || this.selectedDialect?.name || '';
     },
-    sampleTitle() {
-      return this.sample?.primary_nameplate?.display_text
-        || this.sample?.concept_text
-        || '未命名乡音';
+    exampleWord() {
+      return exampleWordForDialect(this.selectedDialect);
     },
     sampleDuration() {
       const milliseconds = Number(this.sample?.duration_ms || 0);
-      return milliseconds ? `${Math.max(1, Math.round(milliseconds / 1000))} 秒` : '时长未知';
+      return milliseconds ? `${Math.max(1, Math.round(milliseconds / 1000))} 秒` : '';
     },
   },
   async onLoad(options = {}) {
@@ -229,27 +283,39 @@ export default {
     }
   },
   onBackPress() {
-    uni.showToast({ title: '请先完成主方言设置，或退出账号', icon: 'none' });
+    uni.showToast({ title: '请先选择主方言，或退出账号', icon: 'none' });
     return true;
   },
   methods: {
-    dialectIndent(dialect) {
-      return { paddingLeft: `${24 + Number(dialect.depth || 0) * 22}rpx` };
-    },
-    next() {
-      const nickname = String(this.nickname || '').trim();
-      if (!nickname) {
-        this.error = '请输入昵称';
-        return;
-      }
-      this.nickname = nickname;
+    nextFromNickname() {
+      this.nickname = String(this.nickname || '').trim() || this.defaultNickname;
       this.error = '';
       this.step = 2;
     },
-    async selectDialect(dialect) {
+    async selectPrimaryDialect(dialect) {
       this.selectedDialectId = dialect.id;
+      this.secondarySelectedIds = this.secondarySelectedIds.filter(
+        (id) => id !== dialect.id,
+      );
       this.error = '';
       await this.loadSample(dialect.id);
+    },
+    nextFromPrimary() {
+      if (!this.selectedDialectId) {
+        this.error = '请选择主方言';
+        return;
+      }
+      this.error = '';
+      this.step = 3;
+    },
+    toggleSecondaryDialect(dialect) {
+      if (this.secondarySelectedIds.includes(dialect.id)) {
+        this.secondarySelectedIds = this.secondarySelectedIds.filter(
+          (id) => id !== dialect.id,
+        );
+        return;
+      }
+      this.secondarySelectedIds = [...this.secondarySelectedIds, dialect.id];
     },
     async loadSample(dialectId) {
       const requestId = this.sampleRequestId + 1;
@@ -265,23 +331,32 @@ export default {
       }
     },
     playSample() {
-      playAudio(this.sample?.audio_url);
+      if (!this.sample?.audio_url) {
+        uni.showToast({ title: '暂无例词录音', icon: 'none' });
+        return;
+      }
+      playAudio(this.sample.audio_url);
     },
-    async finish() {
+    async finish(skipSecondary) {
       if (!this.selectedDialectId) {
         this.error = '请选择主方言';
+        this.step = 2;
         return;
       }
       this.error = '';
       this.saving = true;
       try {
-        await saveDialectProfile(this.userId, {
-          nickname: this.nickname,
+        const dialectIds = skipSecondary
+          ? [this.selectedDialectId]
+          : [this.selectedDialectId, ...this.secondarySelectedIds];
+        await completeOnboarding(this.userId, {
+          nickname: this.nickname || this.defaultNickname,
           primaryDialectId: this.selectedDialectId,
+          dialectIds,
         });
         uni.showToast({ title: '方言身份已设置', icon: 'success' });
         if (!(await resumeInterruptedPageAfterLogin(this.userId))) {
-          toFollowRecommendations(true);
+          toIndexPage(true);
         }
       } finally {
         this.saving = false;
@@ -306,6 +381,18 @@ export default {
   font-size: 22rpx;
   font-weight: 800;
   letter-spacing: 4rpx;
+}
+
+.forced-banner {
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  border: 1px solid #e2c9b0;
+  border-left: 8rpx solid #7b4f2f;
+  border-radius: 12rpx;
+  background: #fff7ee;
+  color: #7b4f2f;
+  font-size: 26rpx;
+  font-weight: 700;
 }
 
 .intro-title {
@@ -348,6 +435,29 @@ export default {
   font-size: 30rpx;
 }
 
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  margin-top: 20rpx;
+}
+
+.chip {
+  padding: 14rpx 22rpx;
+  border: 1px solid #d5ddd2;
+  border-radius: 999rpx;
+  background: #f7f8f4;
+  color: #33463b;
+  font-size: 26rpx;
+}
+
+.chip.selected {
+  border-color: #1f5c43;
+  background: #edf5eb;
+  color: #1f5c43;
+  font-weight: 700;
+}
+
 .primary-button,
 .secondary-button,
 .sample-button,
@@ -377,42 +487,6 @@ export default {
   line-height: 1.5;
 }
 
-.dialect-option {
-  min-height: 86rpx;
-  margin-top: 12rpx;
-  padding-top: 14rpx;
-  padding-right: 18rpx;
-  padding-bottom: 14rpx;
-  border: 1px solid #e3e8df;
-  border-radius: 12rpx;
-  background: #fafbf8;
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  box-sizing: border-box;
-}
-
-.dialect-option.selected {
-  border-color: #1f5c43;
-  background: #edf5eb;
-}
-
-.dialect-radio {
-  color: #1f5c43;
-  font-size: 28rpx;
-}
-
-.dialect-name {
-  font-size: 28rpx;
-  font-weight: 700;
-}
-
-.dialect-code {
-  margin-top: 4rpx;
-  color: #748078;
-  font-size: 22rpx;
-}
-
 .sample-card {
   margin-top: 20rpx;
   border-color: #eadbc9;
@@ -422,8 +496,9 @@ export default {
 .sample-title {
   margin-top: 14rpx;
   color: #32261c;
-  font-size: 34rpx;
+  font-size: 32rpx;
   font-weight: 800;
+  line-height: 1.4;
 }
 
 .sample-meta {
@@ -450,6 +525,10 @@ export default {
   grid-template-columns: 1fr 2fr;
   gap: 16rpx;
   margin-top: 24rpx;
+}
+
+.button-row.triple {
+  grid-template-columns: 1fr 1.2fr 1.2fr;
 }
 
 .secondary-button,
