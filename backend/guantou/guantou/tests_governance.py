@@ -64,10 +64,21 @@ class UserContentDeletionPolicyTests(TestCase):
             notification_normal(notification)["from"]["nickname"], "已注销用户"
         )
 
+        from .serializers import CanCardSerializer
+
+        card = CanCardSerializer(can).data
+        self.assertIsNone(card["recorder"])
+        self.assertTrue(CanCardSerializer().fields["recorder"].allow_null)
+
         self.client.force_authenticate(None)
         public = self.client.get(f"/cans/{can.id}/")
         self.assertEqual(public.status_code, 200)
         self.assertIsNone(public.data["recorder"])
+        listing = self.client.get("/cans/")
+        self.assertEqual(listing.status_code, 200)
+        listed = [item for item in listing.data["results"] if item["id"] == can.id]
+        self.assertEqual(len(listed), 1)
+        self.assertIsNone(listed[0]["recorder"])
 
         self.client.force_authenticate(self.viewer)
         self.assertEqual(

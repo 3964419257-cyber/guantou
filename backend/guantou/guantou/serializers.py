@@ -546,7 +546,7 @@ class NameplateSerializer(NameplateCardSerializer):
         allow_null=True,
     )
     source = NameplateSourceSerializer()
-    creator = UserLiteSerializer(read_only=True)
+    creator = UserLiteSerializer(read_only=True, allow_null=True)
     supported_by_current_user = serializers.SerializerMethodField()
 
     class Meta(NameplateCardSerializer.Meta):
@@ -750,9 +750,9 @@ class InitialNameplateSerializer(serializers.Serializer):
 
 
 class CanCardSerializer(serializers.ModelSerializer):
-    recorder = UserLiteSerializer(read_only=True)
-    submitted_dialect = DialectRefSerializer(read_only=True)
-    primary_nameplate = NameplateRefSerializer(read_only=True)
+    recorder = UserLiteSerializer(read_only=True, allow_null=True)
+    submitted_dialect = DialectRefSerializer(read_only=True, allow_null=True)
+    primary_nameplate = NameplateRefSerializer(read_only=True, allow_null=True)
     nameplate_count = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
