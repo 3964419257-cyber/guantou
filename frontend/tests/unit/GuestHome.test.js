@@ -57,7 +57,7 @@ describe('guest-first home', () => {
     const wrapper = mountHome('token-value');
 
     expect(wrapper.text()).not.toContain('不登录也能查、能听');
-    expect(wrapper.text()).toContain('主方言 · 西南官话.四川');
+    expect(wrapper.text()).toContain('同方言 · 四川话');
     expect(wrapper.text()).toContain('同方言 关注 推荐');
     expect(wrapper.text()).toContain('集盒');
     expect(wrapper.text()).toContain('图鉴');
