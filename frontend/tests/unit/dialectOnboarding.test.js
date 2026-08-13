@@ -39,23 +39,30 @@ describe('dialect onboarding service', () => {
 
   it('uses isNew and primary_dialect as the shared gate', () => {
     expect(needsDialectOnboarding(null)).toBe(false);
-    expect(needsDialectOnboarding({ primary_dialect: null })).toBe(true);
-    expect(needsDialectOnboarding({ primary_dialect: { id: 3 } })).toBe(false);
-    expect(needsDialectOnboarding({ primary_dialect: { id: 3 } }, true)).toBe(true);
+    expect(needsDialectOnboarding({ primary_dialect: null })).toBe(false);
+    expect(needsDialectOnboarding({ id: 7, primary_dialect: null })).toBe(true);
+    expect(needsDialectOnboarding({ id: 7, primary_dialect: { id: 3 } })).toBe(false);
+    expect(needsDialectOnboarding({ id: 7, primary_dialect: { id: 3 } }, true)).toBe(true);
   });
 
   it('forces incomplete profiles away from the home route', () => {
-    expect(ensureDialectOnboarding({ primary_dialect: null }, 'forced')).toBe(true);
+    expect(ensureDialectOnboarding({ id: 7, primary_dialect: null }, 'forced')).toBe(true);
     expect(uni.reLaunch).toHaveBeenCalledWith({
       url: '/pages/users/onboarding?reason=forced',
     });
   });
 
   it('redirects authenticated incomplete users trying to open home', () => {
+    app.globalData.userInfo = { id: 7, primary_dialect: null };
     expect(redirectIfNeedsDialectOnboarding()).toBe(true);
     expect(uni.reLaunch).toHaveBeenCalledWith({
       url: '/pages/users/onboarding?reason=forced',
     });
+  });
+
+  it('does not flash onboarding for empty cold-start userInfo', () => {
+    expect(ensureDialectOnboarding({ avatar: '', nickname: '' }, 'forced')).toBe(false);
+    expect(uni.reLaunch).not.toHaveBeenCalled();
   });
 
   it('maps example words for known dialect names', () => {

@@ -19,7 +19,7 @@
             v-if="primaryDialect"
             class="dialect-badge"
           >
-            {{ locationText }}
+            {{ dialectBadgeText }}
           </view>
           <view
             v-else
@@ -123,6 +123,11 @@
         </view>
       </view>
       <ThemeSwitcher />
+      <DemoAuthBoard
+        :logged-in="loggedIn"
+        :user="boardUser"
+        @reset="getInfo"
+      />
     </template>
 
     <view
@@ -151,6 +156,10 @@
         先去查词
       </button>
       <ThemeSwitcher />
+      <DemoAuthBoard
+        :logged-in="false"
+        :user="null"
+      />
     </view>
   </view>
 </template>
@@ -172,13 +181,14 @@ import { listCanDrafts } from '@/services/canDrafts';
 import { requireAuth } from '@/services/authGuard';
 import { openLoginFromMine } from '@/services/authJourney';
 import { redirectIfNeedsDialectOnboarding } from '@/services/dialectOnboarding';
+import DemoAuthBoard from '@/components/DemoAuthBoard.vue';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { applyTheme, getThemePreference } from '@/services/theme';
 
 const app = getApp();
 
 export default {
-  components: { ThemeSwitcher },
+  components: { DemoAuthBoard, ThemeSwitcher },
   data() {
     return {
       id: '',
@@ -197,8 +207,19 @@ export default {
     };
   },
   computed: {
-    locationText() {
-      return this.primaryDialect?.qualified_code || '未填写方言点';
+    dialectBadgeText() {
+      const dialectName = this.primaryDialect?.name
+        || this.primaryDialect?.qualified_code;
+      if (!dialectName) return '';
+      return `${this.nickname || '…'} · ${dialectName}`;
+    },
+    boardUser() {
+      if (!this.loggedIn || !this.id) return null;
+      return {
+        id: this.id,
+        nickname: this.nickname,
+        primary_dialect: this.primaryDialect,
+      };
     },
   },
   beforeMount() {

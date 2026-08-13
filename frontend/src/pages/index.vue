@@ -21,7 +21,7 @@
         v-if="primaryDialect"
         class="identity-note"
       >
-        主方言 · {{ primaryDialect.qualified_code || primaryDialect.name }}
+        同方言 · {{ primaryDialect.name || primaryDialect.qualified_code }}
       </view>
     </view>
 

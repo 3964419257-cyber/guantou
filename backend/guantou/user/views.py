@@ -1,10 +1,12 @@
 import demjson3
 import secrets
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+from user.demo_users import seed_demo_phone_users
 from user.dto.user_all import user_all
 from user.passwords import validate_password_policy
 from user.tokens import generate_token, get_authorization_token, token_check
@@ -173,6 +175,17 @@ def phone_login(request):
         },
         status=200,
     )
+
+
+@csrf_exempt
+def demo_seed(request):
+    if request.method != "POST":
+        return JsonResponse({"message": "Method Not Allowed"}, status=405)
+    if not settings.PHONE_CODE_DEMO_MODE:
+        return JsonResponse({"message": "演示种子接口未开启"}, status=403)
+    body = demjson3.decode(request.body or b"{}") or {}
+    result = seed_demo_phone_users(reset=bool(body.get("reset")))
+    return JsonResponse(result, status=200)
 
 
 @csrf_exempt

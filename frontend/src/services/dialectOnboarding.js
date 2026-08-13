@@ -25,7 +25,8 @@ const ALLOWED_WHILE_ONBOARDING = [
 ];
 
 export function needsDialectOnboarding(user, isNewFlag = false) {
-  if (!user) return false;
+  // Require a loaded user id so cold-start empty globalData does not flash onboarding.
+  if (!user || !user.id) return false;
   if (isNewFlag) return true;
   return !user.primary_dialect;
 }

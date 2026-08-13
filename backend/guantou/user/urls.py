@@ -22,6 +22,7 @@ urlpatterns = [
     path("phone", phone_login),
     path("email-code", email_code),
     path("phone-code", phone_code),
+    path("demo-seed", demo_seed),
     path("forget", csrf_exempt(Forget.as_view())),  # get LG0201 put LG0202
 ]
 

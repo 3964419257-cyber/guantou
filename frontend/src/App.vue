@@ -5,6 +5,7 @@ import {
   ensureDialectOnboarding,
   ONBOARDING_REASONS,
 } from '@/services/dialectOnboarding';
+import { seedDemoUsers } from '@/services/demoUsers';
 import { toIndexPage } from '@/routers/index';
 import { applyTheme } from '@/services/theme';
 import pagesJson from '@/pages.json';
@@ -40,6 +41,11 @@ export default {
         }
       },
     });
+    try {
+      await seedDemoUsers();
+    } catch (error) {
+      // Demo seed is best-effort; phone login still works if accounts already exist.
+    }
     const loggedIn = await getLoginStatus();
     if (loggedIn) {
       ensureDialectOnboarding(

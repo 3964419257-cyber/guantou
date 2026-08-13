@@ -236,16 +236,22 @@ export default {
     },
     pageTitle() {
       if (this.isNewUser) return '欢迎加入乡音罐头';
-      if (this.forcedHint) return '完善方言身份';
-      return '完善方言身份';
+      // missing_dialect / forced / incomplete: 老用户补选文案（W1-E6）
+      return '补选主方言';
     },
     stepTitle() {
-      if (this.step === 1) return '先取个昵称';
+      if (this.step === 1) {
+        return this.isNewUser ? '先取个昵称' : '确认你的昵称';
+      }
       if (this.step === 2) return '选择你的主方言';
       return '还会哪些方言？';
     },
     stepCopy() {
-      if (this.step === 1) return '先取个昵称，一步步选好你的乡音';
+      if (this.step === 1) {
+        return this.isNewUser
+          ? '先取个昵称，一步步选好你的乡音'
+          : '还没有主方言，补选后才能进入同方言首页';
+      }
       if (this.step === 2) return '主方言是同方言流的基础，必选一项后可试听例词。';
       return '可多选，也可直接跳过；完成后会写入你的方言身份。';
     },

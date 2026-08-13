@@ -126,4 +126,21 @@ describe('dialect onboarding page', () => {
     expect(resumeInterruptedPageAfterLogin).toHaveBeenCalledWith(7);
     expect(toIndexPage).toHaveBeenCalledWith(true);
   });
+
+  it('uses 补选文案 for missing_dialect old users', async () => {
+    const wrapper = mountPage();
+    await wrapper.vm.$options.onLoad.call(wrapper.vm, { reason: 'missing_dialect' });
+    await flushPromises();
+    expect(wrapper.vm.pageTitle).toBe('补选主方言');
+    expect(wrapper.vm.stepCopy).toBe('还没有主方言，补选后才能进入同方言首页');
+    expect(wrapper.text()).toContain('还没有主方言，补选后才能进入同方言首页');
+  });
+
+  it('uses 补选文案 for forced incomplete cold start', async () => {
+    const wrapper = mountPage();
+    await wrapper.vm.$options.onLoad.call(wrapper.vm, { reason: 'forced' });
+    await flushPromises();
+    expect(wrapper.vm.pageTitle).toBe('补选主方言');
+    expect(wrapper.vm.forcedHint).toBe(true);
+  });
 });

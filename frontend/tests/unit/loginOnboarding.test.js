@@ -95,4 +95,16 @@ describe('post-login dialect branch', () => {
     expect(toDialectOnboarding).not.toHaveBeenCalled();
     expect(toIndexPage).toHaveBeenCalledWith(true);
   });
+
+  it('sends an old user without primary dialect to补选 onboarding', async () => {
+    rawRequest.get.mockResolvedValue({
+      user: { id: 8, primary_dialect: null },
+      contribution: {},
+    });
+
+    await afterLogin({ id: 8, token: 'token' }, { isNew: false });
+
+    expect(toDialectOnboarding).toHaveBeenCalledWith('missing_dialect', true);
+    expect(toIndexPage).not.toHaveBeenCalled();
+  });
 });

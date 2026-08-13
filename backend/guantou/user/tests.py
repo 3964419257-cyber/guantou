@@ -351,6 +351,38 @@ class PhoneAuthenticationTests(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             UserInfo.objects.create(user=second, telephone=self.phone)
 
+    def test_demo_seed_creates_w1_e6_accounts(self):
+        response = self.client.post(
+            "/users/demo-seed",
+            data={"reset": True},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["created"] + body["updated"], 2)
+
+        with_dialect = UserInfo.objects.select_related(
+            "user", "primary_dialect"
+        ).get(telephone="13900000001")
+        without = UserInfo.objects.select_related("user", "primary_dialect").get(
+            telephone="13900000002"
+        )
+        self.assertEqual(with_dialect.nickname, "老用户川话")
+        self.assertEqual(with_dialect.primary_dialect.name, "四川话")
+        self.assertEqual(with_dialect.user.username, "u_old_with_dialect")
+        self.assertEqual(without.nickname, "老用户无方言")
+        self.assertIsNone(without.primary_dialect_id)
+        self.assertEqual(without.user.username, "u_old_no_dialect")
+
+    @override_settings(PHONE_CODE_DEMO_MODE=False)
+    def test_demo_seed_disabled_outside_demo_mode(self):
+        response = self.client.post(
+            "/users/demo-seed",
+            data={},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+
 
 class WechatPasswordlessRegistrationTests(TestCase):
     @patch("user.view.wechat.OpenId.get_openid", return_value="openid-1")
