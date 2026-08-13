@@ -66,4 +66,29 @@ describe('authGuard', () => {
     expect(authGuard.peekInterceptIntent()).toBeNull();
     expect(uni.removeStorageSync).toHaveBeenCalledWith('auth_intercept_intent');
   });
+
+  it('clears intent after clearInterceptIntent', () => {
+    authGuard.saveInterceptIntent({ action: 'use_same', context: { canId: 1 } });
+    authGuard.clearInterceptIntent();
+    expect(authGuard.peekInterceptIntent()).toBeNull();
+  });
+
+  it('maps product labels for protected feed actions', () => {
+    expect(authGuard.actionLabel('use_same')).toBe('用同款');
+    expect(authGuard.actionLabel('record_can')).toBe('录一罐');
+    expect(authGuard.actionLabel('tab_publish')).toBe('发布');
+    expect(authGuard.actionLabel('follow')).toBe('关注');
+    expect(authGuard.actionLabel('like')).toBe('点赞');
+  });
+
+  it('distinguishes like and use_same intents for resume', () => {
+    authGuard.requireAuth('like', { page: 'can_feed', canId: 3 });
+    expect(authGuard.peekInterceptIntent().action).toBe('like');
+
+    authGuard.requireAuth('use_same', { page: 'can_feed', canId: 3, postId: 3 });
+    expect(authGuard.peekInterceptIntent()).toMatchObject({
+      action: 'use_same',
+      context: { page: 'can_feed', canId: 3, postId: 3 },
+    });
+  });
 });
