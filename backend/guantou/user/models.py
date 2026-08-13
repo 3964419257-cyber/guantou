@@ -24,6 +24,16 @@ class UserInfo(models.Model):
     )
     county = models.CharField(blank=True, max_length=100, verbose_name="县区")
     town = models.CharField(blank=True, max_length=100, verbose_name="乡镇")
+    primary_dialect = models.CharField(
+        blank=True, max_length=80, verbose_name="主方言"
+    )
+    dialects = models.JSONField(default=list, blank=True, verbose_name="方言列表")
+    region = models.CharField(
+        blank=True, max_length=120, verbose_name="家乡/常住地"
+    )
+    onboarding_done_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="方言身份引导完成时间"
+    )
     points_sum = models.IntegerField(default=0, verbose_name="总积分")
     points_now = models.IntegerField(default=0, verbose_name="当前积分")
 

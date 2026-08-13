@@ -55,6 +55,10 @@ export default {
       type: Boolean,
       default: true,
     },
+    autoBack: {
+      type: Boolean,
+      default: true,
+    },
     actionText: {
       type: String,
       default: '',
@@ -72,7 +76,9 @@ export default {
   methods: {
     handleBack() {
       this.$emit('back');
-      uni.navigateBack();
+      if (this.autoBack) {
+        uni.navigateBack();
+      }
     },
   },
 };

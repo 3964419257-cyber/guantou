@@ -79,6 +79,9 @@ class DialectViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(parent__isnull=True)
             else:
                 queryset = queryset.filter(parent_id=parent)
+        region_level = self.request.query_params.get("region_level")
+        if region_level:
+            queryset = queryset.filter(region_level=region_level)
         return queryset
 
 

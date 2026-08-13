@@ -1,5 +1,6 @@
 import demjson3
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views import View
 
 from guantou.models import Can, Flavor, Nameplate
@@ -74,14 +75,61 @@ class Manage(View):
         user_info_form = UserInfoForm(info)
         if not user_info_form.is_valid:
             raise ValueError
-        # update fields
+        # update fields present in the payload (partial update safe)
         for key in user_info_form.fields:
-            setattr(user.user_info, key, body["user"][key])
+            if key in info:
+                setattr(user.user_info, key, info[key])
         # special fields
         if "avatar" in info:
             user.user_info.avatar = upload_avatar(user.id, info["avatar"])
         user.user_info.save()
         user.save()
+
+        return JsonResponse(
+            {
+                "user": user_all(user),
+                "token": generate_token(user),
+            },
+            status=200,
+        )
+
+
+class ManageOnboarding(View):
+    """完成首次方言身份引导：写入主方言 / 次方言 / 家乡。"""
+
+    def put(self, request, id):
+        request_user = get_request_user(request)
+        if request_user.id != id:
+            raise ForbiddenException
+        user = get_user_by_id(id)
+        if not hasattr(user, "user_info"):
+            UserInfo.objects.create(user=user, nickname=user.username)
+
+        body = demjson3.decode(request.body)
+        primary = (body.get("primary_dialect") or "").strip()
+        if not primary:
+            raise BadRequestException("请选择主方言")
+
+        dialects = body.get("dialects")
+        if dialects is None:
+            dialects = [primary]
+        if not isinstance(dialects, list):
+            raise BadRequestException("dialects 必须是数组")
+        dialects = [str(item).strip() for item in dialects if str(item).strip()]
+        if primary not in dialects:
+            dialects = [primary, *dialects]
+
+        region = (body.get("region") or "").strip()
+        nickname = (body.get("nickname") or "").strip()
+
+        info = user.user_info
+        info.primary_dialect = primary
+        info.dialects = dialects
+        info.region = region
+        info.onboarding_done_at = timezone.now()
+        if nickname:
+            info.nickname = nickname
+        info.save()
 
         return JsonResponse(
             {

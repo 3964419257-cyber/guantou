@@ -13,6 +13,9 @@ class UserInfoForm(forms.ModelForm):
             "avatar",
             "county",
             "town",
+            "primary_dialect",
+            "dialects",
+            "region",
         )
 
 

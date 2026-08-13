@@ -18,8 +18,11 @@
         mode="aspectFill"
       />
       <view>
-        <view class="name">
-          {{ userInfo.user.nickname || userInfo.user.username }}
+        <view class="name-row">
+          <text class="name">
+            {{ userInfo.user.nickname || userInfo.user.username }}
+          </text>
+          <DialectBadge :dialect="userInfo.user.primary_dialect" />
         </view>
         <view class="meta">
           {{ locationText }}
@@ -59,8 +62,10 @@
 import { getUserInfo } from '@/services/user';
 import { APP_NAME } from '@/const/branding';
 import { defaultMessage } from '@/services/shareMessages';
+import DialectBadge from '@/components/DialectBadge.vue';
 
 export default {
+  components: { DialectBadge },
   data() {
     return {
       id: 0,
@@ -71,6 +76,8 @@ export default {
           username: '',
           county: '',
           town: '',
+          region: '',
+          primary_dialect: '',
         },
         contribution: {
           cans_uploaded: 0,
@@ -82,6 +89,7 @@ export default {
   },
   computed: {
     locationText() {
+      if (this.userInfo.user.region) return this.userInfo.user.region;
       return [this.userInfo.user.county, this.userInfo.user.town]
         .filter(Boolean)
         .join(' / ') || '未填写方言点';
@@ -147,6 +155,12 @@ export default {
   height: 128rpx;
   border-radius: 64rpx;
   background: #dfe5da;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .name {

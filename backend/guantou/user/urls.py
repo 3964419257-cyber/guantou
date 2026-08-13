@@ -31,6 +31,9 @@ urlpatterns += [
         "<int:id>/email", csrf_exempt(ManageEmail.as_view())
     ),  # put US0303 delete US0306
     path("<int:id>/points", csrf_exempt(ManagePoints.as_view())),
+    path(
+        "<int:id>/onboarding", csrf_exempt(ManageOnboarding.as_view())
+    ),  # put 完成方言身份引导
 ]
 
 # 微信相关操作 - 小程序

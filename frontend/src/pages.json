@@ -107,6 +107,14 @@
       "style": {}
     },
     {
+      "path": "pages/onboarding/dialect",
+      "style": {}
+    },
+    {
+      "path": "pages/onboarding/recommend",
+      "style": {}
+    },
+    {
       "path": "pages/error/not-found",
       "style": {}
     }

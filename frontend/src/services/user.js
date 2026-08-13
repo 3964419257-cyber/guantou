@@ -100,13 +100,29 @@ export async function changeUserInfo(id, userInfo) {
   return new Promise((resolve) => {
     request.put(`/users/${id}`, { user: userInfo }).then((res) => {
       uni.setStorageSync('token', res.token);
-      getApp().globalData.userInfo = userInfo;
+      getApp().globalData.userInfo = res.user || userInfo;
       uni.showToast({
         title: '修改成功',
       });
       resolve(res);
     });
   });
+}
+
+/**
+ * 完成首次方言身份引导
+ * @param {number|string} id
+ * @param {{ primary_dialect: string, dialects?: string[], region?: string, nickname?: string }} payload
+ */
+export async function completeOnboarding(id, payload) {
+  const res = await request.put(`/users/${id}/onboarding`, payload);
+  if (res.token) {
+    uni.setStorageSync('token', res.token);
+  }
+  if (res.user) {
+    getApp().globalData.userInfo = res.user;
+  }
+  return res;
 }
 
 /**

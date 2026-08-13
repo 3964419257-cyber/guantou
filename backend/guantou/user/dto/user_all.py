@@ -33,6 +33,14 @@ def user_all(user: User) -> dict:
         "avatar": info.avatar,
         "county": info.county,
         "town": info.town,
+        "primary_dialect": info.primary_dialect,
+        "dialects": info.dialects or [],
+        "region": info.region,
+        "onboarding_done_at": (
+            int(localtime(info.onboarding_done_at).timestamp() * 1000)
+            if info.onboarding_done_at
+            else None
+        ),
         "is_admin": user.is_superuser,
         "wechat": True if len(info.wechat) else False,
         "points_sum": info.points_sum,

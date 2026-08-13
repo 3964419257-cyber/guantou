@@ -8,8 +8,11 @@
         @tap="toUserInfoPage"
       />
       <view>
-        <view class="name">
-          {{ nickname || '未登录' }}
+        <view class="name-row">
+          <text class="name">
+            {{ nickname || '未登录' }}
+          </text>
+          <DialectBadge :dialect="primaryDialect" />
         </view>
         <view class="meta">
           {{ locationText }}
@@ -117,10 +120,12 @@ import {
 } from '@/routers/user';
 import { toMailsPage } from '@/routers/mail';
 import { listCanDrafts } from '@/services/canDrafts';
+import DialectBadge from '@/components/DialectBadge.vue';
 
 const app = getApp();
 
 export default {
+  components: { DialectBadge },
   data() {
     return {
       id: '',
@@ -128,6 +133,8 @@ export default {
       nickname: '',
       county: '',
       town: '',
+      region: '',
+      primaryDialect: '',
       cansCount: 0,
       flavorsCount: 0,
       nameplatesCount: 0,
@@ -139,6 +146,7 @@ export default {
   },
   computed: {
     locationText() {
+      if (this.region) return this.region;
       return [this.county, this.town].filter(Boolean).join(' / ') || '未填写方言点';
     },
   },
@@ -172,6 +180,8 @@ export default {
       this.nickname = userInfo.user.nickname || userInfo.user.username;
       this.county = userInfo.user.county;
       this.town = userInfo.user.town;
+      this.region = userInfo.user.region || '';
+      this.primaryDialect = userInfo.user.primary_dialect || '';
       this.cansCount = userInfo.contribution.cans_uploaded || 0;
       this.flavorsCount = userInfo.contribution.flavors_uploaded || 0;
       this.nameplatesCount = userInfo.contribution.nameplates || 0;
@@ -241,6 +251,12 @@ export default {
   height: 128rpx;
   border-radius: 64rpx;
   background: #dfe5da;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .name {

@@ -9,6 +9,7 @@ import {
   claimAnonymousCanDrafts,
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
+import { needsDialectOnboarding, toDialectOnboardingPage } from '@/routers/onboarding';
 import rawRequest from '../utils/rawRequest';
 
 export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
@@ -70,6 +71,12 @@ export async function afterLogin(res) {
     await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }
   await loadUserInfo();
+  const userInfo = getApp().globalData.userInfo;
+  // 无主方言：先完善身份；回流意图保留到引导完成后再 resume
+  if (needsDialectOnboarding(userInfo)) {
+    toDialectOnboardingPage(true);
+    return;
+  }
   if (resumeInterruptedPageAfterLogin(res.id)) return;
   // #ifdef H5
   toIndexPage(true);
