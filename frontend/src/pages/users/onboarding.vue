@@ -280,7 +280,9 @@ export default {
           primaryDialectId: this.selectedDialectId,
         });
         uni.showToast({ title: '方言身份已设置', icon: 'success' });
-        if (!resumeInterruptedPageAfterLogin(this.userId)) toFollowRecommendations(true);
+        if (!(await resumeInterruptedPageAfterLogin(this.userId))) {
+          toFollowRecommendations(true);
+        }
       } finally {
         this.saving = false;
       }

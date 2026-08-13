@@ -9,12 +9,29 @@ vi.mock('@/services/authGuard', () => ({
   saveInterceptIntent: vi.fn(),
 }));
 
+vi.mock('@/services/canSocial', () => ({
+  likeCan: vi.fn(),
+}));
+
+vi.mock('@/services/following', () => ({
+  followUser: vi.fn(),
+}));
+
+vi.mock('@/services/feedback', () => ({
+  notify: vi.fn(),
+  notifySuccess: vi.fn(),
+}));
+
 import { toLoginPage } from '@/routers/login';
 import { clearInterceptIntent, saveInterceptIntent } from '@/services/authGuard';
+import { likeCan } from '@/services/canSocial';
+import { notify, notifySuccess } from '@/services/feedback';
+import { followUser } from '@/services/following';
 import {
   cancelLoginToSearch,
   openLoginFromMine,
   resolveAuthDestination,
+  tryResumeAction,
 } from '@/services/authJourney';
 
 describe('auth journey', () => {
@@ -45,10 +62,21 @@ describe('auth journey', () => {
     expect(resolveAuthDestination({
       action: 'nameplate_create',
       context: {},
-    })).toEqual({ kind: 'fallback' });
+    })).toEqual({ kind: 'fallback', toast: '无法回到原内容' });
   });
 
-  it('returns a follow intent to the user without performing the follow', () => {
+  it('returns publish tab intents to the can publisher', () => {
+    expect(resolveAuthDestination({
+      action: 'tab_publish',
+      context: { page: 'home_publish' },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/cans/create',
+      url: '/pages/cans/create',
+    });
+  });
+
+  it('returns a follow intent to the author page with auto-follow resume', () => {
     expect(resolveAuthDestination({
       action: 'follow',
       context: { page: 'user_detail', userId: 12 },
@@ -56,10 +84,21 @@ describe('auth journey', () => {
       kind: 'url',
       route: 'pages/users/details',
       url: '/pages/users/details?id=12',
+      resumeAction: 'follow',
     });
   });
 
-  it.each(['like', 'comment'])('returns a %s intent to the can detail', (action) => {
+  it('falls back when follow context is missing a user id', () => {
+    expect(resolveAuthDestination({
+      action: 'follow',
+      context: { page: 'can_feed' },
+    })).toEqual({
+      kind: 'fallback',
+      toast: '无法回到该用户',
+    });
+  });
+
+  it.each(['like', 'tab_like'])('returns a %s intent to the can detail with like resume', (action) => {
     expect(resolveAuthDestination({
       action,
       context: { page: 'can_detail', canId: 19 },
@@ -67,6 +106,7 @@ describe('auth journey', () => {
       kind: 'url',
       route: 'pages/cans/details',
       url: '/pages/cans/details?id=19',
+      resumeAction: 'like',
     });
   });
 
@@ -78,6 +118,7 @@ describe('auth journey', () => {
       kind: 'url',
       route: 'pages/posts/compose',
       url: '/pages/posts/compose?can_id=23',
+      resumeAction: 'use_same',
     });
   });
 
@@ -98,5 +139,29 @@ describe('auth journey', () => {
       route: 'pages/cans/create',
       url: '/pages/cans/create?dialect=8',
     });
+  });
+
+  it('auto-resumes follow and like after login', async () => {
+    followUser.mockResolvedValue({});
+    likeCan.mockResolvedValue({ liked: true });
+
+    await tryResumeAction(
+      { resumeAction: 'follow' },
+      { context: { userId: 12 } },
+    );
+    await tryResumeAction(
+      { resumeAction: 'like' },
+      { context: { canId: 19 } },
+    );
+    await tryResumeAction(
+      { resumeAction: 'use_same' },
+      { context: { canId: 23 } },
+    );
+
+    expect(followUser).toHaveBeenCalledWith(12);
+    expect(likeCan).toHaveBeenCalledWith(19);
+    expect(notifySuccess).toHaveBeenCalledWith('已关注');
+    expect(notifySuccess).toHaveBeenCalledWith('已点赞');
+    expect(notify).toHaveBeenCalledWith({ title: '已带入同款罐头' });
   });
 });

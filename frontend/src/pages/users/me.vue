@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view
     class="page"
     :class="`theme-${resolvedTheme}`"
@@ -169,6 +169,7 @@ import {
 } from '@/routers/user';
 import { toMailsPage } from '@/routers/mail';
 import { listCanDrafts } from '@/services/canDrafts';
+import { requireAuth } from '@/services/authGuard';
 import { openLoginFromMine } from '@/services/authJourney';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { applyTheme, getThemePreference } from '@/services/theme';
@@ -226,6 +227,7 @@ export default {
       uni.navigateTo({ url: '/pages/search' });
     },
     toCreate() {
+      if (!requireAuth('tab_publish', { page: 'mine_publish' })) return;
       uni.navigateTo({ url: '/pages/cans/create' });
     },
     toDrafts() {

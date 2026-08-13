@@ -107,6 +107,7 @@ import CanList from '@/components/CanList.vue';
 import PageShell from '@/components/PageShell.vue';
 import SectionBlock from '@/components/SectionBlock.vue';
 import SocialCanFeeds from '@/components/SocialCanFeeds.vue';
+import { requireAuth } from '@/services/authGuard';
 import { listCans } from '@/services/guantou';
 import { APP_NAME, SHARE_TITLE } from '@/const/branding';
 import { toUserPage } from '@/routers/user';
@@ -208,6 +209,7 @@ export default {
       uni.navigateTo({ url: '/pages/search' });
     },
     toCreate() {
+      if (!requireAuth('tab_publish', { page: 'home_publish' })) return;
       uni.navigateTo({ url: '/pages/cans/create' });
     },
     toCans() {

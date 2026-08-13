@@ -24,6 +24,13 @@
       <text class="author-name">
         {{ can.recorder.nickname || can.recorder.username }}
       </text>
+      <button
+        class="follow-chip"
+        :disabled="followBusy"
+        @tap.stop="followAuthor"
+      >
+        关注
+      </button>
       <text class="author-action">
         查看作者 ›
       </text>
@@ -98,6 +105,8 @@ import { playAudio } from '@/utils/audio';
 import { requireAuth } from '@/services/authGuard';
 import { likeCan, unlikeCan } from '@/services/canSocial';
 import { startUseSame } from '@/services/canPostJourney';
+import { notify, notifySuccess } from '@/services/feedback';
+import { followUser } from '@/services/following';
 import { shareCanOnWeb } from '@/utils/shareCan';
 
 const statusLabels = {
@@ -129,6 +138,7 @@ export default {
   data() {
     return {
       likeBusy: false,
+      followBusy: false,
       liked: Boolean(this.can.liked_by_me),
       likeCount: Number(this.can.like_count || 0),
     };
@@ -181,6 +191,20 @@ export default {
     useSame() {
       this.$emit('reuse', this.can.id);
       startUseSame(this.can.id, { page: 'can_feed' });
+    },
+    async followAuthor() {
+      const userId = this.can.recorder && this.can.recorder.id;
+      if (!userId || this.followBusy) return;
+      if (!requireAuth('follow', { page: 'can_feed', userId })) return;
+      this.followBusy = true;
+      try {
+        await followUser(userId);
+        notifySuccess('已关注');
+      } catch (error) {
+        notify({ title: (error && error.message) || '关注失败' });
+      } finally {
+        this.followBusy = false;
+      }
     },
   },
 };
@@ -243,6 +267,23 @@ export default {
   min-width: 0;
   flex: 1;
   font-weight: 700;
+}
+
+.follow-chip {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 16rpx;
+  height: 44rpx;
+  line-height: 44rpx;
+  border: 1px solid #c9d7c8;
+  border-radius: 999rpx;
+  background: #f3f7f1;
+  color: #1f5c43;
+  font-size: 22rpx;
+}
+
+.follow-chip::after {
+  border: 0;
 }
 
 .author-action {

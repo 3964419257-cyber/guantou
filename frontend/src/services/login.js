@@ -8,6 +8,7 @@ import {
 import {
   AUTH_DESTINATION_KINDS,
   resolveAuthDestination,
+  tryResumeAction,
 } from '@/services/authJourney';
 import {
   needsDialectOnboarding,
@@ -18,9 +19,12 @@ import {
   claimAnonymousCanDrafts,
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
+import { notify } from '@/services/feedback';
 import rawRequest from '../utils/rawRequest';
 
-export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
+export async function resumeInterruptedPageAfterLogin(
+  loggedInUserId = uni.getStorageSync('id'),
+) {
   const pages = getCurrentPages();
   const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
   const previousRoute = previousPage ? previousPage.route : '';
@@ -40,7 +44,7 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
     const intendedOwner = destination.ownerScope;
     if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
       clearInterceptIntent();
-      uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
+      notify({ title: '该草稿属于其他账号' });
       toMePage(true);
       return true;
     }
@@ -57,9 +61,13 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
     } else {
       uni.redirectTo({ url: destination.url });
     }
+    await tryResumeAction(destination, interruptedIntent);
     return true;
   }
 
+  if (destination.toast) {
+    notify({ title: destination.toast });
+  }
   toIndexPage(true);
   return true;
 }
@@ -94,13 +102,14 @@ export async function afterLogin(res, options = {}) {
   }
   const user = await loadUserInfo();
   if (needsDialectOnboarding(user)) {
+    // Keep intercept intent across dialect onboarding (W1-E4 / 4.B.4).
     const reason = options.isNew
       ? ONBOARDING_REASONS.NEW_USER
       : ONBOARDING_REASONS.MISSING_DIALECT;
     toDialectOnboarding(reason, true);
     return;
   }
-  if (resumeInterruptedPageAfterLogin(res.id)) return;
+  if (await resumeInterruptedPageAfterLogin(res.id)) return;
   toIndexPage(true);
 }
 

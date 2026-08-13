@@ -7,10 +7,14 @@ vi.mock('@/services/canSocial', () => ({
   getCanPost: vi.fn(),
 }));
 vi.mock('@/utils/audio', () => ({ playAudio: vi.fn() }));
+vi.mock('@/services/feedback', () => ({
+  notify: vi.fn(),
+}));
 
 import { requireAuth } from '@/services/authGuard';
 import { createCanPost } from '@/services/canSocial';
 import { startUseSame, useSameUrl } from '@/services/canPostJourney';
+import { notify } from '@/services/feedback';
 import ComposePage from '@/pages/posts/compose.vue';
 
 describe('Can-first post flow', () => {
@@ -35,6 +39,7 @@ describe('Can-first post flow', () => {
     expect(uni.navigateTo).toHaveBeenCalledWith({
       url: '/pages/posts/compose?can_id=19',
     });
+    expect(notify).toHaveBeenCalledWith({ title: '已带入同款罐头' });
   });
 
   it('publishes an optional caption but always includes the source can', async () => {

@@ -22,10 +22,21 @@ vi.mock('@/services/canPostJourney', () => ({
   startUseSame: vi.fn(),
 }));
 
+vi.mock('@/services/following', () => ({
+  followUser: vi.fn(),
+}));
+
+vi.mock('@/services/feedback', () => ({
+  notify: vi.fn(),
+  notifySuccess: vi.fn(),
+}));
+
 import CanCard from '@/components/CanCard.vue';
 import { playAudio } from '@/utils/audio';
 import { likeCan } from '@/services/canSocial';
 import { startUseSame } from '@/services/canPostJourney';
+import { followUser } from '@/services/following';
+import { requireAuth } from '@/services/authGuard';
 
 function mountCard(can = {}, props = {}) {
   return mount(CanCard, {
@@ -93,6 +104,22 @@ describe('CanCard audio', () => {
 
     expect(startUseSame).toHaveBeenCalledWith(7, { page: 'can_feed' });
     expect(wrapper.text()).toContain('同款 2');
+    expect(wrapper.emitted('open')).toBeUndefined();
+  });
+
+  it('follows the feed author without opening the card', async () => {
+    followUser.mockResolvedValue({});
+    const wrapper = mountCard({
+      recorder: { id: 9, nickname: '川娃子' },
+    }, { social: true });
+
+    await wrapper.find('.follow-chip').trigger('tap');
+
+    expect(requireAuth).toHaveBeenCalledWith('follow', {
+      page: 'can_feed',
+      userId: 9,
+    });
+    expect(followUser).toHaveBeenCalledWith(9);
     expect(wrapper.emitted('open')).toBeUndefined();
   });
 });

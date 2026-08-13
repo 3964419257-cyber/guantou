@@ -1,6 +1,16 @@
 <template>
   <view class="login-page">
-    <cu-custom title="手机号登录" />
+    <cu-custom
+      title="手机号登录"
+      :is-back="false"
+    >
+      <template #backText>
+        <text
+          class="cuIcon-back"
+          @tap="cancelLoginToSearch"
+        />
+      </template>
+    </cu-custom>
     <view
       v-if="intentText"
       class="intent-banner"
@@ -205,6 +215,10 @@ export default {
   },
   onUnload() {
     this.clearCountdown();
+  },
+  onBackPress() {
+    this.cancelLoginToSearch();
+    return true;
   },
   methods: {
     mpLogin,

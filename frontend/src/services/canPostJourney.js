@@ -1,4 +1,5 @@
 import { requireAuth } from '@/services/authGuard';
+import { notify } from '@/services/feedback';
 
 export function useSameUrl(canId) {
   return `/pages/posts/compose?can_id=${encodeURIComponent(canId)}`;
@@ -12,6 +13,7 @@ export function startUseSame(canId, context = {}) {
     postId: context.postId,
   })) return false;
   uni.navigateTo({ url: useSameUrl(canId) });
+  notify({ title: '已带入同款罐头' });
   return true;
 }
 
