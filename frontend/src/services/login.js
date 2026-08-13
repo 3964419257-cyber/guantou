@@ -1,4 +1,4 @@
-import { toIndexPage } from '@/routers';
+﻿import { toIndexPage } from '@/routers';
 import { toMePage } from '@/routers/user';
 import { toLoginPage } from '@/routers/login';
 import {
@@ -18,7 +18,6 @@ import {
   claimAnonymousCanDrafts,
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
-import { needsDialectOnboarding, toDialectOnboardingPage } from '@/routers/onboarding';
 import rawRequest from '../utils/rawRequest';
 
 export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
@@ -93,20 +92,12 @@ export async function afterLogin(res, options = {}) {
   if (previousOwnerScope.startsWith('anonymous:')) {
     await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }
-<<<<<<< HEAD
-  await loadUserInfo();
-  const userInfo = getApp().globalData.userInfo;
-  // 无主方言：先完善身份；回流意图保留到引导完成后再 resume
-  if (needsDialectOnboarding(userInfo)) {
-    toDialectOnboardingPage(true);
-=======
   const user = await loadUserInfo();
   if (needsDialectOnboarding(user)) {
     const reason = options.isNew
       ? ONBOARDING_REASONS.NEW_USER
       : ONBOARDING_REASONS.MISSING_DIALECT;
     toDialectOnboarding(reason, true);
->>>>>>> main
     return;
   }
   if (resumeInterruptedPageAfterLogin(res.id)) return;

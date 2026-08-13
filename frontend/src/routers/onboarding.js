@@ -1,28 +1,23 @@
+/**
+ * 方言引导路由兼容层。
+ * 登录后强制引导以 `@/services/dialectOnboarding` 为准（pages/users/onboarding）。
+ * 本文件保留 W3-E1 多步页与推荐关注入口。
+ */
 import { toIndexPage } from '@/routers';
+import {
+  needsDialectOnboarding as needsDialectOnboardingFromService,
+  toDialectOnboarding,
+} from '@/services/dialectOnboarding';
 
-/**
- * 是否需要强制进入方言身份引导
- */
 export function needsDialectOnboarding(userInfo) {
-  if (!userInfo) return false;
-  return !((userInfo.primary_dialect || '').trim());
+  return needsDialectOnboardingFromService(userInfo);
 }
 
-/**
- * 前往首次方言身份引导
- */
+/** @deprecated 请改用 services/dialectOnboarding.toDialectOnboarding */
 export function toDialectOnboardingPage(closeAll = false) {
-  const url = '/pages/onboarding/dialect';
-  if (closeAll) {
-    uni.reLaunch({ url });
-  } else {
-    uni.navigateTo({ url });
-  }
+  toDialectOnboarding(undefined, closeAll);
 }
 
-/**
- * 前往冷启动推荐关注（W3-E2 占位）
- */
 export function toRecommendFollowPage(closeAll = false) {
   const url = '/pages/onboarding/recommend';
   if (closeAll) {
@@ -32,12 +27,9 @@ export function toRecommendFollowPage(closeAll = false) {
   }
 }
 
-/**
- * 登录后分流：缺主方言 → 引导；否则回首页/我的
- */
 export function routeAfterAuth(userInfo, { preferMe = false } = {}) {
   if (needsDialectOnboarding(userInfo)) {
-    toDialectOnboardingPage(true);
+    toDialectOnboarding(undefined, true);
     return 'onboarding';
   }
   if (preferMe) {

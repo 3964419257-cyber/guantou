@@ -11,14 +11,22 @@
 export default {
   name: 'DialectBadge',
   props: {
+    /** 字符串方言名，或 API 返回的 primary_dialect 对象 */
     dialect: {
-      type: String,
+      type: [String, Object],
       default: '',
     },
   },
   computed: {
     label() {
-      return (this.dialect || '').trim();
+      if (!this.dialect) return '';
+      if (typeof this.dialect === 'string') return this.dialect.trim();
+      return (
+        this.dialect.name
+        || this.dialect.qualified_code
+        || this.dialect.code
+        || ''
+      ).trim();
     },
   },
 };
