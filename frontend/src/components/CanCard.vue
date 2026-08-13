@@ -66,7 +66,16 @@
         class="social-button"
         @tap.stop="useSame"
       >
-        同款 {{ can.use_count || 0 }}
+        用同款 {{ can.use_count || 0 }}
+      </button>
+      <button
+        v-if="can.recorder?.id"
+        class="social-button"
+        :class="{ active: following }"
+        :disabled="followBusy"
+        @tap.stop="toggleFollow"
+      >
+        {{ following ? '已关注' : '关注' }}
       </button>
       <button
         class="social-button"
@@ -98,6 +107,7 @@ import { playAudio } from '@/utils/audio';
 import { requireAuth } from '@/services/authGuard';
 import { likeCan, unlikeCan } from '@/services/canSocial';
 import { startUseSame } from '@/services/canPostJourney';
+import { followUser, unfollowUser } from '@/services/following';
 import { shareCanOnWeb } from '@/utils/shareCan';
 
 const statusLabels = {
@@ -131,6 +141,8 @@ export default {
       likeBusy: false,
       liked: Boolean(this.can.liked_by_me),
       likeCount: Number(this.can.like_count || 0),
+      followBusy: false,
+      following: Boolean(this.can.recorder?.is_following),
     };
   },
   computed: {
@@ -159,7 +171,10 @@ export default {
       return statusLabels[status] || status || '未知';
     },
     async toggleLike() {
-      if (!requireAuth('like', { page: 'can_detail', canId: this.can.id })) return;
+      // 守卫未通过前禁止改本地 liked，避免半成功写入
+      if (!requireAuth('like', { page: 'can_feed', canId: this.can.id, postId: this.can.id })) {
+        return;
+      }
       if (this.likeBusy) return;
       this.likeBusy = true;
       try {
@@ -172,6 +187,26 @@ export default {
         this.likeBusy = false;
       }
     },
+    async toggleFollow() {
+      const userId = this.can.recorder?.id;
+      if (!userId) return;
+      if (!requireAuth('follow', { page: 'can_feed', userId })) return;
+      if (this.followBusy) return;
+      this.followBusy = true;
+      const wasFollowing = this.following;
+      try {
+        if (wasFollowing) {
+          await unfollowUser(userId);
+        } else {
+          await followUser(userId);
+        }
+        this.following = !wasFollowing;
+      } catch (error) {
+        uni.showToast({ title: '关注状态更新失败', icon: 'none' });
+      } finally {
+        this.followBusy = false;
+      }
+    },
     async share() {
       this.$emit('share', this.can);
       // #ifdef H5
@@ -180,7 +215,7 @@ export default {
     },
     useSame() {
       this.$emit('reuse', this.can.id);
-      startUseSame(this.can.id, { page: 'can_feed' });
+      startUseSame(this.can.id, { page: 'can_feed', postId: this.can.id });
     },
   },
 };

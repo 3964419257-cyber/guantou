@@ -21,6 +21,7 @@
 <script>
 import SearchPanel from '@/components/SearchPanel.vue';
 import { APP_NAME } from '@/const/branding';
+import { requireAuth } from '@/services/authGuard';
 import {
   getNameplate,
   listHotSearches,
@@ -190,6 +191,8 @@ export default {
       uni.navigateTo({ url: urls[item.scope] });
     },
     toCreateCan() {
+      // 查词页本身不拦；仅「去装罐」CTA 走守卫
+      if (!requireAuth('record_can', { page: 'search' })) return;
       uni.navigateTo({ url: '/pages/cans/create' });
     },
   },

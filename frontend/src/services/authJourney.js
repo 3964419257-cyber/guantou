@@ -111,6 +111,15 @@ export function resolveAuthDestination(intent) {
     };
   }
 
+  // 首页/Tab「发布/装罐」拦截：登录后进录制页
+  if (intent.action === 'tab_publish' || intent.action === 'publish_post') {
+    return {
+      kind: AUTH_DESTINATION_KINDS.URL,
+      route: 'pages/cans/create',
+      url: '/pages/cans/create',
+    };
+  }
+
   return { kind: AUTH_DESTINATION_KINDS.FALLBACK };
 }
 

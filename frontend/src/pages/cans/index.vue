@@ -43,6 +43,7 @@
 <script>
 import CanList from '@/components/CanList.vue';
 import PageShell from '@/components/PageShell.vue';
+import { requireAuth } from '@/services/authGuard';
 import { listCans } from '@/services/guantou';
 
 function currentUserIsStaff() {
@@ -95,6 +96,7 @@ export default {
       };
     },
     toCreate() {
+      if (!requireAuth('tab_publish', { page: 'publish' })) return;
       uni.navigateTo({ url: '/pages/cans/create' });
     },
     toDetail(id) {

@@ -81,6 +81,17 @@ describe('auth journey', () => {
     });
   });
 
+  it('returns tab_publish intent to the can create page', () => {
+    expect(resolveAuthDestination({
+      action: 'tab_publish',
+      context: { page: 'publish' },
+    })).toEqual({
+      kind: 'url',
+      route: 'pages/cans/create',
+      url: '/pages/cans/create',
+    });
+  });
+
   it('returns circle membership and recording intents to their exact context', () => {
     expect(resolveAuthDestination({
       action: 'circle_join',

@@ -1,23 +1,4 @@
-<template>
-<<<<<<< HEAD
-  <view class="page">
-    <view class="profile">
-      <image
-        :src="avatar"
-        class="avatar"
-        mode="aspectFill"
-        @tap="toUserInfoPage"
-      />
-      <view>
-        <view class="name-row">
-          <text class="name">
-            {{ nickname || '未登录' }}
-          </text>
-          <DialectBadge :dialect="primaryDialect" />
-        </view>
-        <view class="meta">
-          {{ locationText }}
-=======
+﻿<template>
   <view
     class="page"
     :class="`theme-${resolvedTheme}`"
@@ -46,7 +27,6 @@
           >
             未填写方言点
           </view>
->>>>>>> main
         </view>
       </view>
 
@@ -189,35 +169,21 @@ import {
 } from '@/routers/user';
 import { toMailsPage } from '@/routers/mail';
 import { listCanDrafts } from '@/services/canDrafts';
-<<<<<<< HEAD
-import DialectBadge from '@/components/DialectBadge.vue';
-=======
 import { openLoginFromMine } from '@/services/authJourney';
+import { requireAuth } from '@/services/authGuard';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { applyTheme, getThemePreference } from '@/services/theme';
->>>>>>> main
 
 const app = getApp();
 
 export default {
-<<<<<<< HEAD
-  components: { DialectBadge },
-=======
   components: { ThemeSwitcher },
->>>>>>> main
   data() {
     return {
       id: '',
       avatar: '',
       nickname: '',
-<<<<<<< HEAD
-      county: '',
-      town: '',
-      region: '',
-      primaryDialect: '',
-=======
       primaryDialect: null,
->>>>>>> main
       cansCount: 0,
       flavorsCount: 0,
       nameplatesCount: 0,
@@ -231,12 +197,7 @@ export default {
   },
   computed: {
     locationText() {
-<<<<<<< HEAD
-      if (this.region) return this.region;
-      return [this.county, this.town].filter(Boolean).join(' / ') || '未填写方言点';
-=======
       return this.primaryDialect?.qualified_code || '未填写方言点';
->>>>>>> main
     },
   },
   beforeMount() {
@@ -266,6 +227,7 @@ export default {
       uni.navigateTo({ url: '/pages/search' });
     },
     toCreate() {
+      if (!requireAuth('record_can', { page: 'publish' })) return;
       uni.navigateTo({ url: '/pages/cans/create' });
     },
     toDrafts() {
@@ -283,14 +245,7 @@ export default {
       this.id = userInfo.user.id;
       this.avatar = userInfo.user.avatar;
       this.nickname = userInfo.user.nickname || userInfo.user.username;
-<<<<<<< HEAD
-      this.county = userInfo.user.county;
-      this.town = userInfo.user.town;
-      this.region = userInfo.user.region || '';
-      this.primaryDialect = userInfo.user.primary_dialect || '';
-=======
       this.primaryDialect = userInfo.user.primary_dialect;
->>>>>>> main
       this.cansCount = userInfo.contribution.cans_uploaded || 0;
       this.flavorsCount = userInfo.contribution.flavors_uploaded || 0;
       this.nameplatesCount = userInfo.contribution.nameplates || 0;
@@ -435,12 +390,6 @@ export default {
   height: 128rpx;
   border-radius: 64rpx;
   background: #dfe5da;
-}
-
-.name-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
 }
 
 .name {

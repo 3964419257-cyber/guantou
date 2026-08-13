@@ -113,9 +113,11 @@ export default {
       uni.navigateTo({ url: `/pages/packages/details?id=${id}` });
     },
     toCreateForFlavor() {
+      // W1-E2 · 词条「用这个词录一罐」：intent.action=record_can，context 带词条 id
       if (!requireAuth('record_can', {
         page: 'flavor_detail',
         flavorId: this.id,
+        wordId: this.id,
         flavorName: this.flavor.name,
       })) return;
       uni.navigateTo({

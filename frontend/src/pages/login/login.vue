@@ -181,7 +181,8 @@ export default {
     intentText() {
       if (!this.intent) return '';
       if (this.intentVoluntary) return '验证身份后返回「我的」。';
-      return `你刚才想${actionLabel(this.intent.action)}，验证身份后会回到原来的位置。`;
+      const label = actionLabel(this.intent.action) || '刚才的操作';
+      return `登录后将回到「${label}」。`;
     },
   },
   onLoad() {
