@@ -120,6 +120,7 @@ describe('dialect onboarding page', () => {
     const wrapper = mountPage();
     await wrapper.vm.$options.onLoad.call(wrapper.vm, { reason: 'new_user' });
     await flushPromises();
+    expect(wrapper.vm.pageTitle).toBe('欢迎加入乡声集盒');
     wrapper.vm.nextFromNickname();
     await wrapper.vm.selectPrimaryDialect(wrapper.vm.dialects[0]);
     expect(wrapper.vm.exampleWord.word).toBe('巴适');

@@ -14,10 +14,10 @@ test('guest signs in with the visible demo phone code', async ({ page }) => {
   await page.getByText('获取验证码', { exact: true }).click();
 
   const codeHint = page.locator('.demo-code');
-  await expect(codeHint).toContainText('Demo 验证码：');
+  await expect(codeHint).toContainText('模拟短信验证码：');
   const codeValue = (await codeHint.textContent()).match(/\d{6}/)[0];
   await code.fill(codeValue);
-  await page.getByText('登录 / 注册', { exact: true }).click();
+  await page.getByRole('button', { name: '登录', exact: true }).click();
 
   await expect(page).toHaveURL(/\/pages\/users\/onboarding\?reason=new_user/);
   await expect(page.getByText('欢迎加入乡声集盒')).toBeVisible();

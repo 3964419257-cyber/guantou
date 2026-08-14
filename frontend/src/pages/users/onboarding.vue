@@ -246,6 +246,7 @@
 
 <script>
 import PageShell from '@/components/PageShell.vue';
+import { APP_NAME } from '@/const/branding';
 import { peekInterceptIntent } from '@/services/authGuard';
 import {
   completeOnboarding,
@@ -297,7 +298,7 @@ export default {
       return this.reason === ONBOARDING_REASONS.FORCED;
     },
     pageTitle() {
-      if (this.isNewUser) return '欢迎加入乡音罐头';
+      if (this.isNewUser) return `欢迎加入${APP_NAME}`;
       return '补选主方言';
     },
     stepTitle() {

@@ -52,7 +52,8 @@ test('guest browses public cans, plays audio, and opens search', async ({ page }
   await page.goto('/');
   await expect(page.getByText('不登录也能查、能听')).toBeVisible();
   await expect(page.getByText('公开乡音')).toBeVisible();
-  await expect(page.getByText('巴适')).toBeVisible();
+  await expect(page.locator('.can-card .label')).toHaveText('巴适');
+  await expect(page.getByText('词：巴适')).toBeVisible();
   if (process.env.E2E_SCREENSHOT_DIR) {
     await page.screenshot({
       path: `${process.env.E2E_SCREENSHOT_DIR}/guest-home.png`,

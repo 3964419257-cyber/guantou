@@ -15,6 +15,13 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
     localStorage.setItem('id', '7');
   });
 
+  let profileUser = {
+    id: 7,
+    username: 'collector',
+    nickname: '采集者',
+    primary_dialect: null,
+  };
+
   await page.route('**/login', async (route) => {
     if (route.request().method() === 'PUT') {
       await route.fulfill({ json: { token: 'fresh-token', id: 7 } });
@@ -24,31 +31,30 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
   });
   await page.route('**/users/7', async (route) => {
     if (route.request().method() === 'PUT') {
+      profileUser = {
+        id: 7,
+        username: 'collector',
+        nickname: '采集者',
+        primary_dialect: dialect,
+        onboarding_done_at: Date.now(),
+      };
       await route.fulfill({
         json: {
           token: 'profile-token',
-          user: {
-            id: 7,
-            username: 'collector',
-            nickname: '采集者',
-            primary_dialect: dialect,
-            onboarding_done_at: Date.now(),
-          },
+          user: profileUser,
         },
       });
       return;
     }
     await route.fulfill({
       json: {
-        user: {
-          id: 7,
-          username: 'collector',
-          nickname: '采集者',
-          primary_dialect: null,
-        },
+        user: profileUser,
         contribution: {},
       },
     });
+  });
+  await page.route('**/users/recommendations**', async (route) => {
+    await route.fulfill({ json: { results: [] } });
   });
   await page.route('**/dialects/**', async (route) => {
     const url = new URL(route.request().url());
@@ -80,8 +86,8 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
   });
 
   await page.goto('/pages/users/onboarding?reason=new_user');
-  await expect(page.getByText('欢迎加入乡音罐头')).toBeVisible();
-  await expect(page.getByText('1/3')).toBeVisible();
+  await expect(page.getByText('欢迎加入乡声集盒')).toBeVisible();
+  await expect(page.getByText('1/4')).toBeVisible();
   await page.locator('.nickname-input input, input.nickname-input').fill('采集者');
   await page.getByRole('button', { name: '下一步' }).click();
   await page.getByText('四川话', { exact: true }).click();
@@ -93,9 +99,15 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
     });
   }
   await page.getByRole('button', { name: '下一步' }).click();
-  await expect(page.getByText('3/3')).toBeVisible();
+  await expect(page.getByText('3/4')).toBeVisible();
+  await page.getByRole('button', { name: '跳过' }).click();
+  await expect(page.getByText('4/4')).toBeVisible();
   await page.getByRole('button', { name: '跳过并完成' }).click();
 
+  await expect(page).toHaveURL(/\/pages\/users\/recommend-follow/);
+  await expect(page.getByText('关注几位同方言的人，首页会更有意思')).toBeVisible();
+  await page.getByRole('button', { name: '跳过' }).click();
+
   await expect(page).toHaveURL(/\/(pages\/index)?$/);
-  await expect(page.getByText('同方言 · 四川话')).toBeVisible();
+  await expect(page.getByText('同方言 · 四川话').first()).toBeVisible();
 });

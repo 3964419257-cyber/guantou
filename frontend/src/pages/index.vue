@@ -145,9 +145,6 @@ export default {
       if (this.isGuest) {
         return '先查一个词，再听听它在不同地方怎么说';
       }
-      if (this.primaryDialect) {
-        return `同方言 · ${this.dialectDisplayName}`;
-      }
       return '把每一段乡音装进可校验的资料库';
     },
     canSectionTitle() {
