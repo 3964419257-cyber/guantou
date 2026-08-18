@@ -18,6 +18,7 @@ import {
   claimAnonymousCanDrafts,
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
+import { openPage, ROUTES } from '@/services/navigation';
 import rawRequest from '../utils/rawRequest';
 
 export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
@@ -30,8 +31,8 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
   if (destination.kind === AUTH_DESTINATION_KINDS.DEFAULT) return false;
 
   if (destination.kind === AUTH_DESTINATION_KINDS.ADJACENT_CAN_DRAFT) {
-    const previousIsCanCreate = previousRoute === 'pages/cans/create'
-      || previousRoute === '/pages/cans/create';
+    const previousIsCanCreate = String(previousRoute).replace(/^\//, '')
+      === ROUTES.canCreate.slice(1);
     if (!previousIsCanCreate) {
       clearInterceptIntent();
       toIndexPage(true);
@@ -52,10 +53,12 @@ export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageS
   clearInterceptIntent();
   if (destination.kind === AUTH_DESTINATION_KINDS.URL) {
     const normalizedPreviousRoute = String(previousRoute || '').replace(/^\//, '');
-    if (normalizedPreviousRoute === destination.route) {
+    const destinationHasState = destination.url !== `/${destination.route}`;
+    // 同页受保护动作仍要携带恢复参数重新进入，否则 navigateBack 会悄悄丢掉动作。
+    if (normalizedPreviousRoute === destination.route && !destinationHasState) {
       uni.navigateBack({ delta: 1 });
     } else {
-      uni.redirectTo({ url: destination.url });
+      openPage(destination.url, {}, { replace: true });
     }
     return true;
   }

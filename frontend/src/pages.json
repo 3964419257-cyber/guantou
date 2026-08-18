@@ -48,6 +48,18 @@
       "style": {}
     },
     {
+      "path": "pages/nameplates/details",
+      "style": {}
+    },
+    {
+      "path": "pages/nameplates/comments",
+      "style": {}
+    },
+    {
+      "path": "pages/nameplates/create",
+      "style": {}
+    },
+    {
       "path": "pages/posts/compose",
       "style": {}
     },
@@ -168,7 +180,7 @@
     "custom": {
       "cu-custom": "@/colorui/components/cu-custom",
       "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue",
-      "^t-(.*)": "@tdesign/uniapp/dist/$1/$1.vue"
+      "^t-(.*)": "@tdesign/uniapp/$1/$1.vue"
     }
   },
   "globalStyle": {
