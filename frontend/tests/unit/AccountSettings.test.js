@@ -140,6 +140,24 @@ describe('account UI tokens', () => {
     expect(source).not.toContain('短视频');
   });
 
+  it('maps Weibo profile extras onto dialect archive terms', () => {
+    const mine = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/me.vue'),
+      'utf8',
+    );
+    const details = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/details.vue'),
+      'utf8',
+    );
+    expect(mine).toContain('收藏');
+    expect(mine).toContain('草稿箱');
+    expect(mine).toContain('关注的方言');
+    expect(mine).toContain('账号与安全');
+    expect(details).toContain('私信');
+    expect(mine).not.toContain('微博');
+    expect(details).not.toContain('微博');
+  });
+
   it('keeps the guest login hook used by H5 e2e', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/pages/users/me.vue'),

@@ -36,6 +36,9 @@
           <view class="handle">
             乡声号 {{ userInfo.user.username || '未设置' }}
           </view>
+          <view class="bio">
+            {{ bioText }}
+          </view>
           <view class="meta-row">
             <view
               v-if="userInfo.user.primary_dialect"
@@ -93,6 +96,7 @@
         <view class="action-slot">
           <BaseButton
             variant="ghost"
+            size="small"
             block
             @click="goUserInformation"
           >
@@ -101,6 +105,17 @@
         </view>
         <view class="action-slot">
           <BaseButton
+            variant="ghost"
+            size="small"
+            block
+            @click="goMails"
+          >
+            消息
+          </BaseButton>
+        </view>
+        <view class="action-slot">
+          <BaseButton
+            size="small"
             block
             @click="goCreateCan"
           >
@@ -112,15 +127,28 @@
         v-else
         class="profile-actions"
       >
-        <BaseButton
-          block
-          :variant="userInfo.user.is_following ? 'ghost' : 'primary'"
-          :disabled="followingBusy"
-          :loading="followingBusy"
-          @click="toggleFollow"
-        >
-          {{ userInfo.user.is_following ? '已关注' : '关注' }}
-        </BaseButton>
+        <view class="action-slot">
+          <BaseButton
+            block
+            size="small"
+            :variant="userInfo.user.is_following ? 'ghost' : 'primary'"
+            :disabled="followingBusy"
+            :loading="followingBusy"
+            @click="toggleFollow"
+          >
+            {{ userInfo.user.is_following ? '已关注' : '关注' }}
+          </BaseButton>
+        </view>
+        <view class="action-slot">
+          <BaseButton
+            variant="ghost"
+            size="small"
+            block
+            @click="goMailSend"
+          >
+            私信
+          </BaseButton>
+        </view>
       </view>
 
       <view class="works">
@@ -156,6 +184,8 @@ import { requireAuth } from '@/services/authGuard';
 import { followUser, unfollowUser } from '@/services/following';
 import {
   goCreateCan,
+  goMailSend,
+  goMails,
   goUserInformation,
   ROUTES,
 } from '@/services/navigation';
@@ -202,6 +232,11 @@ export default {
     titleLabel() {
       return this.userInfo.user.title?.title || '';
     },
+    bioText() {
+      const dialect = this.locationText;
+      if (this.titleLabel) return `${this.titleLabel} · ${dialect}`;
+      return `在「${dialect}」装罐`;
+    },
     isSelf() {
       return Number(uni.getStorageSync('id')) === Number(this.id);
     },
@@ -224,6 +259,8 @@ export default {
   methods: {
     goUserInformation,
     goCreateCan,
+    goMails,
+    goMailSend,
     async getInfo() {
       if (!this.id) {
         this.loading = false;
@@ -304,10 +341,15 @@ export default {
 }
 
 .handle,
+.bio,
 .meta {
   margin-top: var(--space-1);
   color: var(--muted-color);
   font-size: var(--font-size-sm);
+}
+
+.bio {
+  line-height: 1.5;
 }
 
 .meta-row {

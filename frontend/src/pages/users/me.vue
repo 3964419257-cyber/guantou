@@ -42,6 +42,9 @@
               <view class="handle">
                 乡声号 {{ username || '未设置' }}
               </view>
+              <view class="bio">
+                {{ bioText }}
+              </view>
               <view class="meta-row">
                 <view
                   v-if="primaryDialect"
@@ -99,6 +102,7 @@
             <view class="action-slot">
               <BaseButton
                 variant="ghost"
+                size="small"
                 block
                 @click="toUserInfoPage"
               >
@@ -107,11 +111,40 @@
             </view>
             <view class="action-slot">
               <BaseButton
+                variant="ghost"
+                size="small"
+                block
+                @click="toMailsPage"
+              >
+                消息
+              </BaseButton>
+            </view>
+            <view class="action-slot">
+              <BaseButton
+                size="small"
                 block
                 @click="toCreate"
               >
                 装一罐
               </BaseButton>
+            </view>
+          </view>
+
+          <view
+            v-if="followedDialects.length"
+            class="dialect-follow"
+          >
+            <view class="section-kicker">
+              关注的方言
+            </view>
+            <view class="chip-row">
+              <view
+                v-for="dialect in followedDialects"
+                :key="dialect.id"
+                class="dialect-badge"
+              >
+                {{ dialect.qualified_code || dialect.name }}
+              </view>
             </view>
           </view>
 
@@ -180,6 +213,17 @@
             </view>
             <view
               class="tool-item"
+              @tap="toLikes"
+            >
+              <view class="tool-count">
+                ·
+              </view>
+              <view class="tool-label">
+                收藏
+              </view>
+            </view>
+            <view
+              class="tool-item"
               @tap="toDrafts"
             >
               <view class="tool-count">
@@ -189,37 +233,30 @@
                 草稿箱
               </view>
             </view>
+          </view>
+
+          <view class="menu">
+            <view class="section-kicker menu-kicker">
+              账号与安全
+            </view>
             <view
-              class="tool-item"
+              class="menu-item"
               @tap="toMailsPage"
             >
-              <view class="tool-count">
-                {{ unreadMailsCount }}
-              </view>
-              <view class="tool-label">
-                消息
-              </view>
+              消息
               <text
                 v-if="unreadMailsCount > 0"
-                class="badge"
+                class="badge badge-inline"
               >
                 {{ unreadMailsCount }}
               </text>
             </view>
             <view
-              class="tool-item"
+              class="menu-item"
               @tap="toChangePasswordPage"
             >
-              <view class="tool-count">
-                ·
-              </view>
-              <view class="tool-label">
-                密码
-              </view>
+              修改密码
             </view>
-          </view>
-
-          <view class="menu">
             <view
               class="menu-item"
               @tap="bindingWechat"
@@ -323,6 +360,7 @@ export default {
       followingCount: 0,
       draftsCount: 0,
       unreadMailsCount: 0,
+      followedDialects: [],
       wechatBindText: '绑定微信',
       isBinding: false,
       loading: false,
@@ -335,6 +373,11 @@ export default {
   computed: {
     locationText() {
       return this.primaryDialect?.qualified_code || '未填写方言点';
+    },
+    bioText() {
+      const dialect = this.locationText;
+      if (this.titleLabel) return `${this.titleLabel} · ${dialect}`;
+      return `在「${dialect}」装罐`;
     },
     worksEmptyTitle() {
       if (this.worksTab === 'nameplates') return '还没有贴铭牌';
@@ -389,6 +432,9 @@ export default {
     toDrafts() {
       goCanLibrary({ tab: 'drafts' });
     },
+    toLikes() {
+      goCanLibrary({ tab: 'liked' });
+    },
     refreshDraftsCount() {
       this.draftsCount = listCanDrafts().length;
     },
@@ -415,6 +461,7 @@ export default {
         this.nameplatesCount = userInfo.contribution.nameplates || 0;
         this.followerCount = userInfo.user.follower_count || 0;
         this.followingCount = userInfo.user.following_count || 0;
+        this.followedDialects = userInfo.user.followed_dialects || [];
         this.unreadMailsCount = userInfo.notification
           ? userInfo.notification.statistics.unread
           : 0;
@@ -547,10 +594,15 @@ export default {
 }
 
 .handle,
+.bio,
 .meta {
   margin-top: var(--space-1);
   color: var(--muted-color);
   font-size: var(--font-size-sm);
+}
+
+.bio {
+  line-height: 1.5;
 }
 
 .meta-row {
@@ -610,6 +662,22 @@ export default {
   min-width: 0;
 }
 
+.dialect-follow {
+  margin-top: var(--space-4);
+}
+
+.section-kicker {
+  margin-bottom: var(--space-2);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
 .works,
 .tool-grid,
 .menu {
@@ -661,7 +729,7 @@ export default {
 
 .tool-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   padding: var(--space-3) 0;
 }
 
@@ -692,17 +760,11 @@ export default {
   color: var(--danger-color);
 }
 
-.badge {
-  position: absolute;
-  top: 0;
-  right: var(--space-2);
-  min-width: 36rpx;
-  height: 36rpx;
-  line-height: 36rpx;
-  text-align: center;
-  color: var(--on-danger-color);
-  background: var(--danger-color);
-  border-radius: var(--radius-pill);
-  font-size: var(--font-size-xs);
+.menu-kicker {
+  margin: var(--space-3) var(--space-3) 0;
+}
+
+.badge-inline {
+  position: static;
 }
 </style>

@@ -42,7 +42,7 @@
           />
         </button>
         <view class="edit-hero-hint">
-          点击更换头像
+          点击更换头像。主方言会显示在主页，相当于所在地。
         </view>
       </view>
       <SectionBlock title="公开档案">
