@@ -111,6 +111,7 @@ function mountForm(Page) {
       stubs: {
         PageShell: { template: '<main><slot /></main>' },
         AppShell: { template: '<main><slot /></main>' },
+        SectionBlock: { template: '<section><slot /></section>' },
         ThemeSwitcher: true,
       },
     },
@@ -124,6 +125,16 @@ describe('account UI tokens', () => {
       const source = readFileSync(resolve(process.cwd(), relativePath), 'utf8');
       expect(source, relativePath).not.toMatch(hex);
     });
+  });
+
+  it('keeps private account fields from being labeled public', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/settings/information.vue'),
+      'utf8',
+    );
+    expect(source).toContain('公开档案');
+    expect(source).toContain('仅自己可见');
+    expect(source).not.toContain('将会默认公开');
   });
 });
 

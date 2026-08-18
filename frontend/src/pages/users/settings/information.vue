@@ -29,7 +29,7 @@
       >
         {{ saveError }}
       </view>
-      <view class="card">
+      <SectionBlock title="公开档案">
         <view class="row">
           <text class="row-label">
             头像
@@ -68,6 +68,9 @@
             {{ user.nickname || '未填写' }}
           </text>
         </view>
+      </SectionBlock>
+
+      <SectionBlock title="账号与安全（仅自己可见）">
         <view
           class="row"
           @tap="goUserEmail"
@@ -79,13 +82,7 @@
             {{ user.email || '未填写' }}
           </text>
         </view>
-      </view>
-
-      <view class="section-kicker">
-        个人信息（将会默认公开）
-      </view>
-      <!--  #ifndef  MP-WEIXIN -->
-      <view class="card">
+        <!--  #ifndef  MP-WEIXIN -->
         <view
           class="row"
           @tap="goUserPhone"
@@ -113,9 +110,10 @@
             </view>
           </picker>
         </view>
-      </view>
-      <!--  #endif -->
-      <view class="card">
+        <!--  #endif -->
+      </SectionBlock>
+
+      <SectionBlock title="装罐默认">
         <view class="row">
           <text class="row-label">
             发音默认地点
@@ -131,7 +129,7 @@
             </view>
           </picker>
         </view>
-      </view>
+      </SectionBlock>
     </template>
   </PageShell>
 </template>
@@ -139,6 +137,7 @@
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import PageShell from '@/components/PageShell.vue';
+import SectionBlock from '@/components/SectionBlock.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { uploadFile } from '@/services/file';
 import { listAllDialects } from '@/services/guantou';
@@ -162,7 +161,7 @@ function fieldErrorMessage(error, field) {
 }
 
 export default {
-  components: { BaseButton, PageShell },
+  components: { BaseButton, PageShell, SectionBlock },
   data() {
     return {
       ROUTES,
@@ -264,15 +263,11 @@ export default {
 </script>
 
 <style scoped>
-.state-card,
-.card {
+.state-card {
+  padding: var(--space-4);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--surface-color);
-}
-
-.state-card {
-  padding: var(--space-4);
   color: var(--text-secondary-color);
 }
 
@@ -286,23 +281,12 @@ export default {
   font-size: var(--font-size-sm);
 }
 
-.section-kicker {
-  margin: var(--space-4) 0 var(--space-2);
-  color: var(--muted-color);
-  font-size: var(--font-size-xs);
-}
-
-.card + .card {
-  margin-top: var(--space-3);
-}
-
 .row {
   min-height: 92rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 0 var(--space-3);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -335,7 +319,7 @@ export default {
 .avatar {
   width: 72rpx;
   height: 72rpx;
-  border-radius: 36rpx;
+  border-radius: var(--radius-pill);
   background: var(--surface-subtle-color);
 }
 </style>

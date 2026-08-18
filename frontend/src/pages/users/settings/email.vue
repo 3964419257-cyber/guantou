@@ -3,48 +3,69 @@
     title="修改邮箱"
     :back-fallback="ROUTES.userInformation"
   >
-    <BaseField
-      :model-value="oldEmail"
-      label="原邮箱"
-      disabled
-    />
-    <BaseField
-      v-model="newEmail"
-      label="新邮箱"
-      required
-      placeholder="请输入新邮箱"
-      :error="emailError"
-      :disabled="saving || sending"
-    />
-    <view class="code-row">
-      <view class="code-field">
-        <BaseField
-          v-model="code"
-          label="验证码"
-          required
-          placeholder="请输入验证码"
-          :error="codeError"
-          :disabled="saving"
-        />
-      </view>
+    <view
+      v-if="loading"
+      class="state-card"
+    >
+      正在读取邮箱…
+    </view>
+    <view
+      v-else-if="loadError"
+      class="state-card"
+    >
+      <view>{{ loadError }}</view>
       <BaseButton
-        size="small"
-        variant="ghost"
-        :disabled="sending || saving"
-        :loading="sending"
-        @click="sendCode"
+        class="state-action"
+        block
+        @click="getUserEmail"
       >
-        获取验证码
+        重试
       </BaseButton>
     </view>
-    <BaseButton
-      block
-      :disabled="saving || sending"
-      :loading="saving"
-      @click="setNewEmail"
-    >
-      保存
-    </BaseButton>
+    <template v-else>
+      <BaseField
+        :model-value="oldEmail"
+        label="原邮箱"
+        disabled
+      />
+      <BaseField
+        v-model="newEmail"
+        label="新邮箱"
+        required
+        placeholder="请输入新邮箱"
+        :error="emailError"
+        :disabled="saving || sending"
+      />
+      <view class="code-row">
+        <view class="code-field">
+          <BaseField
+            v-model="code"
+            label="验证码"
+            required
+            placeholder="请输入验证码"
+            :error="codeError"
+            :disabled="saving"
+          />
+        </view>
+        <BaseButton
+          size="small"
+          variant="ghost"
+          :disabled="sending || saving"
+          :loading="sending"
+          @click="sendCode"
+        >
+          获取验证码
+        </BaseButton>
+      </view>
+      <BaseButton
+        block
+        :disabled="saving || sending"
+        :loading="saving"
+        @click="setNewEmail"
+      >
+        保存
+      </BaseButton>
+    </template>
   </PageShell>
 </template>
 
@@ -78,6 +99,8 @@ export default {
       codeError: '',
       sending: false,
       saving: false,
+      loading: true,
+      loadError: '',
     };
   },
   onLoad() {
@@ -89,8 +112,16 @@ export default {
   },
   methods: {
     async getUserEmail() {
-      const userInfo = await getUserInfo(app.globalData.id);
-      this.oldEmail = userInfo.user.email || '';
+      this.loading = true;
+      this.loadError = '';
+      try {
+        const userInfo = await getUserInfo(app.globalData.id);
+        this.oldEmail = userInfo.user.email || '';
+      } catch (error) {
+        this.loadError = error?.message || '邮箱读取失败';
+      } finally {
+        this.loading = false;
+      }
     },
     async sendCode() {
       const email = String(this.newEmail || '').trim();
@@ -135,6 +166,18 @@ export default {
 </script>
 
 <style scoped>
+.state-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--text-secondary-color);
+}
+
+.state-action {
+  margin-top: var(--space-3);
+}
+
 .code-row {
   display: flex;
   align-items: flex-end;

@@ -37,7 +37,7 @@
             />
             <view>
               <view class="name">
-                {{ nickname || '未登录' }}
+                {{ nickname || '未填写昵称' }}
               </view>
               <view
                 v-if="primaryDialect"
@@ -376,7 +376,7 @@ export default {
   width: 112rpx;
   height: 112rpx;
   margin: 0 auto;
-  border-radius: 56rpx;
+  border-radius: var(--radius-pill);
   background: var(--accent-color);
   color: var(--on-accent-color);
   font-size: var(--font-size-xl);
@@ -385,7 +385,7 @@ export default {
 }
 
 .guest-title {
-  margin-top: 28rpx;
+  margin-top: var(--space-3);
   font-size: var(--font-size-xl);
   font-weight: 800;
 }
@@ -404,13 +404,13 @@ export default {
 .profile {
   display: flex;
   align-items: center;
-  gap: 22rpx;
+  gap: var(--space-3);
 }
 
 .avatar {
   width: 128rpx;
   height: 128rpx;
-  border-radius: 64rpx;
+  border-radius: var(--radius-pill);
   background: var(--surface-subtle-color);
 }
 
@@ -420,25 +420,25 @@ export default {
 }
 
 .meta {
-  margin-top: 8rpx;
+  margin-top: var(--space-1);
   color: var(--muted-color);
 }
 
 .dialect-badge {
   display: inline-flex;
-  margin-top: 10rpx;
-  padding: 7rpx 16rpx;
+  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--accent-subtle-color);
   color: var(--accent-color);
-  font-size: 23rpx;
+  font-size: var(--font-size-xs);
 }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16rpx;
-  margin-top: 30rpx;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
 }
 
 .stat,
@@ -449,7 +449,7 @@ export default {
 }
 
 .stat {
-  padding: 24rpx 12rpx;
+  padding: var(--space-3) var(--space-2);
   text-align: center;
 }
 
@@ -460,12 +460,12 @@ export default {
 }
 
 .label {
-  margin-top: 8rpx;
+  margin-top: var(--space-1);
   color: var(--muted-color);
 }
 
 .menu {
-  margin-top: 28rpx;
+  margin-top: var(--space-4);
   overflow: hidden;
 }
 
@@ -474,7 +474,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28rpx;
+  padding: 0 var(--space-3);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -493,7 +493,7 @@ export default {
   text-align: center;
   color: var(--on-danger-color);
   background: var(--danger-color);
-  border-radius: 18rpx;
+  border-radius: var(--radius-pill);
   font-size: var(--font-size-xs);
 }
 

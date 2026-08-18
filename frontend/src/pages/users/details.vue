@@ -1,6 +1,6 @@
 <template>
   <PageShell
-    title="用户"
+    :title="pageTitle"
     :back-fallback="ROUTES.home"
   >
     <view
@@ -132,6 +132,11 @@ export default {
     locationText() {
       return this.userInfo.user.primary_dialect?.qualified_code || '未填写方言点';
     },
+    pageTitle() {
+      return this.userInfo.user.nickname
+        || this.userInfo.user.username
+        || '用户档案';
+    },
     isSelf() {
       return Number(uni.getStorageSync('id')) === Number(this.id);
     },
@@ -142,8 +147,8 @@ export default {
   },
   onShareAppMessage() {
     return {
-      title: `${APP_NAME}用户`,
-      path: `/pages/users/details?id=${this.id}`,
+      title: `${this.pageTitle} · ${APP_NAME}`,
+      path: `${ROUTES.userDetail}?id=${this.id}`,
       ...defaultMessage(),
     };
   },
@@ -206,7 +211,7 @@ export default {
 .profile {
   display: flex;
   align-items: center;
-  gap: 22rpx;
+  gap: var(--space-3);
 }
 
 .profile-copy {
@@ -217,7 +222,7 @@ export default {
 .avatar {
   width: 128rpx;
   height: 128rpx;
-  border-radius: 64rpx;
+  border-radius: var(--radius-pill);
   background: var(--surface-subtle-color);
 }
 
@@ -227,23 +232,23 @@ export default {
 }
 
 .meta {
-  margin-top: 8rpx;
+  margin-top: var(--space-1);
   color: var(--muted-color);
 }
 
 .dialect-badge {
   display: inline-flex;
-  margin-top: 10rpx;
-  padding: 7rpx 16rpx;
+  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--accent-subtle-color);
   color: var(--accent-color);
-  font-size: 23rpx;
+  font-size: var(--font-size-xs);
 }
 
 .social-stats {
   display: flex;
-  gap: 28rpx;
+  gap: var(--space-3);
   margin-top: var(--space-3);
   color: var(--muted-color);
   font-size: var(--font-size-xs);
@@ -252,7 +257,7 @@ export default {
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16rpx;
+  gap: var(--space-2);
   margin-top: var(--space-3);
 }
 
@@ -260,7 +265,7 @@ export default {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 24rpx 12rpx;
+  padding: var(--space-3) var(--space-2);
   text-align: center;
 }
 
@@ -271,7 +276,7 @@ export default {
 }
 
 .label {
-  margin-top: 8rpx;
+  margin-top: var(--space-1);
   color: var(--muted-color);
 }
 </style>
