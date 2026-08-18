@@ -127,6 +127,19 @@ describe('account UI tokens', () => {
     });
   });
 
+  it('uses Douyin-like profile actions without renaming product terms', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/me.vue'),
+      'utf8',
+    );
+    expect(source).toContain('编辑资料');
+    expect(source).toContain('乡声号');
+    expect(source).toContain('装一罐');
+    expect(source).toContain('罐头');
+    expect(source).not.toContain('作品');
+    expect(source).not.toContain('短视频');
+  });
+
   it('keeps the guest login hook used by H5 e2e', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/pages/users/me.vue'),

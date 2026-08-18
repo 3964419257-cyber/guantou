@@ -1,6 +1,6 @@
 <template>
   <PageShell
-    title="个人信息"
+    title="编辑资料"
     :back-fallback="ROUTES.mine"
   >
     <view
@@ -29,23 +29,23 @@
       >
         {{ saveError }}
       </view>
-      <SectionBlock title="公开档案">
-        <view class="row">
-          <text class="row-label">
-            头像
-          </text>
-          <button
-            class="avatar-button"
-            open-type="chooseAvatar"
-            @chooseavatar="onChooseAvatar"
-          >
-            <image
-              class="avatar"
-              :src="user.avatar"
-              mode="aspectFill"
-            />
-          </button>
+      <view class="edit-hero">
+        <button
+          class="avatar-button"
+          open-type="chooseAvatar"
+          @chooseavatar="onChooseAvatar"
+        >
+          <image
+            class="hero-avatar"
+            :src="user.avatar"
+            mode="aspectFill"
+          />
+        </button>
+        <view class="edit-hero-hint">
+          点击更换头像
         </view>
+      </view>
+      <SectionBlock title="公开档案">
         <view
           class="row"
           @tap="goUserUsername"
@@ -281,6 +281,24 @@ export default {
   font-size: var(--font-size-sm);
 }
 
+.edit-hero {
+  margin-bottom: var(--space-4);
+  text-align: center;
+}
+
+.edit-hero-hint {
+  margin-top: var(--space-2);
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
+}
+
+.hero-avatar {
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+}
+
 .row {
   min-height: 92rpx;
   display: flex;
@@ -314,12 +332,5 @@ export default {
 
 .avatar-button::after {
   border: 0;
-}
-
-.avatar {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: var(--radius-pill);
-  background: var(--surface-subtle-color);
 }
 </style>

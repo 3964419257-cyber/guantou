@@ -1,6 +1,6 @@
 <template>
   <AppShell
-    title="我的乡音档案"
+    title="我的"
     active="me"
   >
     <view
@@ -28,35 +28,46 @@
           </BaseButton>
         </view>
         <template v-else>
-          <view class="profile">
+          <view class="hero">
             <image
               :src="avatar"
               class="avatar"
               mode="aspectFill"
               @tap="toUserInfoPage"
             />
-            <view>
+            <view class="hero-copy">
               <view class="name">
                 {{ nickname || '未填写昵称' }}
               </view>
-              <view
-                v-if="primaryDialect"
-                class="dialect-badge"
-              >
-                {{ locationText }}
+              <view class="handle">
+                乡声号 {{ username || '未设置' }}
               </view>
-              <view
-                v-else
-                class="meta"
-              >
-                未填写方言点
+              <view class="meta-row">
+                <view
+                  v-if="primaryDialect"
+                  class="dialect-badge"
+                >
+                  {{ locationText }}
+                </view>
+                <view
+                  v-else
+                  class="meta"
+                >
+                  未填写方言点
+                </view>
+                <view
+                  v-if="titleLabel"
+                  class="title-badge"
+                >
+                  {{ titleLabel }}
+                </view>
               </view>
             </view>
           </view>
 
-          <view class="stats">
+          <view class="social-stats">
             <view
-              class="stat"
+              class="social-stat"
               @tap="toCanLibrary"
             >
               <view class="number">
@@ -66,54 +77,128 @@
                 罐头
               </view>
             </view>
-            <view class="stat">
+            <view class="social-stat">
               <view class="number">
-                {{ flavorsCount }}
+                {{ followingCount }}
               </view>
               <view class="label">
-                义项
+                关注
               </view>
             </view>
-            <view class="stat">
+            <view class="social-stat">
               <view class="number">
-                {{ nameplatesCount }}
+                {{ followerCount }}
               </view>
               <view class="label">
-                铭牌
+                粉丝
               </view>
             </view>
           </view>
 
-          <view class="menu">
+          <view class="profile-actions">
+            <view class="action-slot">
+              <BaseButton
+                variant="ghost"
+                block
+                @click="toUserInfoPage"
+              >
+                编辑资料
+              </BaseButton>
+            </view>
+            <view class="action-slot">
+              <BaseButton
+                block
+                @click="toCreate"
+              >
+                装一罐
+              </BaseButton>
+            </view>
+          </view>
+
+          <view class="works">
+            <view class="works-tabs">
+              <view
+                class="works-tab"
+                :class="{ active: worksTab === 'cans' }"
+                @tap="worksTab = 'cans'"
+              >
+                罐头 {{ cansCount }}
+              </view>
+              <view
+                class="works-tab"
+                :class="{ active: worksTab === 'nameplates' }"
+                @tap="worksTab = 'nameplates'"
+              >
+                铭牌 {{ nameplatesCount }}
+              </view>
+              <view
+                class="works-tab"
+                :class="{ active: worksTab === 'flavors' }"
+                @tap="worksTab = 'flavors'"
+              >
+                义项 {{ flavorsCount }}
+              </view>
+            </view>
+            <view class="works-empty">
+              <view class="works-empty-title">
+                {{ worksEmptyTitle }}
+              </view>
+              <view class="works-empty-copy">
+                {{ worksEmptyCopy }}
+              </view>
+              <BaseButton
+                v-if="worksTab === 'cans'"
+                class="works-empty-action"
+                block
+                @click="toCreate"
+              >
+                去装一罐
+              </BaseButton>
+              <BaseButton
+                v-else
+                class="works-empty-action"
+                variant="ghost"
+                block
+                @click="toCanLibrary"
+              >
+                打开罐头库
+              </BaseButton>
+            </view>
+          </view>
+
+          <view class="tool-grid">
             <view
-              class="menu-item"
+              class="tool-item"
               @tap="toCanLibrary"
             >
-              我的罐头库
-              <text class="menu-meta">
-                录制 · 收藏 · 草稿
-              </text>
+              <view class="tool-count">
+                {{ cansCount }}
+              </view>
+              <view class="tool-label">
+                罐头库
+              </view>
             </view>
             <view
-              class="menu-item"
-              @tap="toCreate"
-            >
-              装一罐
-            </view>
-            <view
-              class="menu-item"
+              class="tool-item"
               @tap="toDrafts"
             >
-              草稿箱
-              <text class="menu-meta">
-                {{ draftsCount }} 条
-              </text>
+              <view class="tool-count">
+                {{ draftsCount }}
+              </view>
+              <view class="tool-label">
+                草稿箱
+              </view>
             </view>
             <view
-              class="menu-item"
+              class="tool-item"
               @tap="toMailsPage"
             >
-              我的消息
+              <view class="tool-count">
+                {{ unreadMailsCount }}
+              </view>
+              <view class="tool-label">
+                消息
+              </view>
               <text
                 v-if="unreadMailsCount > 0"
                 class="badge"
@@ -122,17 +207,19 @@
               </text>
             </view>
             <view
-              class="menu-item"
-              @tap="toUserInfoPage"
-            >
-              个人资料
-            </view>
-            <view
-              class="menu-item"
+              class="tool-item"
               @tap="toChangePasswordPage"
             >
-              修改密码
+              <view class="tool-count">
+                ·
+              </view>
+              <view class="tool-label">
+                密码
+              </view>
             </view>
+          </view>
+
+          <view class="menu">
             <view
               class="menu-item"
               @tap="bindingWechat"
@@ -161,7 +248,7 @@
           还没有登录
         </view>
         <view class="guest-copy">
-          登录后可以查看自己的罐头、草稿和贡献记录。查词与收听公开乡音无需登录。
+          登录后可以装罐、看草稿和自己的贡献。公开乡音不用登录，先听也可以。
         </view>
         <BaseButton
           class="guest-action login-button"
@@ -169,6 +256,14 @@
           @click="openLoginFromMine"
         >
           登录 / 注册
+        </BaseButton>
+        <BaseButton
+          class="guest-action"
+          variant="ghost"
+          block
+          @click="toHome"
+        >
+          先去听罐头
         </BaseButton>
         <BaseButton
           class="guest-action"
@@ -218,10 +313,14 @@ export default {
       id: '',
       avatar: '',
       nickname: '',
+      username: '',
+      titleLabel: '',
       primaryDialect: null,
       cansCount: 0,
       flavorsCount: 0,
       nameplatesCount: 0,
+      followerCount: 0,
+      followingCount: 0,
       draftsCount: 0,
       unreadMailsCount: 0,
       wechatBindText: '绑定微信',
@@ -230,11 +329,26 @@ export default {
       loadError: '',
       loggedIn: Boolean(uni.getStorageSync('token')),
       resolvedTheme: 'light',
+      worksTab: 'cans',
     };
   },
   computed: {
     locationText() {
       return this.primaryDialect?.qualified_code || '未填写方言点';
+    },
+    worksEmptyTitle() {
+      if (this.worksTab === 'nameplates') return '还没有贴铭牌';
+      if (this.worksTab === 'flavors') return '还没有提交义项';
+      return '还没有装罐';
+    },
+    worksEmptyCopy() {
+      if (this.worksTab === 'nameplates') {
+        return '铭牌是你对某条罐头的写法、释义和出处主张。';
+      }
+      if (this.worksTab === 'flavors') {
+        return '义项用来收纳“同一个意思在各地怎么说”。';
+      }
+      return '罐头是一段乡音录音。装一罐后会出现在这里和罐头库。';
     },
   },
   mounted() {
@@ -266,6 +380,9 @@ export default {
     toSearch() {
       goSearch();
     },
+    toHome() {
+      goHome();
+    },
     toCreate() {
       goCreateCan();
     },
@@ -289,11 +406,15 @@ export default {
         const userInfo = await getUserInfo(app.globalData.id);
         this.id = userInfo.user.id;
         this.avatar = userInfo.user.avatar;
+        this.username = userInfo.user.username || '';
         this.nickname = userInfo.user.nickname || userInfo.user.username;
+        this.titleLabel = userInfo.user.title?.title || '';
         this.primaryDialect = userInfo.user.primary_dialect;
         this.cansCount = userInfo.contribution.cans_uploaded || 0;
         this.flavorsCount = userInfo.contribution.flavors_uploaded || 0;
         this.nameplatesCount = userInfo.contribution.nameplates || 0;
+        this.followerCount = userInfo.user.follower_count || 0;
+        this.followingCount = userInfo.user.following_count || 0;
         this.unreadMailsCount = userInfo.notification
           ? userInfo.notification.statistics.unread
           : 0;
@@ -373,15 +494,15 @@ export default {
 }
 
 .guest-mark {
-  width: 112rpx;
-  height: 112rpx;
+  width: 160rpx;
+  height: 160rpx;
   margin: 0 auto;
   border-radius: var(--radius-pill);
   background: var(--accent-color);
   color: var(--on-accent-color);
   font-size: var(--font-size-xl);
   font-weight: 800;
-  line-height: 112rpx;
+  line-height: 160rpx;
 }
 
 .guest-title {
@@ -401,17 +522,23 @@ export default {
   margin-top: var(--space-3);
 }
 
-.profile {
+.hero {
   display: flex;
   align-items: center;
   gap: var(--space-3);
 }
 
 .avatar {
-  width: 128rpx;
-  height: 128rpx;
+  width: 168rpx;
+  height: 168rpx;
   border-radius: var(--radius-pill);
   background: var(--surface-subtle-color);
+  flex-shrink: 0;
+}
+
+.hero-copy {
+  min-width: 0;
+  flex: 1;
 }
 
 .name {
@@ -419,54 +546,133 @@ export default {
   font-weight: 800;
 }
 
+.handle,
 .meta {
   margin-top: var(--space-1);
   color: var(--muted-color);
+  font-size: var(--font-size-sm);
 }
 
-.dialect-badge {
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.dialect-badge,
+.title-badge {
   display: inline-flex;
-  margin-top: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--accent-subtle-color);
-  color: var(--accent-color);
   font-size: var(--font-size-xs);
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
+.dialect-badge {
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
+}
+
+.title-badge {
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+}
+
+.social-stats {
+  display: flex;
   margin-top: var(--space-4);
 }
 
-.stat,
-.menu {
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-}
-
-.stat {
-  padding: var(--space-3) var(--space-2);
-  text-align: center;
+.social-stat {
+  flex: 1;
 }
 
 .number {
   font-size: var(--font-size-xl);
   font-weight: 800;
-  color: var(--accent-color);
 }
 
-.label {
+.label,
+.tool-label {
   margin-top: var(--space-1);
   color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
+.profile-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.action-slot {
+  flex: 1;
+  min-width: 0;
+}
+
+.works,
+.tool-grid,
 .menu {
   margin-top: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
   overflow: hidden;
+}
+
+.works-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.works-tab {
+  flex: 1;
+  padding: var(--space-3) 0;
+  text-align: center;
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
+}
+
+.works-tab.active {
+  color: var(--text-color);
+  font-weight: 700;
+  box-shadow: inset 0 -4rpx 0 var(--accent-color);
+}
+
+.works-empty {
+  padding: var(--space-5) var(--space-3);
+  text-align: center;
+}
+
+.works-empty-title {
+  font-weight: 700;
+}
+
+.works-empty-copy {
+  margin-top: var(--space-2);
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+.works-empty-action {
+  margin-top: var(--space-3);
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: var(--space-3) 0;
+}
+
+.tool-item {
+  position: relative;
+  text-align: center;
+}
+
+.tool-count {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
 }
 
 .menu-item {
@@ -487,6 +693,9 @@ export default {
 }
 
 .badge {
+  position: absolute;
+  top: 0;
+  right: var(--space-2);
   min-width: 36rpx;
   height: 36rpx;
   line-height: 36rpx;
@@ -495,10 +704,5 @@ export default {
   background: var(--danger-color);
   border-radius: var(--radius-pill);
   font-size: var(--font-size-xs);
-}
-
-.menu-meta {
-  color: var(--muted-color);
-  font-size: var(--font-size-sm);
 }
 </style>
