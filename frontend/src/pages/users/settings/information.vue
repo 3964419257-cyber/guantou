@@ -139,6 +139,7 @@
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import PageShell from '@/components/PageShell.vue';
+import { notify, notifySuccess } from '@/services/feedback';
 import { uploadFile } from '@/services/file';
 import { listAllDialects } from '@/services/guantou';
 import {
@@ -223,12 +224,13 @@ export default {
         if (res.token) uni.setStorageSync('token', res.token);
         this.user = { ...(res.user || nextUser) };
         app.globalData.userInfo = this.user;
-        uni.showToast({ title: '修改成功' });
+        notifySuccess('修改成功');
       } catch (error) {
         this.saveError = fieldErrorMessage(error, 'primary_dialect')
           || fieldErrorMessage(error, 'telephone')
           || fieldErrorMessage(error, 'avatar')
           || '保存失败';
+        notify({ title: this.saveError });
       } finally {
         this.saving = false;
       }

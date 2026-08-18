@@ -180,8 +180,8 @@ export default {
           0,
           Number(this.userInfo.user.follower_count || 0) + (wasFollowing ? -1 : 1),
         );
-      } catch (error) {
-        uni.showToast({ title: error?.message || '关注状态更新失败', icon: 'none' });
+      } catch {
+        return;
       } finally {
         this.followingBusy = false;
       }

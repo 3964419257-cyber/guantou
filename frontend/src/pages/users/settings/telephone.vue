@@ -31,6 +31,7 @@
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
+import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { getUserInfo } from '@/services/user';
 import request from '@/utils/request';
@@ -86,10 +87,11 @@ export default {
         );
         if (res.token) uni.setStorageSync('token', res.token);
         app.globalData.userInfo = res.user || userInfo.user;
-        uni.showToast({ title: '修改成功' });
+        notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
         this.error = fieldErrorMessage(error, 'telephone') || '保存失败';
+        notify({ title: this.error });
       } finally {
         this.saving = false;
       }

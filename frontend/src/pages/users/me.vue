@@ -3,10 +3,19 @@
     title="我的乡音档案"
     active="me"
   >
-    <view class="page">
+    <view
+      class="page"
+      :class="`theme-${resolvedTheme}`"
+    >
       <template v-if="loggedIn">
         <view
-          v-if="loadError"
+          v-if="loading"
+          class="state-card"
+        >
+          正在读取你的乡音档案…
+        </view>
+        <view
+          v-else-if="loadError"
           class="state-card"
         >
           <view>{{ loadError }}</view>
@@ -180,7 +189,9 @@ import AppShell from '@/components/AppShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import confirmDialog from '@/components/ConfirmDialog';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
+import { notify, notifySuccess } from '@/services/feedback';
 import { openLoginFromMine } from '@/services/authJourney';
+import { applyTheme, getThemePreference } from '@/services/theme';
 import { listCanDrafts } from '@/services/canDrafts';
 import {
   goCanLibrary,
@@ -215,14 +226,23 @@ export default {
       unreadMailsCount: 0,
       wechatBindText: '绑定微信',
       isBinding: false,
+      loading: false,
       loadError: '',
       loggedIn: Boolean(uni.getStorageSync('token')),
+      resolvedTheme: 'light',
     };
   },
   computed: {
     locationText() {
       return this.primaryDialect?.qualified_code || '未填写方言点';
     },
+  },
+  mounted() {
+    this.handleThemeChange(applyTheme(getThemePreference()));
+    uni.$on('theme-change', this.handleThemeChange);
+  },
+  beforeUnmount() {
+    uni.$off('theme-change', this.handleThemeChange);
   },
   beforeMount() {
     this.getInfo();
@@ -258,8 +278,12 @@ export default {
     toCanLibrary() {
       goCanLibrary();
     },
+    handleThemeChange(theme) {
+      this.resolvedTheme = theme?.resolved || 'light';
+    },
     async getInfo() {
       if (!app.globalData.id) return;
+      this.loading = true;
       this.loadError = '';
       try {
         const userInfo = await getUserInfo(app.globalData.id);
@@ -276,6 +300,8 @@ export default {
         this.wechatBindText = userInfo.user.wechat ? '解绑微信' : '绑定微信';
       } catch (error) {
         this.loadError = error?.message || '档案加载失败';
+      } finally {
+        this.loading = false;
       }
     },
     async exit() {
@@ -288,7 +314,7 @@ export default {
       if (!confirmed) return;
       clearUserInfo();
       goHome(true);
-      uni.showToast({ title: '登出成功' });
+      notifySuccess('登出成功');
     },
     async bindingWechat() {
       if (this.isBinding || !app.globalData.id) return;
@@ -297,20 +323,19 @@ export default {
         const userInfo = await getUserInfo(app.globalData.id);
         if (!userInfo.user.wechat) {
           // #ifndef MP-WEIXIN
-          uni.showToast({ title: '请在微信小程序中绑定微信', icon: 'none' });
+          notify({ title: '请在微信小程序中绑定微信' });
           // #endif
           // #ifdef MP-WEIXIN
           await bindingWechatService(app.globalData.id, false);
-          uni.showToast({ title: '绑定成功' });
+          notifySuccess('绑定成功');
           // #endif
         } else {
           await cancelBindingWechatService(app.globalData.id);
-          uni.showToast({ title: '解绑成功' });
+          notifySuccess('解绑成功');
         }
         await this.getInfo();
       } catch (err) {
-        const msg = (err && err.message) || '操作失败';
-        uni.showToast({ title: msg, icon: 'none' });
+        notify({ title: (err && err.message) || '操作失败' });
       } finally {
         this.isBinding = false;
       }

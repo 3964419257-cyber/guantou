@@ -45,6 +45,7 @@
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
+import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import request from '@/utils/request';
 
@@ -95,12 +96,13 @@ export default {
           oldpassword: oldPassword,
           newpassword: newPassword,
         }, true);
-        uni.showToast({ title: '修改成功' });
+        notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
         this.oldError = fieldErrorMessage(error, 'oldpassword');
         this.newError = fieldErrorMessage(error, 'newpassword')
           || (!this.oldError ? (error?.message || '保存失败') : '');
+        notify({ title: this.oldError || this.newError || '保存失败' });
       } finally {
         this.saving = false;
       }

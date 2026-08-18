@@ -52,6 +52,7 @@
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
+import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { getUserInfo } from '@/services/user';
 import request from '@/utils/request';
@@ -101,9 +102,10 @@ export default {
       this.sending = true;
       try {
         await request.post('/users/email-code', { email, purpose: 'bind' }, true);
-        uni.showToast({ title: '验证码已发送', icon: 'none' });
+        notify({ title: '验证码已发送' });
       } catch (error) {
         this.emailError = fieldErrorMessage(error, 'email') || '验证码发送失败';
+        notify({ title: this.emailError });
       } finally {
         this.sending = false;
       }
@@ -117,12 +119,13 @@ export default {
       this.saving = true;
       try {
         await request.put(`/users/${app.globalData.id}/email`, { email, code }, true);
-        uni.showToast({ title: '修改成功' });
+        notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
         this.emailError = fieldErrorMessage(error, 'email');
         this.codeError = fieldErrorMessage(error, 'code')
           || (!this.emailError ? (error?.message || '保存失败') : '');
+        notify({ title: this.emailError || this.codeError || '保存失败' });
       } finally {
         this.saving = false;
       }

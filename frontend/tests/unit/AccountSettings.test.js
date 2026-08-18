@@ -56,11 +56,22 @@ vi.mock('@/services/shareMessages', () => ({
   defaultMessage: vi.fn(() => ({})),
 }));
 
+vi.mock('@/services/feedback', () => ({
+  notify: vi.fn(),
+  notifySuccess: vi.fn(),
+}));
+
+vi.mock('@/services/theme', () => ({
+  applyTheme: vi.fn(() => ({ preference: 'light', resolved: 'light' })),
+  getThemePreference: vi.fn(() => 'light'),
+}));
+
 vi.mock('@/components/ConfirmDialog', () => ({
   default: vi.fn(async () => true),
 }));
 
 import { goBack, goHome } from '@/services/navigation';
+import { notify, notifySuccess } from '@/services/feedback';
 import { clearUserInfo } from '@/services/user';
 import request from '@/utils/request';
 import confirmDialog from '@/components/ConfirmDialog';
@@ -143,6 +154,7 @@ describe('nickname settings form', () => {
     await wrapper.vm.saveNickname();
     await flushPromises();
     expect(wrapper.vm.error).toBe('昵称过长');
+    expect(notify).toHaveBeenCalledWith({ title: '昵称过长' });
     expect(goBack).not.toHaveBeenCalled();
   });
 
@@ -154,7 +166,7 @@ describe('nickname settings form', () => {
     await flushPromises();
     expect(request.put).toHaveBeenCalled();
     expect(goBack).toHaveBeenCalled();
-    expect(uni.showToast).toHaveBeenCalledWith({ title: '修改成功' });
+    expect(notifySuccess).toHaveBeenCalledWith('修改成功');
   });
 });
 
@@ -193,8 +205,15 @@ describe('mine page logout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     globalThis.uni = {
-      getStorageSync: vi.fn((key) => (key === 'token' ? 'token' : key === 'id' ? 7 : '')),
+      getStorageSync: vi.fn((key) => {
+        if (key === 'token') return 'token';
+        if (key === 'id') return 7;
+        return '';
+      }),
       showToast: vi.fn(),
+      $on: vi.fn(),
+      $off: vi.fn(),
+      $emit: vi.fn(),
     };
   });
 
