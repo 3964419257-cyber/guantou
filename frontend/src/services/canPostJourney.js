@@ -1,8 +1,13 @@
 import { requireAuth } from '@/services/authGuard';
-import { notify } from '@/services/feedback';
+import {
+  goPostCompose,
+  goPostDetail,
+  pageUrl,
+  ROUTES,
+} from '@/services/navigation';
 
 export function useSameUrl(canId) {
-  return `/pages/posts/compose?can_id=${encodeURIComponent(canId)}`;
+  return pageUrl(ROUTES.postCompose, { can_id: canId });
 }
 
 export function startUseSame(canId, context = {}) {
@@ -12,34 +17,14 @@ export function startUseSame(canId, context = {}) {
     canId,
     postId: context.postId,
   })) return false;
-  uni.navigateTo({ url: useSameUrl(canId) });
-  notify({ title: '已带入同款罐头' });
+  goPostCompose(canId);
   return true;
 }
 
-export function openCanPost(postId, options = {}) {
+export function openCanPost(postId) {
   if (!postId) return false;
-  const query = [`id=${encodeURIComponent(postId)}`];
-  if (options.scrollTo) query.push(`scrollTo=${encodeURIComponent(options.scrollTo)}`);
-  uni.navigateTo({
-    url: `/pages/posts/details?${query.join('&')}`,
-  });
+  goPostDetail(postId);
   return true;
 }
 
-export function openCanDetail(canId, options = {}) {
-  if (!canId) return false;
-  const query = [`id=${encodeURIComponent(canId)}`];
-  if (options.scrollTo) query.push(`scrollTo=${encodeURIComponent(options.scrollTo)}`);
-  uni.navigateTo({
-    url: `/pages/cans/details?${query.join('&')}`,
-  });
-  return true;
-}
-
-export default {
-  openCanDetail,
-  openCanPost,
-  startUseSame,
-  useSameUrl,
-};
+export default { openCanPost, startUseSame, useSameUrl };

@@ -47,7 +47,7 @@
 </template>
 
 <script>
-import { playAudio, stopAudioChannel } from '@/utils/audio';
+import { playManaged, stopAudio } from '@/utils/audio';
 
 export default {
   name: 'PostSourceBar',
@@ -131,8 +131,8 @@ export default {
     },
     playMini() {
       if (!this.miniAudioUrl) return;
-      stopAudioChannel('dictionary');
-      playAudio(this.miniAudioUrl, false, { channel: 'can' });
+      stopAudio();
+      playManaged(this.miniAudioUrl);
     },
   },
 };

@@ -109,5 +109,5 @@ test('new user selects a primary dialect and reaches home', async ({ page }) => 
   await page.getByRole('button', { name: '跳过' }).click();
 
   await expect(page).toHaveURL(/\/(pages\/index)?$/);
-  await expect(page.getByText('同方言 · 四川话').first()).toBeVisible();
+  await expect(page.getByText('同方言', { exact: true }).first()).toBeVisible();
 });

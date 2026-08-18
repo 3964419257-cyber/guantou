@@ -52,7 +52,7 @@
 </template>
 
 <script>
-import { playAudio, stopAudioChannel } from '@/utils/audio';
+import { playManaged, stopAudio } from '@/utils/audio';
 
 export default {
   name: 'WordCard',
@@ -88,17 +88,10 @@ export default {
         uni.showToast({ title: '暂无词典发音', icon: 'none' });
         return;
       }
-      stopAudioChannel('can');
+      stopAudio();
       this.listening = true;
-      playAudio(this.audioUrl, false, {
-        channel: 'dictionary',
+      playManaged(this.audioUrl, {
         onEnded: () => {
-          this.listening = false;
-        },
-        onStop: () => {
-          this.listening = false;
-        },
-        onPause: () => {
           this.listening = false;
         },
       });

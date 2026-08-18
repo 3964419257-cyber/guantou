@@ -374,6 +374,32 @@ class PhoneAuthenticationTests(TestCase):
         self.assertIsNone(without.primary_dialect_id)
         self.assertEqual(without.user.username, "u_old_no_dialect")
 
+    def test_demo_seed_without_reset_preserves_onboarding_progress(self):
+        first = self.client.post(
+            "/users/demo-seed",
+            data={"reset": True},
+            content_type="application/json",
+        )
+        self.assertEqual(first.status_code, 200)
+        without = UserInfo.objects.select_related("primary_dialect").get(
+            telephone="13900000002"
+        )
+        dialect = Dialect.objects.get(name="四川话")
+        without.primary_dialect = dialect
+        without.onboarding_done_at = timezone.now()
+        without.save(update_fields=["primary_dialect", "onboarding_done_at"])
+        done_at = without.onboarding_done_at
+
+        second = self.client.post(
+            "/users/demo-seed",
+            data={},
+            content_type="application/json",
+        )
+        self.assertEqual(second.status_code, 200)
+        without.refresh_from_db()
+        self.assertEqual(without.primary_dialect_id, dialect.id)
+        self.assertEqual(without.onboarding_done_at, done_at)
+
     @override_settings(PHONE_CODE_DEMO_MODE=False)
     def test_demo_seed_disabled_outside_demo_mode(self):
         response = self.client.post(

@@ -2,8 +2,8 @@ import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/utils/audio', () => ({
-  playAudio: vi.fn(),
-  stopAudioChannel: vi.fn(),
+  playManaged: vi.fn(),
+  stopAudio: vi.fn(),
 }));
 
 import PostSourceBar from '@/components/PostSourceBar.vue';

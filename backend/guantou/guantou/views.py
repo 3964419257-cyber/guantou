@@ -13,7 +13,7 @@ from django.db.models import (
 )
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -22,6 +22,7 @@ from utils.exceptions.types.bad_request import BadRequestException
 from utils.exceptions.types.conflict import ConflictException
 from inbox.models import Notification
 from inbox.services import send_event_notification
+from user.models import UserFollow
 
 from .models import (
     Can,
@@ -62,10 +63,13 @@ from .services import (
     aggregate_search,
     elect_primary_nameplate,
     hot_search_terms,
+    nameplate_preview_queryset,
+    prefetch_nameplate_previews,
     record_search,
     suggest_search,
     transition_can,
     visible_cans_for_user,
+    with_can_card_annotations,
 )
 
 
@@ -117,6 +121,9 @@ class AggregateSearchView(APIView):
                 "packages": PackageSerializer(
                     results["packages"], many=True, context=context
                 ).data,
+                "nameplates": NameplateCardSerializer(
+                    results["nameplates"], many=True, context=context
+                ).data,
                 "cans": CanCardSerializer(
                     results["cans"], many=True, context=context
                 ).data,
@@ -149,20 +156,10 @@ class DiscoveryView(APIView):
 
     def get(self, request):
         context = {"request": request}
-        hot_cans = (
-            visible_cans_for_user(request.user)
-            .filter(visibility=True)
-            .annotate(
-                like_count=Count("likes", distinct=True),
-                comment_count=Count("comments", distinct=True),
-                nameplate_count=Count(
-                    "nameplates",
-                    filter=Q(nameplates__status=Nameplate.Status.ACTIVE),
-                    distinct=True,
-                ),
-            )
-            .order_by("-views", "-like_count", "-created_at", "-id")[:6]
-        )
+        hot_cans = with_can_card_annotations(
+            visible_cans_for_user(request.user).filter(visibility=True),
+            request.user,
+        ).order_by("-views", "-like_count", "-created_at", "-id")[:6]
         hot_flavors = Flavor.objects.annotate(
             popularity=Count(
                 "nameplates__can",
@@ -207,6 +204,13 @@ class DialectViewSet(viewsets.ModelViewSet):
     serializer_class = DialectSerializer
     permission_classes = [CanWritePermission]
 
+    def get_serializer_class(self):
+        if self.action == "list" and truthy(self.request.query_params.get("flat")):
+            from .serializers import DialectRefSerializer
+
+            return DialectRefSerializer
+        return DialectSerializer
+
     def perform_create(self, serializer):
         dialect = serializer.save()
         DialectCircle.objects.get_or_create(
@@ -222,11 +226,12 @@ class DialectViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         if self.action == "list":
             parent_id = self.request.query_params.get("parent_id")
-            queryset = (
-                queryset.filter(parent__isnull=True)
-                if parent_id is None
-                else queryset.filter(parent_id=parent_id)
-            )
+            if not truthy(self.request.query_params.get("flat")):
+                queryset = (
+                    queryset.filter(parent__isnull=True)
+                    if parent_id is None
+                    else queryset.filter(parent_id=parent_id)
+                )
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(
@@ -347,23 +352,13 @@ class DialectCircleViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])
     def cans(self, request, pk=None):
         circle = self.get_object()
-        queryset = (
-            visible_cans_for_user(request.user)
-            .filter(
+        queryset = with_can_card_annotations(
+            visible_cans_for_user(request.user).filter(
                 visibility=True,
                 submitted_dialect_id__in=circle.dialect.descendant_ids(),
-            )
-            .annotate(
-                nameplate_count=Count(
-                    "nameplates",
-                    filter=Q(nameplates__status=Nameplate.Status.ACTIVE),
-                    distinct=True,
-                ),
-                like_count=Count("likes", distinct=True),
-                comment_count=Count("comments", distinct=True),
-            )
-            .order_by("-created_at", "-id")
-        )
+            ),
+            request.user,
+        ).order_by("-created_at", "-id")
         page = self.paginate_queryset(queryset)
         serializer = CanCardSerializer(
             page if page is not None else queryset,
@@ -519,13 +514,7 @@ class CanViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
     queryset = (
         Can.objects.select_related("recorder", "submitted_dialect", "verifier")
-        .prefetch_related(
-            "nameplates__package",
-            "nameplates__flavor",
-            "nameplates__dialect",
-            "nameplates__pronunciation",
-            "nameplates__creator",
-        )
+        .prefetch_related(prefetch_nameplate_previews())
         .annotate(
             nameplate_count=Count(
                 "nameplates",
@@ -533,7 +522,11 @@ class CanViewSet(viewsets.ModelViewSet):
                 distinct=True,
             ),
             like_count=Count("likes", distinct=True),
-            comment_count=Count("comments", distinct=True),
+            comment_count=Count(
+                "comments",
+                filter=Q(comments__nameplate__isnull=True),
+                distinct=True,
+            ),
             use_count=Count(
                 "posts",
                 filter=Q(posts__visibility=CanPost.Visibility.PUBLIC),
@@ -554,11 +547,17 @@ class CanViewSet(viewsets.ModelViewSet):
             queryset = queryset.annotate(
                 liked_by_me=Exists(
                     CanLike.objects.filter(can_id=OuterRef("pk"), user=user)
-                )
+                ),
+                recorder_followed_by_me=Exists(
+                    UserFollow.objects.filter(
+                        follower=user, followed_id=OuterRef("recorder_id")
+                    )
+                ),
             )
         else:
             queryset = queryset.annotate(
-                liked_by_me=Value(False, output_field=BooleanField())
+                liked_by_me=Value(False, output_field=BooleanField()),
+                recorder_followed_by_me=Value(False, output_field=BooleanField()),
             )
 
         feed = self.request.query_params.get("feed", "")
@@ -771,8 +770,10 @@ class CanViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], permission_classes=[permissions.AllowAny])
     def nameplates(self, request, pk=None):
         can = self.get_object()
-        queryset = can.nameplates.select_related(
-            "can", "package", "flavor", "dialect", "pronunciation", "creator"
+        queryset = (
+            nameplate_preview_queryset()
+            .filter(can=can)
+            .order_by("-is_primary", "-weight", "id")
         )
         page = self.paginate_queryset(queryset)
         serializer = NameplateCardSerializer(
@@ -794,7 +795,9 @@ class CanCommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            CanComment.objects.select_related("author", "author__user_info", "can")
+            CanComment.objects.select_related(
+                "author", "author__user_info", "can", "nameplate", "nameplate__creator"
+            )
             .filter(can__visibility=True)
             .annotate(like_count=Count("likes", distinct=True))
         )
@@ -806,24 +809,38 @@ class CanCommentViewSet(viewsets.ModelViewSet):
                 )
             )
         can_id = self.request.query_params.get("can_id")
+        nameplate_id = self.request.query_params.get("nameplate_id")
         if self.action == "list":
-            if not can_id:
-                raise BadRequestException("can_id 不能为空")
-            queryset = queryset.filter(can_id=can_id)
+            if bool(can_id) == bool(nameplate_id):
+                raise BadRequestException("can_id 与 nameplate_id 必须且只能提供一个")
+            if nameplate_id:
+                queryset = queryset.filter(nameplate_id=nameplate_id)
+            else:
+                # nameplate=NULL 是罐头公共评论与具体铭牌讨论的隔离边界。
+                queryset = queryset.filter(can_id=can_id, nameplate__isnull=True)
         return queryset.order_by("-created_at", "-id")
 
     def perform_create(self, serializer):
         comment = serializer.save(author=self.request.user)
+        is_nameplate_comment = bool(comment.nameplate_id)
+        target_type = "nameplate" if is_nameplate_comment else "can"
+        target_id = comment.nameplate_id or comment.can_id
+        target_url = (
+            f"/pages/nameplates/comments?id={comment.nameplate_id}"
+            if is_nameplate_comment
+            else f"/pages/cans/details?id={comment.can_id}"
+        )
         send_event_notification(
             actor=self.request.user,
-            recipient=comment.can.recorder,
+            recipient=(comment.nameplate.creator if is_nameplate_comment else None)
+            or comment.can.recorder,
             verb=Notification.Verb.CAN_COMMENT,
             description=comment.content,
             action_object=comment,
             metadata={
-                "target_type": "can",
-                "target_id": comment.can_id,
-                "target_url": f"/pages/cans/details?id={comment.can_id}",
+                "target_type": target_type,
+                "target_id": target_id,
+                "target_url": target_url,
             },
         )
 
@@ -841,6 +858,7 @@ class CanCommentViewSet(viewsets.ModelViewSet):
             )
             liked = True
             if changed:
+                is_nameplate_comment = bool(comment.nameplate_id)
                 send_event_notification(
                     actor=request.user,
                     recipient=comment.author,
@@ -848,9 +866,13 @@ class CanCommentViewSet(viewsets.ModelViewSet):
                     description=comment.content,
                     action_object=comment,
                     metadata={
-                        "target_type": "can",
-                        "target_id": comment.can_id,
-                        "target_url": f"/pages/cans/details?id={comment.can_id}",
+                        "target_type": "nameplate" if is_nameplate_comment else "can",
+                        "target_id": comment.nameplate_id or comment.can_id,
+                        "target_url": (
+                            f"/pages/nameplates/comments?id={comment.nameplate_id}"
+                            if is_nameplate_comment
+                            else f"/pages/cans/details?id={comment.can_id}"
+                        ),
                     },
                 )
         else:
@@ -883,11 +905,7 @@ class CanPostViewSet(viewsets.ModelViewSet):
         "can__recorder",
         "can__recorder__user_info",
         "can__submitted_dialect",
-    ).prefetch_related(
-        "can__nameplates__package",
-        "can__nameplates__flavor",
-        "can__nameplates__dialect",
-    )
+    ).prefetch_related(prefetch_nameplate_previews("can__nameplates"))
 
     def get_queryset(self):
         queryset = self.queryset
@@ -910,6 +928,16 @@ class CanPostViewSet(viewsets.ModelViewSet):
                 else queryset.none()
             )
         return queryset.distinct().order_by("-created_at", "-id")
+
+    def visible_posts(self):
+        queryset = self.queryset
+        user = self.request.user
+        if not (user and user.is_authenticated and user.is_staff):
+            visible = Q(visibility=CanPost.Visibility.PUBLIC)
+            if user and user.is_authenticated:
+                visible |= Q(author=user)
+            queryset = queryset.filter(visible)
+        return queryset
 
     def perform_create(self, serializer):
         can = serializer.validated_data["can"]
@@ -935,31 +963,36 @@ class CanPostViewSet(viewsets.ModelViewSet):
             "primary_nameplate": primary_snapshot,
         }
         forward_from_post_id = self.request.data.get("forward_from_post_id")
-        if kind == "repost" and forward_from_post_id:
+        if kind == "repost" and forward_from_post_id not in (None, ""):
             try:
-                origin = CanPost.objects.select_related(
-                    "author", "author__user_info"
-                ).get(pk=int(forward_from_post_id))
-                snapshot["forward_from"] = {
-                    "post_id": origin.id,
-                    "author_id": origin.author_id,
-                    "author_name": (
-                        origin.author.user_info.nickname or origin.author.username
-                    ),
-                    "snippet": (origin.text or can.concept_text or "")[:80],
-                    "can_subtitle": can.concept_text or "",
-                }
-            except (CanPost.DoesNotExist, TypeError, ValueError):
-                snapshot["forward_from"] = {
-                    "post_id": None,
-                    "author_name": (
-                        (preview.get("recorder") or {}).get("nickname")
-                        or (preview.get("recorder") or {}).get("username")
-                        or "原作者"
-                    ),
-                    "snippet": (can.concept_text or "")[:80],
-                    "source_unavailable": True,
-                }
+                origin_id = int(forward_from_post_id)
+            except (TypeError, ValueError) as exc:
+                raise serializers.ValidationError(
+                    {"forward_from_post_id": "来源帖不存在或不可见"}
+                ) from exc
+            origin = (
+                self.visible_posts()
+                .select_related("author", "author__user_info")
+                .filter(pk=origin_id)
+                .first()
+            )
+            if origin is None:
+                raise serializers.ValidationError(
+                    {"forward_from_post_id": "来源帖不存在或不可见"}
+                )
+            if origin.can_id != can.id:
+                raise serializers.ValidationError(
+                    {"forward_from_post_id": "来源帖必须属于本次选择的罐头"}
+                )
+            snapshot["forward_from"] = {
+                "post_id": origin.id,
+                "author_id": origin.author_id,
+                "author_name": (
+                    origin.author.user_info.nickname or origin.author.username
+                ),
+                "snippet": (origin.text or can.concept_text or "")[:80],
+                "can_subtitle": can.concept_text or "",
+            }
         elif kind == "repost":
             recorder = preview.get("recorder") or {}
             snapshot["forward_from"] = {
@@ -1000,15 +1033,22 @@ class NameplateViewSet(viewsets.ModelViewSet):
         "head",
         "options",
     ]
-    queryset = Nameplate.objects.select_related(
-        "can",
-        "can__recorder",
-        "package",
-        "flavor",
-        "dialect",
-        "pronunciation",
-        "creator",
-        "supersedes",
+    queryset = (
+        Nameplate.objects.select_related(
+            "can",
+            "can__recorder",
+            "package",
+            "flavor",
+            "dialect",
+            "pronunciation",
+            "creator",
+            "supersedes",
+        )
+        .prefetch_related("supports")
+        .annotate(
+            support_count=Count("supports", distinct=True),
+            comment_count=Count("comments", distinct=True),
+        )
     )
     serializer_class = NameplateSerializer
     permission_classes = [IsOwnerOrAdmin]
@@ -1062,7 +1102,7 @@ class NameplateViewSet(viewsets.ModelViewSet):
                 | Q(source__title__icontains=search)
                 | Q(source__attributed_to__icontains=search)
             )
-        return queryset
+        return queryset.order_by("can_id", "-is_primary", "-weight", "id")
 
     def perform_create(self, serializer):
         can = serializer.validated_data["can"]
@@ -1153,7 +1193,7 @@ class ShelfViewSet(viewsets.ModelViewSet):
         "flavor_links__flavor",
         "can_links__can__recorder",
         "can_links__can__submitted_dialect",
-        "can_links__can__nameplates",
+        prefetch_nameplate_previews("can_links__can__nameplates"),
     )
     serializer_class = ShelfSerializer
     permission_classes = [IsOwnerOrAdmin]

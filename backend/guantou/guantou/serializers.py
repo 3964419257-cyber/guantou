@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef
 from rest_framework import serializers
+from user.models import UserFollow
 from utils.exceptions.payload import field_error
 from utils.exceptions.types.conflict import ConflictException
 
@@ -15,7 +16,6 @@ from .models import (
     Flavor,
     FlavorPackage,
     Nameplate,
-    NameplateSupport,
     Package,
     Pronunciation,
     RecordingChallenge,
@@ -489,6 +489,9 @@ class NameplateCardSerializer(NameplateRefSerializer):
     dialect = DialectRefSerializer(read_only=True)
     pronunciation = PronunciationRefSerializer(read_only=True)
     source_type = serializers.SerializerMethodField()
+    support_count = serializers.SerializerMethodField()
+    comment_count = serializers.SerializerMethodField()
+    supported_by_current_user = serializers.SerializerMethodField()
 
     class Meta(NameplateRefSerializer.Meta):
         fields = NameplateRefSerializer.Meta.fields + [
@@ -498,11 +501,41 @@ class NameplateCardSerializer(NameplateRefSerializer):
             "dialect",
             "pronunciation",
             "source_type",
+            "text_content",
+            "definition",
+            "pronunciation_text",
+            "source",
+            "evidence_level",
+            "support_count",
+            "comment_count",
+            "supported_by_current_user",
             "created_at",
         ]
 
     def get_source_type(self, obj):
         return (obj.source or {}).get("type", Nameplate.SourceType.OTHER)
+
+    def get_support_count(self, obj):
+        annotated = getattr(obj, "support_count", None)
+        if annotated is not None:
+            return annotated
+        return obj.supports.count()
+
+    def get_comment_count(self, obj):
+        annotated = getattr(obj, "comment_count", None)
+        if annotated is not None:
+            return annotated
+        return obj.comments.count()
+
+    def get_supported_by_current_user(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not (user and user.is_authenticated):
+            return False
+        prefetched = getattr(obj, "_prefetched_objects_cache", {}).get("supports")
+        if prefetched is not None:
+            return any(support.user_id == user.id for support in prefetched)
+        return obj.supports.filter(user=user).exists()
 
 
 class NameplateSerializer(NameplateCardSerializer):
@@ -547,7 +580,6 @@ class NameplateSerializer(NameplateCardSerializer):
     )
     source = NameplateSourceSerializer()
     creator = UserLiteSerializer(read_only=True, allow_null=True)
-    supported_by_current_user = serializers.SerializerMethodField()
 
     class Meta(NameplateCardSerializer.Meta):
         fields = NameplateCardSerializer.Meta.fields + [
@@ -557,30 +589,31 @@ class NameplateSerializer(NameplateCardSerializer):
             "dialect_id",
             "pronunciation_id",
             "creator",
-            "text_content",
-            "definition",
-            "pronunciation_text",
-            "source",
-            "evidence_level",
-            "supported_by_current_user",
             "supersedes",
             "supersedes_id",
             "updated_at",
         ]
-        read_only_fields = NameplateCardSerializer.Meta.fields + [
+        # CardSerializer 也负责展示语义字段，但创建/修订时这些字段必须保持可写。
+        read_only_fields = [
+            "id",
+            "display_text",
+            "status",
+            "weight",
+            "is_primary",
+            "is_complete",
+            "can",
+            "package",
+            "flavor",
+            "dialect",
+            "pronunciation",
+            "source_type",
+            "support_count",
+            "comment_count",
             "creator",
             "supported_by_current_user",
+            "created_at",
             "updated_at",
         ]
-
-    def get_supported_by_current_user(self, obj):
-        request = self.context.get("request")
-        user = getattr(request, "user", None)
-        return bool(
-            user
-            and user.is_authenticated
-            and NameplateSupport.objects.filter(nameplate=obj, user=user).exists()
-        )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -754,10 +787,13 @@ class CanCardSerializer(serializers.ModelSerializer):
     submitted_dialect = DialectRefSerializer(read_only=True, allow_null=True)
     primary_nameplate = NameplateRefSerializer(read_only=True, allow_null=True)
     nameplate_count = serializers.SerializerMethodField()
+    nameplate_total = serializers.SerializerMethodField()
+    nameplate_previews = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
     use_count = serializers.SerializerMethodField()
     liked_by_me = serializers.SerializerMethodField()
+    recorder_followed_by_me = serializers.SerializerMethodField()
 
     class Meta:
         model = Can
@@ -772,10 +808,13 @@ class CanCardSerializer(serializers.ModelSerializer):
             "visibility",
             "views",
             "nameplate_count",
+            "nameplate_total",
+            "nameplate_previews",
             "like_count",
             "comment_count",
             "use_count",
             "liked_by_me",
+            "recorder_followed_by_me",
             "duration_ms",
             "created_at",
         ]
@@ -785,6 +824,77 @@ class CanCardSerializer(serializers.ModelSerializer):
         if annotated is not None:
             return annotated
         return obj.nameplates.filter(status=Nameplate.Status.ACTIVE).count()
+
+    def get_nameplate_total(self, obj):
+        # 与 nameplate_count 同源：统计该罐 active 铭牌总数。
+        annotated = getattr(obj, "nameplate_count", None)
+        if annotated is not None:
+            return annotated
+        return obj.nameplates.filter(status=Nameplate.Status.ACTIVE).count()
+
+    def get_nameplate_previews(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        user_id = user.pk if user and user.is_authenticated else None
+        # 首页列表契约必须自包含，卡片组件不能再按罐逐一补请求。
+        active = [
+            plate
+            for plate in obj.nameplates.all()
+            if plate.status == Nameplate.Status.ACTIVE
+        ]
+        top = sorted(
+            active,
+            key=lambda plate: (not plate.is_primary, -plate.weight, plate.id),
+        )[:3]
+        previews = []
+        for plate in top:
+            supports = list(plate.supports.all())
+            plate_comment_count = getattr(plate, "comment_count", None)
+            if plate_comment_count is None:
+                plate_comment_count = plate.comments.count()
+            previews.append(
+                {
+                    "id": plate.id,
+                    "is_primary": plate.is_primary,
+                    "display_text": plate.display_text,
+                    "text_content": plate.text_content,
+                    "definition": plate.definition,
+                    "pronunciation_text": plate.pronunciation_text,
+                    "package": (
+                        PackageRefSerializer(plate.package).data
+                        if plate.package_id
+                        else None
+                    ),
+                    "flavor": (
+                        FlavorRefSerializer(plate.flavor).data
+                        if plate.flavor_id
+                        else None
+                    ),
+                    "dialect": (
+                        DialectRefSerializer(plate.dialect).data
+                        if plate.dialect_id
+                        else None
+                    ),
+                    "pronunciation": (
+                        PronunciationRefSerializer(plate.pronunciation).data
+                        if plate.pronunciation_id
+                        else None
+                    ),
+                    "source": plate.source,
+                    "source_type": (plate.source or {}).get(
+                        "type", Nameplate.SourceType.OTHER
+                    ),
+                    "evidence_level": plate.evidence_level,
+                    "weight": plate.weight,
+                    "support_count": len(supports),
+                    "comment_count": plate_comment_count,
+                    "supported_by_current_user": bool(
+                        user_id is not None
+                        and any(support.user_id == user_id for support in supports)
+                    ),
+                }
+            )
+        return previews
 
     def get_like_count(self, obj):
         annotated = getattr(obj, "like_count", None)
@@ -812,11 +922,30 @@ class CanCardSerializer(serializers.ModelSerializer):
             and CanLike.objects.filter(can=obj, user=user).exists()
         )
 
+    def get_recorder_followed_by_me(self, obj):
+        annotated = getattr(obj, "recorder_followed_by_me", None)
+        if annotated is not None:
+            return bool(annotated)
+        request = self.context.get("request")
+        user = request.user if request else None
+        if not (user and user.is_authenticated) or not obj.recorder_id:
+            return False
+        return UserFollow.objects.filter(
+            follower=user, followed_id=obj.recorder_id
+        ).exists()
+
 
 class CanCommentSerializer(serializers.ModelSerializer):
     can_id = serializers.PrimaryKeyRelatedField(
         source="can",
         queryset=Can.objects.filter(visibility=True),
+        required=False,
+    )
+    nameplate_id = serializers.PrimaryKeyRelatedField(
+        source="nameplate",
+        queryset=Nameplate.objects.filter(can__visibility=True),
+        required=False,
+        allow_null=True,
     )
     author = UserLiteSerializer(read_only=True)
     like_count = serializers.SerializerMethodField()
@@ -827,6 +956,7 @@ class CanCommentSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "can_id",
+            "nameplate_id",
             "author",
             "content",
             "like_count",
@@ -834,6 +964,22 @@ class CanCommentSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "author", "created_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if self.instance:
+            if "can" in attrs or "nameplate" in attrs:
+                raise serializers.ValidationError("评论目标创建后不可修改")
+            return attrs
+        can = attrs.get("can")
+        nameplate = attrs.get("nameplate")
+        if bool(can) == bool(nameplate):
+            raise serializers.ValidationError(
+                "can_id 与 nameplate_id 必须且只能提供一个"
+            )
+        if nameplate:
+            attrs["can"] = nameplate.can
+        return attrs
 
     def validate_content(self, value):
         content = str(value or "").strip()
@@ -907,8 +1053,11 @@ class CanSerializer(CanCardSerializer):
     def get_recent_comments(self, obj):
         request = self.context.get("request")
         user = request.user if request else None
-        queryset = obj.comments.select_related("author", "author__user_info").annotate(
-            like_count=Count("likes", distinct=True)
+        # nameplate=NULL 是罐头公共评论与具体铭牌讨论的隔离边界。
+        queryset = (
+            obj.comments.filter(nameplate__isnull=True)
+            .select_related("author", "author__user_info")
+            .annotate(like_count=Count("likes", distinct=True))
         )
         if user and user.is_authenticated:
             queryset = queryset.annotate(

@@ -5,16 +5,16 @@ vi.mock('@/utils/audio', () => ({
   getPlayingSrc: vi.fn(() => ''),
   isAudioPlaying: vi.fn(() => false),
   pauseAudio: vi.fn(),
-  playAudio: vi.fn(),
-  stopAudioChannel: vi.fn(),
+  playManaged: vi.fn(),
+  stopAudio: vi.fn(),
 }));
 
 import CanPlayer from '@/components/CanPlayer.vue';
 import {
   getPlayingSrc,
   pauseAudio,
-  playAudio,
-  stopAudioChannel,
+  playManaged,
+  stopAudio,
 } from '@/utils/audio';
 
 describe('CanPlayer', () => {
@@ -36,11 +36,10 @@ describe('CanPlayer', () => {
 
     await wrapper.find('.play-button').trigger('tap');
 
-    expect(stopAudioChannel).toHaveBeenCalledWith('dictionary');
-    expect(playAudio).toHaveBeenCalledWith(
+    expect(stopAudio).toHaveBeenCalled();
+    expect(playManaged).toHaveBeenCalledWith(
       'https://example.com/a.mp3',
-      false,
-      expect.objectContaining({ channel: 'can' }),
+      expect.objectContaining({ onEnded: expect.any(Function) }),
     );
     expect(wrapper.text()).toContain('0:00 / 0:08');
     expect(wrapper.text()).toContain('巴适得很');

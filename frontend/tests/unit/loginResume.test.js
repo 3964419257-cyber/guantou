@@ -10,21 +10,7 @@ vi.mock('@/services/canDrafts', () => ({
   getCanDraftOwnerScope: vi.fn(() => 'anonymous:session-1'),
 }));
 
-vi.mock('@/services/authJourney', async () => {
-  const actual = await vi.importActual('@/services/authJourney');
-  return {
-    ...actual,
-    tryResumeAction: vi.fn(),
-  };
-});
-
-vi.mock('@/services/feedback', () => ({
-  notify: vi.fn(),
-}));
-
 import { clearInterceptIntent, peekInterceptIntent } from '@/services/authGuard';
-import { tryResumeAction } from '@/services/authJourney';
-import { notify } from '@/services/feedback';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
 
 describe('login draft resume', () => {
@@ -51,38 +37,37 @@ describe('login draft resume', () => {
     });
   });
 
-  it('returns only to the adjacent can form for a matching intent', async () => {
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(true);
+  it('returns only to the adjacent can form for a matching intent', () => {
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
     expect(uni.navigateBack).toHaveBeenCalledWith({ delta: 1 });
   });
 
-  it('safely falls back for a like intent without a content id', async () => {
+  it('safely falls back for a protected action without an implemented destination', () => {
     peekInterceptIntent.mockReturnValue({
       action: 'like',
       context: { page: 'flavor_details' },
     });
 
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(true);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
-    expect(notify).toHaveBeenCalledWith({ title: '无法回到原内容' });
     expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index' });
     expect(uni.navigateBack).not.toHaveBeenCalled();
   });
 
-  it('discards a stale can-create intent and returns home', async () => {
+  it('discards a stale can-create intent and returns home', () => {
     getCurrentPages.mockReturnValue([
       { route: 'pages/flavors/details' },
       { route: 'pages/login/login' },
     ]);
 
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(true);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
     expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index' });
     expect(uni.navigateBack).not.toHaveBeenCalled();
   });
 
-  it('opens a flavor-scoped can form without replaying submission', async () => {
+  it('opens a flavor-scoped can form without replaying submission', () => {
     getCurrentPages.mockReturnValue([
       { route: 'pages/flavors/details' },
       { route: 'pages/login/login' },
@@ -92,16 +77,16 @@ describe('login draft resume', () => {
       context: { page: 'flavor_detail', flavorId: 12, flavorName: '月亮' },
     });
 
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(true);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
     expect(uni.redirectTo).toHaveBeenCalledWith({
       url: '/pages/cans/create?flavor=12&flavor_name=%E6%9C%88%E4%BA%AE',
     });
   });
 
-  it('returns to a can detail after an interrupted nameplate action', async () => {
+  it('returns to the nameplate and resumes interrupted support', () => {
     getCurrentPages.mockReturnValue([
-      { route: 'pages/index' },
+      { route: 'pages/nameplates/details' },
       { route: 'pages/login/login' },
     ]);
     peekInterceptIntent.mockReturnValue({
@@ -109,13 +94,13 @@ describe('login draft resume', () => {
       context: { page: 'can_detail', canId: 18, nameplateId: 4 },
     });
 
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(true);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(uni.redirectTo).toHaveBeenCalledWith({
-      url: '/pages/cans/details?id=18',
+      url: '/pages/nameplates/details?id=4&resume=support',
     });
   });
 
-  it('returns voluntary login to the adjacent mine page', async () => {
+  it('returns voluntary login to the adjacent mine page', () => {
     getCurrentPages.mockReturnValue([
       { route: 'pages/users/me' },
       { route: 'pages/login/login' },
@@ -126,12 +111,12 @@ describe('login draft resume', () => {
       voluntary: true,
     });
 
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(true);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
     expect(uni.navigateBack).toHaveBeenCalledWith({ delta: 1 });
   });
 
-  it('blocks a draft that belongs to a different signed-in account', async () => {
+  it('blocks a draft that belongs to a different signed-in account', () => {
     peekInterceptIntent.mockReturnValue({
       action: 'record_can',
       context: {
@@ -141,42 +126,21 @@ describe('login draft resume', () => {
       },
     });
 
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(true);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(true);
     expect(clearInterceptIntent).toHaveBeenCalledTimes(1);
     expect(uni.navigateBack).not.toHaveBeenCalled();
     expect(uni.reLaunch).toHaveBeenCalledWith({ url: '/pages/index?status=me' });
-    expect(notify).toHaveBeenCalledWith({ title: '该草稿属于其他账号' });
+    expect(uni.showToast).toHaveBeenCalledWith({
+      title: '该草稿属于其他账号',
+      icon: 'none',
+    });
   });
 
-  it('uses the normal post-login destination without an interrupted action', async () => {
+  it('uses the normal post-login destination without an interrupted action', () => {
     peekInterceptIntent.mockReturnValue(null);
 
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(false);
+    expect(resumeInterruptedPageAfterLogin('7')).toBe(false);
     expect(clearInterceptIntent).not.toHaveBeenCalled();
     expect(uni.navigateBack).not.toHaveBeenCalled();
-  });
-
-  it('resumes follow after returning to the author profile', async () => {
-    getCurrentPages.mockReturnValue([
-      { route: 'pages/index' },
-      { route: 'pages/login/login' },
-    ]);
-    const intent = {
-      action: 'follow',
-      context: { page: 'can_feed', userId: 12 },
-    };
-    peekInterceptIntent.mockReturnValue(intent);
-
-    await expect(resumeInterruptedPageAfterLogin('7')).resolves.toBe(true);
-    expect(uni.redirectTo).toHaveBeenCalledWith({
-      url: '/pages/users/details?id=12',
-    });
-    expect(tryResumeAction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        resumeAction: 'follow',
-        url: '/pages/users/details?id=12',
-      }),
-      intent,
-    );
   });
 });

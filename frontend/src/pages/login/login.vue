@@ -1,198 +1,195 @@
 <template>
-  <view class="login-page">
-    <cu-custom
-      title="手机号登录"
-      :is-back="false"
-    >
-      <template #backText>
-        <text
-          class="cuIcon-back"
-          @tap="cancelLoginToSearch"
+  <PageShell
+    title="登录"
+    :scroll="false"
+    content-class="login-content"
+  >
+    <view class="login-card">
+      <view class="login-card__stamp">
+        身份校验处
+      </view>
+      <view class="login-card__title">
+        回来听一听乡音
+      </view>
+      <view class="login-card__lead">
+        登录后可以支持铭牌、发表评论和提出自己的立论。
+      </view>
+
+      <view
+        v-if="intentText"
+        class="intent-banner"
+      >
+        <view class="intent-kicker">
+          {{ intentVoluntary ? '继续访问' : '登录后继续' }}
+        </view>
+        <view class="intent-copy">
+          {{ intentText }}
+        </view>
+      </view>
+
+      <t-tabs
+        :value="loginMode"
+        class="login-tabs"
+        @change="changeMode"
+      >
+        <t-tab-panel
+          value="phone"
+          label="手机验证码"
         />
-      </template>
-    </cu-custom>
-    <view
-      v-if="intentText"
-      class="intent-banner"
-    >
-      <view class="intent-kicker">
-        {{ intentVoluntary ? '继续访问' : '登录后继续' }}
-      </view>
-      <view class="intent-copy">
-        {{ intentText }}
-      </view>
-    </view>
-    <view class="logo">
-      <image
-        :src="logo"
-        mode="widthFix"
-      />
-    </view>
-    <form
-      class="phone-form"
-      @submit="phoneLogin"
-    >
-      <view class="info">
-        <view class="cuIcon-mobile" />
-        <input
-          v-model="phone"
-          inputmode="numeric"
-          maxlength="11"
-          name="phone"
+        <t-tab-panel
+          value="password"
+          label="账号密码"
+        />
+      </t-tabs>
+
+      <view
+        v-if="loginMode === 'phone'"
+        class="login-form phone-form"
+      >
+        <t-input
+          v-model:value="phone"
+          class="phone-input"
+          label="手机号"
+          type="number"
+          maxlength="13"
           placeholder="请输入手机号"
-          @input="clearFormError"
+          clearable
+        />
+        <view class="code-row">
+          <t-input
+            v-model:value="code"
+            class="code-input"
+            label="验证码"
+            type="number"
+            maxlength="6"
+            placeholder="六位验证码"
+          />
+          <t-button
+            class="code-button"
+            theme="light"
+            size="small"
+            :disabled="countdown > 0 || sendingCode"
+            @click="sendPhoneCode"
+          >
+            {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+          </t-button>
+        </view>
+        <view
+          v-if="demoCode"
+          class="demo-code"
         >
+          Demo 验证码：<text>{{ demoCode }}</text>
+        </view>
+        <t-button
+          class="phone-login-button"
+          block
+          theme="primary"
+          size="large"
+          @click="phoneLogin"
+        >
+          登录 / 注册
+        </t-button>
       </view>
-      <view class="info code-row">
-        <view class="cuIcon-lock" />
-        <input
-          v-model="code"
-          inputmode="numeric"
-          maxlength="6"
-          name="code"
-          placeholder="请输入验证码"
-          @input="clearFormError"
-        >
-        <button
-          :disabled="countdown > 0 || sendingCode || loggingIn"
-          class="code-button"
-          @tap="sendPhoneCode"
-        >
-          {{ codeButtonLabel }}
-        </button>
-      </view>
+
       <view
-        v-if="demoCode"
-        class="demo-code"
+        v-else
+        class="login-form password-form"
       >
-        模拟短信验证码：<text>{{ demoCode }}</text>
-      </view>
-      <view
-        v-if="formError"
-        class="form-error"
-      >
-        {{ formError }}
-      </view>
-      <view class="flex justify-center">
-        <button
-          :disabled="loggingIn"
-          class="cu-btn round bg-gradual-blue shadow text-df margin-top"
-          form-type="submit"
-          style="width: 65vw"
-        >
-          {{ loggingIn ? '登录中…' : '登录' }}
-        </button>
-      </view>
-    </form>
-    <!-- #ifdef MP-WEIXIN -->
-    <view class="flex justify-center">
-      <button
-        class="cu-btn round bg-gradual-blue shadow text-df margin-top"
-        style="width: 65vw"
-        @tap="mpLogin()"
-      >
-        微信一键登录 / 注册
-      </button>
-    </view>
-    <!-- #endif -->
-    <button
-      class="password-toggle"
-      @tap="showPasswordLogin = !showPasswordLogin"
-    >
-      {{ showPasswordLogin ? '收起账号密码登录' : '使用账号密码登录' }}
-    </button>
-    <form
-      v-if="showPasswordLogin"
-      class="password-form"
-      @submit="passwordLogin"
-    >
-      <view class="info">
-        <view class="cuIcon-friend" />
-        <input
-          name="username"
+        <t-input
+          v-model:value="username"
+          label="账号"
           placeholder="请输入用户名"
-        >
-      </view>
-      <view class="info">
-        <view class="cuIcon-lock" />
-        <input
-          name="password"
-          password
+          clearable
+        />
+        <t-input
+          v-model:value="password"
+          label="密码"
+          type="password"
           placeholder="请输入密码"
-        >
-      </view>
-      <view class="flex justify-center">
-        <button
-          class="cu-btn round line-green text-df"
-          form-type="submit"
-          style="width: 65vw"
+        />
+        <t-button
+          block
+          theme="primary"
+          size="large"
+          @click="passwordLogin"
         >
           账号密码登录
-        </button>
+        </t-button>
       </view>
-    </form>
-    <button
-      class="browse-first"
-      @tap="cancelLoginToSearch"
-    >
-      暂不登录，先去查词
-    </button>
-    <view
-      class="flex text-bold text-center login-links"
-    >
-      <view
-        class="flex-sub solid-right"
-        @tap="toForgetPage()"
-      >
-        忘记密码
-      </view>
-      <!-- #ifndef MP-WEIXIN -->
-      <view
-        class="flex-sub solid-right"
-        @tap="toRegisterPage()"
-      >
-        用户注册
-      </view>
-      <!-- #endif -->
+
       <!-- #ifdef MP-WEIXIN -->
-      <view
-        class="flex-sub"
-        @tap="toWechatRegisterPage()"
+      <t-button
+        class="wechat-login"
+        block
+        theme="light"
+        @click="mpLogin()"
       >
-        微信注册
-      </view>
+        微信一键登录 / 注册
+      </t-button>
       <!-- #endif -->
+
+      <view class="login-card__secondary">
+        <view
+          class="browse-first"
+          @tap="cancelLoginToSearch"
+        >
+          暂不登录，先去查词
+        </view>
+        <view class="login-links">
+          <text @tap="toForgetPage()">
+            忘记密码
+          </text>
+          <!-- #ifndef MP-WEIXIN -->
+          <text @tap="toRegisterPage()">
+            用户注册
+          </text>
+          <!-- #endif -->
+          <!-- #ifdef MP-WEIXIN -->
+          <text @tap="toWechatRegisterPage()">
+            微信注册
+          </text>
+          <!-- #endif -->
+        </view>
+      </view>
     </view>
-  </view>
+  </PageShell>
 </template>
 
 <script>
-import { COS_URL } from '@/const/urls';
+import TButton from '@tdesign/uniapp/button/button.vue';
+import TInput from '@tdesign/uniapp/input/input.vue';
+import TTabPanel from '@tdesign/uniapp/tab-panel/tab-panel.vue';
+import TTabs from '@tdesign/uniapp/tabs/tabs.vue';
+import PageShell from '@/components/PageShell.vue';
 import { actionLabel, peekInterceptIntent } from '@/services/authGuard';
 import { cancelLoginToSearch } from '@/services/authJourney';
 import { mpLogin, normalLogin } from '@/services/login';
 import { loginWithPhone, requestPhoneCode } from '@/services/phoneAuth';
 import { toForgetPage, toRegisterPage, toWechatRegisterPage } from '@/routers/login';
-import CuCustom from '@/colorui/components/cu-custom.vue';
 
 export default {
-  components: { CuCustom },
+  components: {
+    PageShell,
+    TButton,
+    TInput,
+    TTabPanel,
+    TTabs,
+  },
   data() {
     return {
       toForgetPage,
       toRegisterPage,
       toWechatRegisterPage,
-      logo: `${COS_URL}/images/logo.png`,
       intent: null,
+      loginMode: 'phone',
       phone: '',
       code: '',
+      username: '',
+      password: '',
       demoCode: '',
-      formError: '',
       countdown: 0,
       countdownTimer: null,
       sendingCode: false,
-      loggingIn: false,
-      showPasswordLogin: false,
     };
   },
   computed: {
@@ -204,11 +201,6 @@ export default {
       if (this.intentVoluntary) return '验证身份后返回「我的」。';
       return `你刚才想${actionLabel(this.intent.action)}，验证身份后会回到原来的位置。`;
     },
-    codeButtonLabel() {
-      if (this.sendingCode) return '发送中…';
-      if (this.countdown > 0) return `${this.countdown}s`;
-      return '获取验证码';
-    },
   },
   onLoad() {
     this.intent = peekInterceptIntent();
@@ -216,15 +208,11 @@ export default {
   onUnload() {
     this.clearCountdown();
   },
-  onBackPress() {
-    this.cancelLoginToSearch();
-    return true;
-  },
   methods: {
     mpLogin,
     cancelLoginToSearch,
-    clearFormError() {
-      this.formError = '';
+    changeMode(event) {
+      this.loginMode = event?.detail?.value || event?.detail || event || 'phone';
     },
     clearCountdown() {
       if (this.countdownTimer) clearInterval(this.countdownTimer);
@@ -239,192 +227,163 @@ export default {
       }, 1000);
     },
     async sendPhoneCode() {
-      if (this.countdown > 0 || this.sendingCode || this.loggingIn) return;
-      this.formError = '';
+      if (this.countdown > 0 || this.sendingCode) return;
       this.sendingCode = true;
       try {
         const response = await requestPhoneCode(this.phone);
         this.demoCode = response.demo_code || '';
         this.startCountdown(response.retry_after);
+        uni.showToast({ title: '验证码已生成', icon: 'success' });
       } catch (error) {
-        this.formError = error.message || '验证码发送失败';
-        const retryAfter = error.retry_after
-          || error.data?.retry_after
-          || error.payload?.retry_after
-          || error.payload?.data?.retry_after;
-        if (retryAfter) {
-          this.startCountdown(retryAfter);
-        }
+        uni.showToast({ title: error.message || '验证码发送失败', icon: 'none' });
       } finally {
         this.sendingCode = false;
       }
     },
     async phoneLogin() {
-      if (this.loggingIn) return;
-      this.formError = '';
-      this.loggingIn = true;
       try {
         await loginWithPhone(this.phone, this.code);
       } catch (error) {
-        this.formError = error.message || '登录失败';
-      } finally {
-        this.loggingIn = false;
+        uni.showToast({ title: error.message || '登录失败', icon: 'none' });
       }
     },
-    passwordLogin(e) {
-      const { username } = e.detail.value;
-      const { password } = e.detail.value;
-      normalLogin(username, password);
+    passwordLogin() {
+      normalLogin(this.username, this.password);
     },
   },
 };
 </script>
+
 <style scoped>
-page {
-  background-color: #ffffff;
+.login-card {
+  position: relative;
+  max-width: 680rpx;
+  margin: 42rpx auto 0;
+  padding: 52rpx 34rpx 38rpx;
+  border: 1rpx solid var(--border-color);
+  border-radius: 8rpx;
+  background: var(--surface-color);
+  box-shadow: 0 20rpx 60rpx var(--border-color);
 }
 
-.login-page {
-  min-height: 100vh;
-  background: #f7f8f4;
-  color: #1d2a24;
-  padding-bottom: 60rpx;
-  box-sizing: border-box;
+.login-card__stamp {
+  position: absolute;
+  top: 28rpx;
+  right: 28rpx;
+  padding: 8rpx 12rpx;
+  border: 2rpx solid var(--danger-color);
+  color: var(--danger-color);
+  font-size: 18rpx;
+  font-weight: 800;
+  letter-spacing: 3rpx;
+  transform: rotate(3deg);
+}
+
+.login-card__title {
+  color: var(--text-color);
+  font-family: STSong, SimSun, serif;
+  font-size: 44rpx;
+  font-weight: 900;
+}
+
+.login-card__lead {
+  width: 76%;
+  margin-top: 14rpx;
+  color: var(--text-secondary-color);
+  font-size: 24rpx;
+  line-height: 1.6;
 }
 
 .intent-banner {
-  margin: 28rpx 34rpx 0;
-  padding: 22rpx 24rpx;
-  border: 1px solid #d6e2d3;
-  border-left: 8rpx solid #1f5c43;
-  border-radius: 12rpx;
-  background: #f0f6ed;
+  margin-top: 28rpx;
+  padding: 20rpx 22rpx;
+  border-left: 7rpx solid var(--accent-color);
+  background: var(--accent-subtle-color);
 }
 
 .intent-kicker {
-  color: #1f5c43;
-  font-size: 22rpx;
+  color: var(--accent-color);
+  font-size: 20rpx;
   font-weight: 800;
   letter-spacing: 3rpx;
 }
 
 .intent-copy {
-  margin-top: 8rpx;
-  color: #4f6055;
-  font-size: 26rpx;
+  margin-top: 6rpx;
+  color: var(--text-secondary-color);
+  font-size: 24rpx;
   line-height: 1.5;
 }
 
-.logo {
-  margin-top: 8vh;
-  margin-bottom: 4vh;
+.login-tabs {
+  display: block;
+  margin-top: 34rpx;
+}
+
+.login-form {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  gap: 22rpx;
+  margin-top: 28rpx;
 }
 
-.logo image {
-  width: 40vw;
-  height: 40vw;
-}
-
-.info {
-  background-color: transparent;
-  padding: 1rpx 30rpx;
+.code-row {
   display: flex;
   align-items: center;
-  min-height: 100rpx;
-  justify-content: center;
-  margin-bottom: 16px;
+  gap: 12rpx;
 }
 
-.info input {
-  color: #555;
-  background-color: #f5f5f5;
-  height: 80rpx;
-  width: 60vw;
-  padding-left: 20rpx;
-  border-radius: 10rpx;
-  font-size: 32rpx;
-  margin-left: 16px;
-}
-
-.code-row input {
-  width: 35vw;
+.code-input {
+  flex: 1;
 }
 
 .code-button {
-  min-width: 190rpx;
-  margin-left: 12rpx;
-  border: 0;
-  border-radius: 10rpx;
-  background: #e5efe3;
-  color: #1f5c43;
-  font-size: 24rpx;
-  line-height: 80rpx;
-}
-
-.code-button::after,
-.password-toggle::after {
-  border: 0;
+  flex: 0 0 auto;
 }
 
 .demo-code {
-  width: 65vw;
-  margin: -8rpx auto 16rpx;
-  padding: 16rpx 20rpx;
-  border-radius: 10rpx;
-  background: #fff7d6;
-  color: #715c11;
-  box-sizing: border-box;
-  font-size: 26rpx;
+  padding: 14rpx 18rpx;
+  background: var(--surface-subtle-color);
+  color: var(--warning-color);
+  font-size: 23rpx;
 }
 
 .demo-code text {
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 4rpx;
 }
 
-.form-error {
-  width: 65vw;
-  margin: 0 auto 8rpx;
-  color: #c0392b;
-  font-size: 26rpx;
-  line-height: 1.4;
-}
-
-.password-toggle {
-  margin: 24rpx auto 0;
-  background: transparent;
-  color: #557065;
-  font-size: 25rpx;
-}
-
-.password-form {
+.wechat-login {
+  display: block;
   margin-top: 18rpx;
 }
 
-.browse-first {
-  width: 65vw;
-  margin: 28rpx auto 0;
-  border: 1px solid #cbd7ca;
-  border-radius: 999rpx;
-  background: #ffffff;
-  color: #1f5c43;
-  font-size: 27rpx;
+.login-card__secondary {
+  margin-top: 30rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx dashed var(--border-color);
 }
 
-.browse-first::after {
-  border: 0;
+.browse-first {
+  color: var(--accent-color);
+  text-align: center;
+  font-size: 24rpx;
 }
 
 .login-links {
-  margin-top: 6vh;
+  display: flex;
+  justify-content: center;
+  gap: 44rpx;
+  margin-top: 22rpx;
+  color: var(--muted-color);
+  font-size: 22rpx;
 }
 
-.info > text[class*='cuIcon-'] {
-  font-size: 40rpx;
-  box-sizing: border-box;
+:deep(.login-content) {
+  background: linear-gradient(
+    180deg,
+    var(--page-color) 0%,
+    var(--surface-subtle-color) 100%
+  );
 }
-
 </style>

@@ -44,8 +44,8 @@ import {
   getPlayingSrc,
   isAudioPlaying,
   pauseAudio,
-  playAudio,
-  stopAudioChannel,
+  playManaged,
+  stopAudio,
 } from '@/utils/audio';
 
 function formatClock(seconds) {
@@ -109,7 +109,7 @@ export default {
   },
   mounted() {
     if (this.autoContinue && this.audioUrl && getPlayingSrc() === this.audioUrl) {
-      this.playing = isAudioPlaying(this.channel);
+      this.playing = isAudioPlaying();
     }
   },
   beforeUnmount() {
@@ -130,24 +130,12 @@ export default {
         this.$emit('pause');
         return;
       }
-      stopAudioChannel('dictionary');
-      playAudio(this.audioUrl, false, {
-        channel: this.channel,
-        onPlay: () => {
-          this.playing = true;
-          this.$emit('play');
-        },
-        onPause: () => {
-          this.playing = false;
-          this.$emit('pause');
-        },
+      stopAudio();
+      playManaged(this.audioUrl, {
         onEnded: () => {
           this.playing = false;
           this.currentSeconds = 0;
           this.$emit('ended');
-        },
-        onStop: () => {
-          this.playing = false;
         },
         onTimeUpdate: ({ currentTime, duration }) => {
           this.currentSeconds = currentTime || 0;
@@ -155,6 +143,7 @@ export default {
         },
       });
       this.playing = true;
+      this.$emit('play');
     },
   },
 };

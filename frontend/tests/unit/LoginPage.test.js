@@ -22,7 +22,6 @@ vi.mock('@/services/phoneAuth', () => ({
 
 import { cancelLoginToSearch } from '@/services/authJourney';
 import { peekInterceptIntent } from '@/services/authGuard';
-import { loginWithPhone, requestPhoneCode } from '@/services/phoneAuth';
 
 globalThis.getApp = vi.fn(() => ({
   globalData: {
@@ -37,13 +36,8 @@ function mountLogin() {
   const wrapper = mount(LoginPage, {
     global: {
       stubs: {
-        CuCustom: {
-          template: '<view>{{ title }}</view>',
-          props: ['title'],
-        },
-        'cu-custom': {
-          template: '<view>{{ title }}</view>',
-          props: ['title'],
+        PageShell: {
+          template: '<div><slot /></div>',
         },
       },
     },
@@ -55,6 +49,11 @@ function mountLogin() {
 describe('login page intent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    globalThis.uni = {
+      getStorageSync: vi.fn(() => ''),
+      onThemeChange: vi.fn(),
+      offThemeChange: vi.fn(),
+    };
   });
 
   it('explains the intercepted action and lets the guest return to search', async () => {
@@ -65,7 +64,6 @@ describe('login page intent', () => {
     const wrapper = mountLogin();
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.text()).toContain('手机号登录');
     expect(wrapper.text()).toContain('你刚才想录一罐');
     await wrapper.find('.browse-first').trigger('tap');
     expect(cancelLoginToSearch).toHaveBeenCalledTimes(1);
@@ -82,18 +80,16 @@ describe('login page intent', () => {
     expect(wrapper.text()).toContain('验证身份后返回「我的」');
   });
 
-  it('shows phone auth failures beside the form instead of only toasting', async () => {
-    requestPhoneCode.mockRejectedValue(new Error('请输入合法的11位手机号'));
+  it('shows only the selected login form', async () => {
+    peekInterceptIntent.mockReturnValue(null);
     const wrapper = mountLogin();
-    await wrapper.vm.sendPhoneCode();
+
+    expect(wrapper.find('.phone-form').exists()).toBe(true);
+    expect(wrapper.find('.password-form').exists()).toBe(false);
+    wrapper.vm.changeMode({ detail: { value: 'password' } });
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.find('.form-error').text()).toContain('请输入合法的11位手机号');
-    expect(wrapper.vm.sendingCode).toBe(false);
-
-    loginWithPhone.mockRejectedValue(new Error('验证码错误'));
-    await wrapper.vm.phoneLogin();
-    await wrapper.vm.$nextTick();
-    expect(wrapper.find('.form-error').text()).toContain('验证码错误');
+    expect(wrapper.find('.phone-form').exists()).toBe(false);
+    expect(wrapper.find('.password-form').exists()).toBe(true);
   });
 });

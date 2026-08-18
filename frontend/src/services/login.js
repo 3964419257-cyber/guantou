@@ -8,7 +8,6 @@ import {
 import {
   AUTH_DESTINATION_KINDS,
   resolveAuthDestination,
-  tryResumeAction,
 } from '@/services/authJourney';
 import {
   needsDialectOnboarding,
@@ -19,12 +18,10 @@ import {
   claimAnonymousCanDrafts,
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
-import { notify } from '@/services/feedback';
+import { openPage, ROUTES } from '@/services/navigation';
 import rawRequest from '../utils/rawRequest';
 
-export async function resumeInterruptedPageAfterLogin(
-  loggedInUserId = uni.getStorageSync('id'),
-) {
+export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
   const pages = getCurrentPages();
   const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
   const previousRoute = previousPage ? previousPage.route : '';
@@ -34,8 +31,8 @@ export async function resumeInterruptedPageAfterLogin(
   if (destination.kind === AUTH_DESTINATION_KINDS.DEFAULT) return false;
 
   if (destination.kind === AUTH_DESTINATION_KINDS.ADJACENT_CAN_DRAFT) {
-    const previousIsCanCreate = previousRoute === 'pages/cans/create'
-      || previousRoute === '/pages/cans/create';
+    const previousIsCanCreate = String(previousRoute).replace(/^\//, '')
+      === ROUTES.canCreate.slice(1);
     if (!previousIsCanCreate) {
       clearInterceptIntent();
       toIndexPage(true);
@@ -44,7 +41,7 @@ export async function resumeInterruptedPageAfterLogin(
     const intendedOwner = destination.ownerScope;
     if (intendedOwner.startsWith('user:') && intendedOwner !== `user:${loggedInUserId}`) {
       clearInterceptIntent();
-      notify({ title: '该草稿属于其他账号' });
+      uni.showToast({ title: '该草稿属于其他账号', icon: 'none' });
       toMePage(true);
       return true;
     }
@@ -56,18 +53,16 @@ export async function resumeInterruptedPageAfterLogin(
   clearInterceptIntent();
   if (destination.kind === AUTH_DESTINATION_KINDS.URL) {
     const normalizedPreviousRoute = String(previousRoute || '').replace(/^\//, '');
-    if (normalizedPreviousRoute === destination.route) {
+    const destinationHasState = destination.url !== `/${destination.route}`;
+    // 同页受保护动作仍要携带恢复参数重新进入，否则 navigateBack 会悄悄丢掉动作。
+    if (normalizedPreviousRoute === destination.route && !destinationHasState) {
       uni.navigateBack({ delta: 1 });
     } else {
-      uni.redirectTo({ url: destination.url });
+      openPage(destination.url, {}, { replace: true });
     }
-    await tryResumeAction(destination, interruptedIntent);
     return true;
   }
 
-  if (destination.toast) {
-    notify({ title: destination.toast });
-  }
   toIndexPage(true);
   return true;
 }
@@ -101,15 +96,14 @@ export async function afterLogin(res, options = {}) {
     await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }
   const user = await loadUserInfo();
-  if (needsDialectOnboarding(user, Boolean(options.isNew))) {
-    // Keep intercept intent across dialect onboarding (W1-E4 / 4.B.4).
+  if (needsDialectOnboarding(user)) {
     const reason = options.isNew
       ? ONBOARDING_REASONS.NEW_USER
       : ONBOARDING_REASONS.MISSING_DIALECT;
     toDialectOnboarding(reason, true);
     return;
   }
-  if (await resumeInterruptedPageAfterLogin(res.id)) return;
+  if (resumeInterruptedPageAfterLogin(res.id)) return;
   toIndexPage(true);
 }
 

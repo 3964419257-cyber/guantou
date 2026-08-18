@@ -1,4 +1,9 @@
 import { listCans } from '@/services/guantou';
+import {
+  goOnboarding,
+  pageUrl,
+  ROUTES,
+} from '@/services/navigation';
 import request from '@/utils/request';
 
 export const ONBOARDING_REASONS = {
@@ -40,16 +45,14 @@ export function normalizeOnboardingReason(reason) {
 
 export function dialectOnboardingUrl(reason) {
   const normalized = normalizeOnboardingReason(reason);
-  return `/pages/users/onboarding?reason=${normalized}`;
+  return pageUrl(ROUTES.onboarding, { reason: normalized });
 }
 
 export function toDialectOnboarding(reason, closeAll = true) {
-  const url = dialectOnboardingUrl(reason);
-  if (closeAll) {
-    uni.reLaunch({ url });
-  } else {
-    uni.redirectTo({ url });
-  }
+  goOnboarding(
+    { reason: normalizeOnboardingReason(reason) },
+    { reset: closeAll, replace: !closeAll },
+  );
 }
 
 function currentRoutePath() {

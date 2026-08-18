@@ -2,12 +2,12 @@ import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/utils/audio', () => ({
-  playAudio: vi.fn(),
-  stopAudioChannel: vi.fn(),
+  playManaged: vi.fn(),
+  stopAudio: vi.fn(),
 }));
 
 import WordCard from '@/components/WordCard.vue';
-import { playAudio, stopAudioChannel } from '@/utils/audio';
+import { playManaged, stopAudio } from '@/utils/audio';
 
 describe('WordCard', () => {
   beforeEach(() => {
@@ -34,11 +34,10 @@ describe('WordCard', () => {
     expect(wrapper.text()).toContain('巴适');
     expect(wrapper.text()).toContain('舒服、惬意');
     await wrapper.findAll('.action')[0].trigger('tap');
-    expect(stopAudioChannel).toHaveBeenCalledWith('can');
-    expect(playAudio).toHaveBeenCalledWith(
+    expect(stopAudio).toHaveBeenCalled();
+    expect(playManaged).toHaveBeenCalledWith(
       'https://example.com/can.mp3',
-      false,
-      expect.objectContaining({ channel: 'dictionary' }),
+      expect.objectContaining({ onEnded: expect.any(Function) }),
     );
   });
 

@@ -67,15 +67,18 @@ def seed_demo_phone_users(*, reset=False):
                 created += 1
             else:
                 info.nickname = item["nickname"]
-                info.primary_dialect = primary
-                update_fields = ["nickname", "primary_dialect"]
-                if primary is not None:
-                    if reset or not info.onboarding_done_at:
+                update_fields = ["nickname"]
+                if reset:
+                    info.primary_dialect = primary
+                    update_fields.append("primary_dialect")
+                    info.onboarding_done_at = timezone.now() if primary else None
+                    update_fields.append("onboarding_done_at")
+                elif primary is not None and not info.primary_dialect_id:
+                    info.primary_dialect = primary
+                    update_fields.append("primary_dialect")
+                    if not info.onboarding_done_at:
                         info.onboarding_done_at = timezone.now()
                         update_fields.append("onboarding_done_at")
-                else:
-                    info.onboarding_done_at = None
-                    update_fields.append("onboarding_done_at")
                 info.save(update_fields=update_fields)
                 updated += 1
 

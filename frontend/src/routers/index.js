@@ -1,35 +1,17 @@
-import { redirectIfNeedsDialectOnboarding } from '@/services/dialectOnboarding';
+import { goHome, goSearch } from '@/services/navigation';
 
 /**
  * 跳转至首页
  */
 export function toIndexPage(closeAll = false) {
-  if (redirectIfNeedsDialectOnboarding()) return;
-  if (closeAll) {
-    uni.reLaunch({
-      url: '/pages/index',
-    });
-  } else {
-    uni.navigateTo({
-      url: '/pages/index',
-    });
-  }
+  return goHome(closeAll);
 }
 
 /**
  * 前往搜索页面
  */
-export function toSearchPage(closeAll = false) {
-  if (redirectIfNeedsDialectOnboarding()) return;
-  if (closeAll) {
-    uni.reLaunch({
-      url: '/pages/search',
-    });
-  } else {
-    uni.navigateTo({
-      url: '/pages/search',
-    });
-  }
+export function toSearchPage() {
+  return goSearch();
 }
 
 /**

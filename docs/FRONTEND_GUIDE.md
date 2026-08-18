@@ -11,7 +11,7 @@ frontend/
     pages.json      uni-app 路由、全局导航和 easycom 配置。
     services/       API 服务层。页面通过这里请求后端。
     utils/          请求封装、音频、剪贴板等通用工具。
-    routers/        页面跳转 helper。
+    routers/        旧入口兼容层；新业务导航统一委托给 services/navigation.js。
     components/     可复用组件。出现重复 UI 时优先沉淀到这里。
     const/          常量、枚举、静态配置。
     colorui/        旧 ColorUI 样式和基础组件。
@@ -47,7 +47,7 @@ pages/*.vue
 - `/dialects/`
 - `/search/`
 
-装罐和个人资料的方言选择器复用同一个递归加载器，按服务端 `sort_order`、`id` 展示 `qualified_code`；前端不维护县/镇静态枚举。
+方言选择器通过 `/dialects/?flat=true` 获取扁平列表，按服务端 `sort_order`、`id` 展示 `qualified_code`；前端不递归请求 `flavors`，也不维护县/镇静态枚举。
 
 读音展示优先并列显示 `base_romanization → surface_romanization`（本调 → 变调后）；缺少其中一项时只展示已有证据，不在客户端猜测或复制。
 
@@ -69,7 +69,9 @@ pages/*.vue
 2. 在 `frontend/src/pages.json` 注册路由。
 3. 在 `frontend/src/services/` 增加或复用服务函数。
 4. 页面里处理 `loading`、`error`、`empty`、`data` 四类状态。
-5. 用 `frontend/src/routers/` 或 `uni.navigateTo` 做跳转，参数名保持简单稳定。
+5. 在 `services/navigation.js` 增加或复用语义化方法（如 `goCanDetail(id)`），页面不拼接路径，也不直接调用 `uni.navigateTo`。
+
+根页面使用 `AppShell` 的品牌页眉、页脚和底部导航；详情、登录、编辑和评论页使用 `PageShell`，其返回按钮在没有历史栈时会回到合理根页面。首页铭牌数据必须由罐头列表响应自包含，卡片组件不得自行补请求。
 
 列表页至少包含：
 
@@ -91,6 +93,36 @@ pages/*.vue
 - 提交中状态。
 - 成功后的跳转或刷新。
 - 失败 toast，优先复用请求封装的错误提示。
+
+## UI 规范速查
+
+全站视觉基于 `frontend/src/styles/tokens.scss` 的全局 Design Token，由 `App.vue` 统一注入。**新代码禁止新增 hex 颜色字面量**，颜色、间距、圆角、字号一律消费 Token；暗色模式（`services/theme.js`）依赖这一机制，硬编码颜色会导致暗色失效。
+
+颜色 Token（明暗双套，自动切换）：
+
+| Token | 用途 |
+| --- | --- |
+| `--page-color` | 页面底色 |
+| `--surface-color` / `--surface-subtle-color` | 卡片浮层 / 弱底色（按钮、禁用态背景） |
+| `--text-color` / `--text-secondary-color` / `--muted-color` | 正文 / 次级正文 / 辅助文字 |
+| `--border-color` | 描边与分割线 |
+| `--accent-color` / `--accent-subtle-color` / `--on-accent-color` | 品牌强调 / 徽章浅底 / 强调背景上的文字 |
+| `--danger-color` / `--danger-subtle-color` / `--on-danger-color` | 危险操作（删除等） |
+| `--warning-color` / `--success-color` | 警告与成功语义色 |
+
+尺寸 Token：间距 `--space-1..5`（8–48rpx）；圆角 `--radius-sm/md/lg/pill`；字号 `--font-size-xs..xl`（24–36rpx）。
+
+沉浸式场景 Token（首页罐头流专用，固定深色）：`--immersive-*` / `--on-immersive-*` 系列定义在 tokens.scss 文末的 `immersive-color-tokens`，由 `.immersive-shell`（`pages/index.vue` 根节点）注入子树。**沉浸流固定深色、不随明暗主题翻转**；沉浸场景内的文字/图标/表面/波形/骨架屏一律消费 `--on-immersive-color`、`--on-immersive-muted-color`、`--immersive-surface-color`、`--immersive-wave-*-color`、`--immersive-skeleton-*-color` 等，不要复用明暗双套 Token（会随主题翻转导致沉浸流破功）。
+
+基础原语（`frontend/src/components/`，easycom 自动注册）：
+
+- `BaseButton`：`variant="primary|ghost|danger"`、`size="medium|small"`、`block`、`loading`，事件 `@click`。不要自写 `.primary-button` 类一次性按钮样式。
+- `BaseField`：输入框/文本域统一封装，支持 `v-model`、`label`、`required`、`error`、`type="textarea"`。
+- `ConfirmDialog`：`import confirmDialog from '@/components/ConfirmDialog'`，`await confirmDialog({ title, content, danger: true })` 返回布尔值。删除类危险操作必须走它，不要直接调 `uni.showModal`。
+
+第三方组件库：项目已接入腾讯 TDesign UniApp（`@tdesign/uniapp`），品牌色已映射到 Token。注意：当前 uni-app 版本的 easycom 对 npm 组件在小程序端不生效，**必须手动导入**（如 `import TPicker from '@tdesign/uniapp/picker/picker.vue'`）；常规按钮/输入/确认框优先用上述原语，仅在需要 picker、popup、toast 等复杂交互组件时直接用 TDesign。
+
+`src/colorui/` 为历史遗留样式库，新页面不要新增 `cu-*` 类名引用，待存量页面迁移后移除。
 
 ## 组件沉淀规则
 
@@ -130,7 +162,7 @@ rawRequest.get('/cans/', params, { silent: true });
 
 ## 搜索与列表
 
-当前搜索页通过 `searchGuantou(keyword, options)` 调用 `/search/` 聚合搜索，返回 `flavors`、`packages`、`cans` 三组结果。建议搜索页使用这个入口；单资源列表筛选仍走各自服务函数，例如 `listFlavors({ search })`、`listPackages({ search })`、`listCans({ search })`。
+当前搜索页通过 `searchGuantou(keyword, options)` 调用 `/search/` 聚合搜索，返回 `flavors`、`packages`、`nameplates`、`cans` 四组结果。建议搜索页使用这个入口；单资源列表筛选仍走各自服务函数，例如 `listFlavors({ search })`、`listPackages({ search })`、`listCans({ search })`。
 
 搜索页通常负责：
 
