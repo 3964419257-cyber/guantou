@@ -116,7 +116,7 @@
                 block
                 @click="toMailsPage"
               >
-                消息
+                {{ unreadMailsCount > 0 ? `消息 ${unreadMailsCount}` : '消息' }}
               </BaseButton>
             </view>
             <view class="action-slot">
@@ -174,13 +174,13 @@
             </view>
             <view class="works-empty">
               <view class="works-empty-title">
-                {{ worksEmptyTitle }}
+                {{ worksPanelTitle }}
               </view>
               <view class="works-empty-copy">
-                {{ worksEmptyCopy }}
+                {{ worksPanelCopy }}
               </view>
               <BaseButton
-                v-if="worksTab === 'cans'"
+                v-if="worksCount === 0 && worksTab === 'cans'"
                 class="works-empty-action"
                 block
                 @click="toCreate"
@@ -238,18 +238,6 @@
           <view class="menu">
             <view class="section-kicker menu-kicker">
               账号与安全
-            </view>
-            <view
-              class="menu-item"
-              @tap="toMailsPage"
-            >
-              消息
-              <text
-                v-if="unreadMailsCount > 0"
-                class="badge badge-inline"
-              >
-                {{ unreadMailsCount }}
-              </text>
             </view>
             <view
               class="menu-item"
@@ -338,8 +326,8 @@ import {
   bindingWechat as bindingWechatService,
   cancelBindingWechat as cancelBindingWechatService,
   clearUserInfo,
-  getUserInfo,
 } from '@/services/user';
+import request from '@/utils/request';
 
 const app = getApp();
 
@@ -363,7 +351,7 @@ export default {
       followedDialects: [],
       wechatBindText: '绑定微信',
       isBinding: false,
-      loading: false,
+      loading: Boolean(uni.getStorageSync('token')),
       loadError: '',
       loggedIn: Boolean(uni.getStorageSync('token')),
       resolvedTheme: 'light',
@@ -379,12 +367,25 @@ export default {
       if (this.titleLabel) return `${this.titleLabel} · ${dialect}`;
       return `在「${dialect}」装罐`;
     },
-    worksEmptyTitle() {
+    worksCount() {
+      if (this.worksTab === 'nameplates') return this.nameplatesCount;
+      if (this.worksTab === 'flavors') return this.flavorsCount;
+      return this.cansCount;
+    },
+    worksPanelTitle() {
+      if (this.worksCount > 0) {
+        if (this.worksTab === 'nameplates') return `已有 ${this.worksCount} 张铭牌`;
+        if (this.worksTab === 'flavors') return `已有 ${this.worksCount} 个义项`;
+        return `已有 ${this.worksCount} 罐`;
+      }
       if (this.worksTab === 'nameplates') return '还没有贴铭牌';
       if (this.worksTab === 'flavors') return '还没有提交义项';
       return '还没有装罐';
     },
-    worksEmptyCopy() {
+    worksPanelCopy() {
+      if (this.worksCount > 0) {
+        return '完整列表在罐头库，可按录制、收藏和草稿查看。';
+      }
       if (this.worksTab === 'nameplates') {
         return '铭牌是你对某条罐头的写法、释义和出处主张。';
       }
@@ -449,7 +450,7 @@ export default {
       this.loading = true;
       this.loadError = '';
       try {
-        const userInfo = await getUserInfo(app.globalData.id);
+        const userInfo = await request.get(`/users/${app.globalData.id}`, null, true);
         this.id = userInfo.user.id;
         this.avatar = userInfo.user.avatar;
         this.username = userInfo.user.username || '';
@@ -488,7 +489,7 @@ export default {
       if (this.isBinding || !app.globalData.id) return;
       this.isBinding = true;
       try {
-        const userInfo = await getUserInfo(app.globalData.id);
+        const userInfo = await request.get(`/users/${app.globalData.id}`, null, true);
         if (!userInfo.user.wechat) {
           // #ifndef MP-WEIXIN
           notify({ title: '请在微信小程序中绑定微信' });
@@ -762,9 +763,5 @@ export default {
 
 .menu-kicker {
   margin: var(--space-3) var(--space-3) 0;
-}
-
-.badge-inline {
-  position: static;
 }
 </style>

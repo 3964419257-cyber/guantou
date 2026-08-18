@@ -33,7 +33,6 @@ import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
-import { getUserInfo } from '@/services/user';
 import request from '@/utils/request';
 
 const app = getApp();
@@ -78,15 +77,14 @@ export default {
       this.error = '';
       this.saving = true;
       try {
-        const userInfo = await getUserInfo(app.globalData.id);
-        userInfo.user.telephone = telephone;
+        const userInfo = { ...app.globalData.userInfo, telephone };
         const res = await request.put(
           `/users/${app.globalData.id}`,
-          { user: userInfo.user },
+          { user: userInfo },
           true,
         );
         if (res.token) uni.setStorageSync('token', res.token);
-        app.globalData.userInfo = res.user || userInfo.user;
+        app.globalData.userInfo = res.user || userInfo;
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {

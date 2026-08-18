@@ -10,11 +10,25 @@ vi.mock('@/services/navigation', async (importOriginal) => {
     goBack: vi.fn(),
     goHome: vi.fn(),
     goLogin: vi.fn(),
+    goMailSend: vi.fn(),
   };
 });
 
 vi.mock('@/utils/request', () => ({
   default: {
+    get: vi.fn(async () => ({
+      user: {
+        id: 7,
+        nickname: '采集者',
+        username: 'collector',
+        wechat: false,
+        follower_count: 0,
+        following_count: 0,
+        followed_dialects: [],
+      },
+      contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
+      notification: { statistics: { unread: 0 } },
+    })),
     put: vi.fn(),
     post: vi.fn(),
   },
@@ -70,7 +84,7 @@ vi.mock('@/components/ConfirmDialog', () => ({
   default: vi.fn(async () => true),
 }));
 
-import { goBack, goHome } from '@/services/navigation';
+import { goBack, goHome, goLogin, goMailSend } from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
 import { clearUserInfo } from '@/services/user';
 import request from '@/utils/request';
@@ -154,6 +168,8 @@ describe('account UI tokens', () => {
     expect(mine).toContain('关注的方言');
     expect(mine).toContain('账号与安全');
     expect(details).toContain('私信');
+    expect(details).toContain("requireAuth('dm'");
+    expect(details).not.toContain('短视频');
     expect(mine).not.toContain('微博');
     expect(details).not.toContain('微博');
   });
@@ -174,6 +190,7 @@ describe('account UI tokens', () => {
     );
     expect(source).toContain('公开档案');
     expect(source).toContain('仅自己可见');
+    expect(source).toContain('goLogin');
     expect(source).not.toContain('将会默认公开');
   });
 });
@@ -246,9 +263,39 @@ describe('password settings form', () => {
 });
 
 describe('user details page', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalThis.uni = {
+      getStorageSync: vi.fn(() => ''),
+      setStorageSync: vi.fn(),
+      showToast: vi.fn(),
+      navigateTo: vi.fn(),
+      reLaunch: vi.fn(),
+    };
+  });
+
   it('renders inside PageShell', () => {
     const wrapper = mountForm(UserDetailsPage);
     expect(wrapper.html()).toContain('正在读取用户档案');
+  });
+
+  it('switches works tabs and treats a non-zero count as a filled panel', () => {
+    const wrapper = mountForm(UserDetailsPage);
+    wrapper.vm.id = 9;
+    wrapper.vm.userInfo.contribution.cans_uploaded = 4;
+    wrapper.vm.worksTab = 'cans';
+    expect(wrapper.vm.worksPanelTitle).toBe('已有 4 罐');
+    wrapper.vm.worksTab = 'nameplates';
+    expect(wrapper.vm.worksPanelTitle).toBe('还没有公开铭牌');
+  });
+
+  it('asks guests to login before sending a private mail', () => {
+    const wrapper = mountForm(UserDetailsPage);
+    wrapper.vm.id = 9;
+    wrapper.vm.openMail();
+    expect(goMailSend).not.toHaveBeenCalled();
+    expect(goLogin).toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith({ title: '请先登录' });
   });
 });
 
@@ -274,5 +321,13 @@ describe('mine page logout', () => {
     expect(confirmDialog).toHaveBeenCalled();
     expect(clearUserInfo).toHaveBeenCalled();
     expect(goHome).toHaveBeenCalledWith(true);
+  });
+
+  it('does not treat a non-zero can count as an empty works tab', async () => {
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+    wrapper.vm.cansCount = 3;
+    wrapper.vm.worksTab = 'cans';
+    expect(wrapper.vm.worksPanelTitle).toBe('已有 3 罐');
   });
 });

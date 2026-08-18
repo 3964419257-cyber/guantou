@@ -42,7 +42,7 @@
           />
         </button>
         <view class="edit-hero-hint">
-          点击更换头像。主方言会显示在主页，相当于所在地。
+          点击更换头像。主方言会显示在主页，作为口音归属。
         </view>
       </view>
       <SectionBlock title="公开档案">
@@ -142,13 +142,13 @@ import { notify, notifySuccess } from '@/services/feedback';
 import { uploadFile } from '@/services/file';
 import { listAllDialects } from '@/services/guantou';
 import {
+  goLogin,
   goUserEmail,
   goUserNickname,
   goUserPhone,
   goUserUsername,
   ROUTES,
 } from '@/services/navigation';
-import { getUserInfo } from '@/services/user';
 import request from '@/utils/request';
 
 const app = getApp();
@@ -184,6 +184,10 @@ export default {
     },
   },
   onShow() {
+    if (!app.globalData.id) {
+      goLogin({}, { reset: true });
+      return;
+    }
     this.getInfo();
   },
   methods: {
@@ -196,7 +200,7 @@ export default {
       this.loadError = '';
       try {
         this.dialectOptions = await listAllDialects();
-        const userInfo = await getUserInfo(app.globalData.id);
+        const userInfo = await request.get(`/users/${app.globalData.id}`, null, true);
         this.user = { ...userInfo.user };
         this.date = userInfo.user.birthday || '未知';
         if (userInfo.user.primary_dialect) {
@@ -237,26 +241,20 @@ export default {
     async onChooseAvatar(e) {
       try {
         const { url } = await uploadFile(e.detail.avatarUrl);
-        const userInfo = await getUserInfo(app.globalData.id);
-        userInfo.user.avatar = url;
-        await this.persistUser(userInfo.user);
+        await this.persistUser({ ...this.user, avatar: url });
       } catch (error) {
         this.saveError = fieldErrorMessage(error, 'avatar') || '头像更新失败';
       }
     },
     async changeDate(e) {
       this.date = e.detail.value;
-      const userInfo = await getUserInfo(app.globalData.id);
-      userInfo.user.birthday = e.detail.value;
-      await this.persistUser(userInfo.user);
+      await this.persistUser({ ...this.user, birthday: e.detail.value });
     },
     async dialectChange(e) {
       this.dialectIndex = Number(e.detail.value);
       const dialect = this.dialectOptions[this.dialectIndex];
       if (!dialect) return;
-      const userInfo = await getUserInfo(app.globalData.id);
-      userInfo.user.primary_dialect_id = dialect.id;
-      await this.persistUser(userInfo.user);
+      await this.persistUser({ ...this.user, primary_dialect_id: dialect.id });
     },
   },
 };

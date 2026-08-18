@@ -144,7 +144,7 @@
             variant="ghost"
             size="small"
             block
-            @click="goMailSend"
+            @click="openMail"
           >
             私信
           </BaseButton>
@@ -153,23 +153,61 @@
 
       <view class="works">
         <view class="works-tabs">
-          <view class="works-tab active">
+          <view
+            class="works-tab"
+            :class="{ active: worksTab === 'cans' }"
+            @tap="worksTab = 'cans'"
+          >
             罐头 {{ userInfo.contribution.cans_uploaded }}
           </view>
-          <view class="works-tab">
+          <view
+            class="works-tab"
+            :class="{ active: worksTab === 'nameplates' }"
+            @tap="worksTab = 'nameplates'"
+          >
             铭牌 {{ userInfo.contribution.nameplates }}
           </view>
-          <view class="works-tab">
+          <view
+            class="works-tab"
+            :class="{ active: worksTab === 'flavors' }"
+            @tap="worksTab = 'flavors'"
+          >
             义项 {{ userInfo.contribution.flavors_uploaded }}
           </view>
         </view>
         <view class="works-empty">
           <view class="works-empty-title">
-            {{ worksEmptyTitle }}
+            {{ worksPanelTitle }}
           </view>
           <view class="works-empty-copy">
-            罐头是一段乡音录音，不是短视频。主页只展示数量，完整列表在罐头库。
+            {{ worksPanelCopy }}
           </view>
+          <BaseButton
+            v-if="isSelf && worksCount === 0 && worksTab === 'cans'"
+            class="works-empty-action"
+            block
+            @click="goCreateCan"
+          >
+            去装一罐
+          </BaseButton>
+          <BaseButton
+            v-else-if="isSelf"
+            class="works-empty-action"
+            variant="ghost"
+            block
+            @click="goCanLibrary"
+          >
+            打开罐头库
+          </BaseButton>
+          <BaseButton
+            v-else
+            class="works-empty-action"
+            variant="ghost"
+            block
+            @click="goHome"
+          >
+            先去听罐头
+          </BaseButton>
         </view>
       </view>
     </template>
@@ -183,14 +221,16 @@ import { APP_NAME } from '@/const/branding';
 import { requireAuth } from '@/services/authGuard';
 import { followUser, unfollowUser } from '@/services/following';
 import {
+  goCanLibrary,
   goCreateCan,
+  goHome,
   goMailSend,
   goMails,
   goUserInformation,
   ROUTES,
 } from '@/services/navigation';
 import { defaultMessage } from '@/services/shareMessages';
-import { getUserInfo } from '@/services/user';
+import request from '@/utils/request';
 
 export default {
   components: { BaseButton, PageShell },
@@ -218,6 +258,7 @@ export default {
         },
       },
       followingBusy: false,
+      worksTab: 'cans',
     };
   },
   computed: {
@@ -238,11 +279,42 @@ export default {
       return `在「${dialect}」装罐`;
     },
     isSelf() {
-      return Number(uni.getStorageSync('id')) === Number(this.id);
+      const mine = Number(uni.getStorageSync('id'));
+      const theirs = Number(this.id);
+      return Boolean(mine) && mine === theirs;
     },
-    worksEmptyTitle() {
-      if (this.isSelf) return '还没有装罐';
-      return '还没有公开罐头';
+    worksCount() {
+      if (this.worksTab === 'nameplates') return this.userInfo.contribution.nameplates || 0;
+      if (this.worksTab === 'flavors') return this.userInfo.contribution.flavors_uploaded || 0;
+      return this.userInfo.contribution.cans_uploaded || 0;
+    },
+    worksPanelTitle() {
+      if (this.worksCount > 0) {
+        if (this.worksTab === 'nameplates') return `已有 ${this.worksCount} 张铭牌`;
+        if (this.worksTab === 'flavors') return `已有 ${this.worksCount} 个义项`;
+        return `已有 ${this.worksCount} 罐`;
+      }
+      if (this.worksTab === 'nameplates') {
+        return this.isSelf ? '还没有贴铭牌' : '还没有公开铭牌';
+      }
+      if (this.worksTab === 'flavors') {
+        return this.isSelf ? '还没有提交义项' : '还没有公开义项';
+      }
+      return this.isSelf ? '还没有装罐' : '还没有公开罐头';
+    },
+    worksPanelCopy() {
+      if (this.worksCount > 0) {
+        return this.isSelf
+          ? '完整列表在罐头库，可按录制、收藏和草稿查看。'
+          : '主页展示贡献数量。他们装过的罐头会出现在罐头详情和搜索结果里。';
+      }
+      if (this.worksTab === 'nameplates') {
+        return '铭牌是对某条罐头的写法、释义和出处主张。';
+      }
+      if (this.worksTab === 'flavors') {
+        return '义项用来收纳“同一个意思在各地怎么说”。';
+      }
+      return '罐头是一段乡音录音。装罐后会出现在主页数量和罐头库里。';
     },
   },
   async onLoad(options) {
@@ -260,7 +332,12 @@ export default {
     goUserInformation,
     goCreateCan,
     goMails,
-    goMailSend,
+    goHome,
+    goCanLibrary,
+    openMail() {
+      if (!requireAuth('dm', { page: 'user_detail', userId: this.id })) return;
+      goMailSend();
+    },
     async getInfo() {
       if (!this.id) {
         this.loading = false;
@@ -270,7 +347,7 @@ export default {
       this.loading = true;
       this.loadError = '';
       try {
-        this.userInfo = await getUserInfo(this.id);
+        this.userInfo = await request.get(`/users/${this.id}`, null, true);
       } catch (error) {
         this.loadError = error?.message || '用户档案加载失败';
       } finally {
@@ -449,5 +526,9 @@ export default {
   color: var(--muted-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
+}
+
+.works-empty-action {
+  margin-top: var(--space-3);
 }
 </style>

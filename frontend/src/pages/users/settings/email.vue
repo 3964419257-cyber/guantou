@@ -75,7 +75,6 @@ import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
-import { getUserInfo } from '@/services/user';
 import request from '@/utils/request';
 
 const app = getApp();
@@ -115,7 +114,7 @@ export default {
       this.loading = true;
       this.loadError = '';
       try {
-        const userInfo = await getUserInfo(app.globalData.id);
+        const userInfo = await request.get(`/users/${app.globalData.id}`, null, true);
         this.oldEmail = userInfo.user.email || '';
       } catch (error) {
         this.loadError = error?.message || '邮箱读取失败';
