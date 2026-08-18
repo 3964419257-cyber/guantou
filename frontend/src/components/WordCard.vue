@@ -4,7 +4,7 @@
     class="word-card"
   >
     <view class="word-kicker">
-      关联词条
+      关联义项
     </view>
     <view class="word-title">
       {{ word.text }}
@@ -45,13 +45,14 @@
         class="action primary"
         @tap="openWord"
       >
-        进词条
+        进义项
       </button>
     </view>
   </view>
 </template>
 
 <script>
+import { goFlavorDetail } from '@/services/navigation';
 import { playManaged, stopAudio } from '@/utils/audio';
 
 export default {
@@ -98,9 +99,7 @@ export default {
     },
     openWord() {
       this.$emit('open', this.word);
-      if (this.word?.id) {
-        uni.navigateTo({ url: `/pages/flavors/details?id=${this.word.id}` });
-      }
+      if (this.word?.id) goFlavorDetail(this.word.id);
     },
   },
 };
@@ -109,22 +108,22 @@ export default {
 <style scoped>
 .word-card {
   margin-top: 22rpx;
-  padding: 24rpx;
-  border-radius: 16rpx;
-  border: 1px solid #e2c9b0;
-  background: #fff8f1;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--accent-subtle-color);
 }
 
 .word-kicker {
-  color: #885331;
-  font-size: 22rpx;
+  color: var(--warning-color);
+  font-size: var(--font-size-xs);
   font-weight: 800;
   letter-spacing: 3rpx;
 }
 
 .word-title {
   margin-top: 10rpx;
-  font-size: 36rpx;
+  font-size: var(--font-size-xl);
   font-weight: 900;
 }
 
@@ -132,8 +131,8 @@ export default {
 .word-gloss,
 .word-error {
   margin-top: 8rpx;
-  color: #6b5a4a;
-  font-size: 24rpx;
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-xs);
   line-height: 1.5;
 }
 
@@ -146,17 +145,17 @@ export default {
 
 .action {
   margin: 0;
-  border-radius: 999rpx;
-  background: #fff;
-  border: 1px solid #d8c3ad;
-  color: #7b4f2f;
-  font-size: 24rpx;
+  border-radius: var(--radius-pill);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
 }
 
 .action.primary {
-  background: #7b4f2f;
-  color: #fff;
-  border-color: #7b4f2f;
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  border-color: var(--accent-color);
 }
 
 .action::after,
@@ -167,11 +166,11 @@ export default {
 .retry {
   display: inline-block;
   margin-left: 12rpx;
-  padding: 0 16rpx;
-  border-radius: 999rpx;
-  background: #fff;
-  color: #7b4f2f;
-  font-size: 22rpx;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-color);
+  color: var(--accent-color);
+  font-size: var(--font-size-xs);
   line-height: 44rpx;
 }
 </style>

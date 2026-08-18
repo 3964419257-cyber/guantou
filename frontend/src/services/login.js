@@ -96,7 +96,7 @@ export async function afterLogin(res, options = {}) {
     await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }
   const user = await loadUserInfo();
-  if (needsDialectOnboarding(user)) {
+  if (needsDialectOnboarding(user, Boolean(options.isNew))) {
     const reason = options.isNew
       ? ONBOARDING_REASONS.NEW_USER
       : ONBOARDING_REASONS.MISSING_DIALECT;

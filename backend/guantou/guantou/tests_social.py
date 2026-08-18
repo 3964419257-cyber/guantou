@@ -384,7 +384,9 @@ class CanSocialApiTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
-        self.assertIn("forward_from_post_id", response.json().get("data", response.json()))
+        self.assertIn(
+            "forward_from_post_id", response.json().get("data", response.json())
+        )
         self.assertEqual(CanPost.objects.filter(author=self.viewer).count(), before)
 
     def test_repost_rejects_forward_from_on_a_different_can(self):

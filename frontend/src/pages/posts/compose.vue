@@ -147,22 +147,22 @@ export default {
 .post-input {
   box-sizing: border-box;
   width: 100%;
-  border: 1px solid #dfe5db;
-  border-radius: 14rpx;
-  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
 }
 
 .state-card {
-  padding: 32rpx;
-  color: #617067;
+  padding: var(--space-4);
+  color: var(--muted-color);
 }
 
 .state-card.error {
-  color: #934438;
+  color: var(--danger-color);
 }
 
 .source-label {
-  font-size: 38rpx;
+  font-size: var(--font-size-xl);
   font-weight: 800;
 }
 
@@ -171,26 +171,26 @@ export default {
 .hint,
 .counter {
   margin-top: 10rpx;
-  color: #68766e;
+  color: var(--muted-color);
 }
 
 .listen-button,
 .publish-button {
   margin-top: 22rpx;
-  border-radius: 12rpx;
-  background: #1f5c43;
-  color: #fff;
+  border-radius: var(--radius-sm);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
 }
 
 .post-input {
   min-height: 220rpx;
-  padding: 20rpx;
-  font-size: 28rpx;
+  padding: var(--space-3);
+  font-size: var(--font-size-md);
 }
 
 .counter {
   text-align: right;
-  font-size: 22rpx;
+  font-size: var(--font-size-xs);
 }
 
 .visibility-row {
@@ -202,19 +202,19 @@ export default {
 
 .visibility-button {
   margin: 0;
-  background: #edf1eb;
-  color: #58675e;
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
   font-size: 25rpx;
 }
 
 .visibility-button.active {
-  background: #dcebe1;
-  color: #164b36;
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
   font-weight: 800;
 }
 
 .hint {
-  font-size: 22rpx;
+  font-size: var(--font-size-xs);
   text-align: center;
 }
 </style>

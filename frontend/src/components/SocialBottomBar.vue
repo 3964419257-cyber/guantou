@@ -76,8 +76,8 @@ export default {
   grid-template-columns: repeat(5, 1fr);
   gap: 8rpx;
   padding: 12rpx 16rpx calc(12rpx + env(safe-area-inset-bottom));
-  border-top: 1px solid #dce3d8;
-  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--border-color);
+  background: var(--surface-color);
   box-sizing: border-box;
 }
 
@@ -85,15 +85,15 @@ export default {
   margin: 0;
   padding: 0;
   border-radius: 999rpx;
-  background: #f3f6f1;
-  color: #355445;
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
   font-size: 22rpx;
   line-height: 64rpx;
 }
 
 .bar-btn.active {
-  background: #e8f1eb;
-  color: #1f5c43;
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
   font-weight: 700;
 }
 

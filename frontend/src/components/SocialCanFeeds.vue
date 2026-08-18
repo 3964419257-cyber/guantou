@@ -191,30 +191,30 @@ export default {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   padding: 7rpx;
-  border: 1px solid #dce3d8;
-  border-radius: 999rpx;
-  background: #edf1ea;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
 }
 
 .feed-tab {
   margin: 0;
   border-radius: 999rpx;
   background: transparent;
-  color: #657168;
+  color: var(--muted-color);
   font-size: 23rpx;
   line-height: 60rpx;
 }
 
 .feed-tab.active {
-  background: #fff;
-  color: #1f5c43;
+  background: var(--surface-color);
+  color: var(--accent-color);
   font-weight: 800;
   box-shadow: 0 3rpx 12rpx rgb(40 75 57 / 10%);
 }
 
 .feed-tab.disabled {
   opacity: 0.45;
-  color: #8a958c;
+  color: var(--muted-color);
 }
 
 .feed-tab::after {
@@ -223,7 +223,7 @@ export default {
 
 .recommend-hint {
   margin-top: 16rpx;
-  color: #7a867d;
+  color: var(--muted-color);
   font-size: 22rpx;
 }
 

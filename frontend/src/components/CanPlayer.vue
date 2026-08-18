@@ -153,9 +153,9 @@ export default {
 .can-player {
   margin-top: 18rpx;
   padding: 22rpx;
-  border-radius: 16rpx;
-  background: #f3f7f2;
-  border: 1px solid #dce5d8;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-color);
+  border: 1px solid var(--border-color);
 }
 
 .player-meta {
@@ -167,43 +167,43 @@ export default {
 
 .tag {
   padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  background: #e7f1eb;
-  color: #1f5c43;
+  border-radius: var(--radius-sm);
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
   font-size: 20rpx;
   font-weight: 700;
 }
 
 .tag.muted {
-  background: #ece7e1;
-  color: #7b4f2f;
+  background: var(--surface-color);
+  color: var(--warning-color);
 }
 
 .time {
   margin-left: auto;
-  color: #657168;
-  font-size: 22rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
 .progress-track {
-  margin-top: 16rpx;
+  margin-top: var(--space-2);
   height: 8rpx;
-  border-radius: 999rpx;
-  background: #d9e3d7;
+  border-radius: var(--radius-pill);
+  background: var(--border-color);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: #1f5c43;
+  background: var(--accent-color);
 }
 
 .play-button {
   margin-top: 18rpx;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 26rpx;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-sm);
 }
 
 .play-button::after {
@@ -211,9 +211,9 @@ export default {
 }
 
 .subtitle {
-  margin-top: 16rpx;
-  color: #33463b;
-  font-size: 28rpx;
+  margin-top: var(--space-2);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-md);
   line-height: 1.55;
   white-space: pre-wrap;
 }

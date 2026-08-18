@@ -37,9 +37,15 @@ vi.mock('@/routers', () => ({
   toIndexPage: vi.fn(),
 }));
 
-vi.mock('@/routers/user', () => ({
-  toFollowRecommendations: vi.fn(),
-}));
+vi.mock('@/services/navigation', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    goLogin: vi.fn(),
+    goRecommendFollow: vi.fn(),
+    goSearch: vi.fn(),
+  };
+});
 
 vi.mock('@/utils/audio', () => ({
   playAudio: vi.fn(),
@@ -58,7 +64,7 @@ import {
 } from '@/services/dialectOnboarding';
 import { peekInterceptIntent } from '@/services/authGuard';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
-import { toFollowRecommendations } from '@/routers/user';
+import { goRecommendFollow } from '@/services/navigation';
 
 const { default: DialectOnboardingPage } = await import('@/pages/users/onboarding.vue');
 
@@ -140,7 +146,7 @@ describe('dialect onboarding page', () => {
       region: '成都',
     });
     expect(resumeInterruptedPageAfterLogin).not.toHaveBeenCalled();
-    expect(toFollowRecommendations).toHaveBeenCalledWith(true);
+    expect(goRecommendFollow).toHaveBeenCalledWith(true);
   });
 
   it('uses 补选文案 for missing_dialect old users', async () => {

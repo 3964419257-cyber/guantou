@@ -48,7 +48,7 @@ describe('PostSourceBar', () => {
       },
     });
 
-    expect(wrapper.text()).toContain('转发了 @原作者 的博文');
+    expect(wrapper.text()).toContain('转发了 @原作者 的表达');
     expect(wrapper.classes()).toContain('forward');
     await wrapper.find('.source-main').trigger('tap');
     expect(uni.navigateTo).toHaveBeenCalledWith({

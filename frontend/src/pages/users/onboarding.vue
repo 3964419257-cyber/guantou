@@ -258,7 +258,7 @@ import {
 import { listAllDialects } from '@/services/guantou';
 import { resumeInterruptedPageAfterLogin } from '@/services/login';
 import { clearUserInfo } from '@/services/user';
-import { toFollowRecommendations } from '@/routers/user';
+import { goLogin, goRecommendFollow, goSearch } from '@/services/navigation';
 import { playAudio } from '@/utils/audio';
 
 const REGION_SUGGESTIONS = [
@@ -346,7 +346,7 @@ export default {
   async onLoad(options = {}) {
     this.reason = normalizeOnboardingReason(options.reason);
     if (!this.userId) {
-      uni.reLaunch({ url: '/pages/login/login' });
+      goLogin({}, { reset: true });
       return;
     }
     try {
@@ -445,14 +445,14 @@ export default {
         if (peekInterceptIntent()) {
           if (await resumeInterruptedPageAfterLogin(this.userId)) return;
         }
-        toFollowRecommendations(true);
+        goRecommendFollow(true);
       } finally {
         this.saving = false;
       }
     },
     abandon() {
       clearUserInfo();
-      uni.reLaunch({ url: '/pages/search' });
+      goSearch({ reset: true });
     },
   },
 };
@@ -465,27 +465,27 @@ export default {
 
 .step-mark,
 .sample-kicker {
-  color: #7b4f2f;
-  font-size: 22rpx;
+  color: var(--warning-color);
+  font-size: var(--font-size-xs);
   font-weight: 800;
   letter-spacing: 4rpx;
 }
 
 .forced-banner {
-  margin-top: 16rpx;
-  padding: 16rpx 20rpx;
-  border: 1px solid #e2c9b0;
-  border-left: 8rpx solid #7b4f2f;
-  border-radius: 12rpx;
-  background: #fff7ee;
-  color: #7b4f2f;
-  font-size: 26rpx;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-color);
+  border-left: 8rpx solid var(--warning-color);
+  border-radius: var(--radius-sm);
+  background: var(--accent-subtle-color);
+  color: var(--warning-color);
+  font-size: var(--font-size-sm);
   font-weight: 700;
 }
 
 .intro-title {
   margin-top: 12rpx;
-  font-size: 46rpx;
+  font-size: var(--font-size-xl);
   font-weight: 900;
   line-height: 1.2;
 }
@@ -495,17 +495,17 @@ export default {
 .loading-copy,
 .sample-empty {
   margin-top: 12rpx;
-  color: #607067;
-  font-size: 26rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
   line-height: 1.6;
 }
 
 .form-card,
 .dialect-card,
 .sample-card {
-  border: 1px solid #dce5d8;
-  border-radius: 18rpx;
-  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
   padding: 28rpx;
 }
 
@@ -514,23 +514,23 @@ export default {
 }
 
 .field-label {
-  font-size: 28rpx;
+  font-size: var(--font-size-md);
   font-weight: 800;
 }
 
 .nickname-input {
   margin-top: 18rpx;
   padding: 18rpx 22rpx;
-  border-radius: 12rpx;
-  background: #f4f7f2;
-  font-size: 28rpx;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle-color);
+  font-size: var(--font-size-md);
 }
 
 .chip-row {
   display: flex;
   flex-wrap: wrap;
   gap: 14rpx;
-  margin-top: 20rpx;
+  margin-top: var(--space-3);
 }
 
 .region-chips {
@@ -539,30 +539,30 @@ export default {
 
 .chip {
   padding: 12rpx 22rpx;
-  border: 1px solid #d5ddd2;
-  border-radius: 999rpx;
-  background: #f7faf5;
-  color: #355445;
-  font-size: 24rpx;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-xs);
 }
 
 .chip.selected {
-  border-color: #1f6549;
-  background: #e7f2ea;
-  color: #1f6549;
+  border-color: var(--accent-color);
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
   font-weight: 800;
 }
 
 .sample-title {
   margin-top: 10rpx;
-  font-size: 32rpx;
+  font-size: var(--font-size-lg);
   font-weight: 850;
 }
 
 .sample-meta {
   margin-top: 8rpx;
-  color: #7a867d;
-  font-size: 22rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
 .sample-button,
@@ -570,21 +570,21 @@ export default {
 .secondary-button,
 .logout-button {
   margin-top: 22rpx;
-  border-radius: 999rpx;
-  font-size: 26rpx;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
 }
 
 .sample-button,
 .primary-button {
-  background: #1f6549;
-  color: #fff;
+  background: var(--accent-color);
+  color: var(--on-accent-color);
 }
 
 .secondary-button,
 .logout-button {
-  border: 1px solid #cfd9cc;
-  background: #fff;
-  color: #315b49;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--accent-color);
 }
 
 .button-row {
@@ -609,9 +609,9 @@ export default {
 }
 
 .error {
-  margin-top: 16rpx;
-  color: #a14436;
-  font-size: 24rpx;
+  margin-top: var(--space-2);
+  color: var(--danger-color);
+  font-size: var(--font-size-xs);
 }
 
 .logout-button {

@@ -1,6 +1,6 @@
 <template>
   <PageShell
-    title="博文"
+    title="表达详情"
     :content-class="{ 'detail-page': true }"
   >
     <view
@@ -175,7 +175,7 @@ import {
 } from '@/services/canSocial';
 import { startUseSame } from '@/services/canPostJourney';
 import { notify, notifySuccess } from '@/services/feedback';
-import { toIndexPage } from '@/routers';
+import { goHome, goUserDetail } from '@/services/navigation';
 
 function formatRelative(value) {
   if (!value) return '';
@@ -289,12 +289,10 @@ export default {
   methods: {
     formatRelative,
     toHome() {
-      toIndexPage(true);
+      goHome(true);
     },
     toAuthor() {
-      if (this.post?.author?.id) {
-        uni.navigateTo({ url: `/pages/users/details?id=${this.post.author.id}` });
-      }
+      if (this.post?.author?.id) goUserDetail(this.post.author.id);
     },
     async loadPost() {
       if (!this.id) {
@@ -485,10 +483,8 @@ export default {
 .sk-row,
 .sk-block {
   margin-bottom: 18rpx;
-  border-radius: 12rpx;
-  background: linear-gradient(90deg, #e9ede6 25%, #f4f6f2 50%, #e9ede6 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.2s infinite linear;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle-color);
 }
 
 .sk-row {
@@ -503,45 +499,39 @@ export default {
   height: 220rpx;
 }
 
-@keyframes shimmer {
-  to {
-    background-position: -200% 0;
-  }
-}
-
 .state-card {
-  padding: 32rpx;
-  border-radius: 16rpx;
-  background: #fff;
-  border: 1px solid #e1e6dc;
-  color: #33463b;
-  font-size: 28rpx;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-md);
 }
 
 .state-card.error button {
   margin-top: 18rpx;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
 }
 
 .state-card.error .secondary {
-  background: #fff;
-  color: #1f5c43;
-  border: 1px solid #cfd9cc;
+  background: var(--surface-color);
+  color: var(--accent-color);
+  border: 1px solid var(--border-color);
 }
 
 .author-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: var(--space-2);
 }
 
 .avatar {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: #e6ebe3;
+  background: var(--surface-subtle-color);
 }
 
 .author-main {
@@ -563,14 +553,14 @@ export default {
 
 .created-at {
   margin-top: 6rpx;
-  color: #8a958c;
-  font-size: 22rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
 .post-text {
   margin-top: 22rpx;
-  color: #1d2a24;
-  font-size: 32rpx;
+  color: var(--text-color);
+  font-size: var(--font-size-lg);
   line-height: 1.65;
   white-space: pre-wrap;
 }
@@ -586,9 +576,9 @@ export default {
 }
 
 .comment-empty {
-  margin-top: 16rpx;
-  color: #7a867d;
-  font-size: 24rpx;
+  margin-top: var(--space-2);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
 .comment-row {
@@ -601,7 +591,7 @@ export default {
   width: 56rpx;
   height: 56rpx;
   border-radius: 50%;
-  background: #e6ebe3;
+  background: var(--surface-subtle-color);
 }
 
 .comment-body {
@@ -617,43 +607,43 @@ export default {
 }
 
 .comment-author {
-  font-size: 24rpx;
+  font-size: var(--font-size-xs);
   font-weight: 700;
 }
 
 .comment-time {
-  color: #8a958c;
+  color: var(--muted-color);
   font-size: 20rpx;
 }
 
 .comment-content {
   margin-top: 6rpx;
-  color: #33463b;
-  font-size: 26rpx;
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 
 .comment-composer {
   margin-top: 22rpx;
   padding: 18rpx;
-  border-radius: 14rpx;
-  background: #f6f8f4;
-  border: 1px solid #dce5d8;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle-color);
+  border: 1px solid var(--border-color);
 }
 
 .comment-input {
   width: 100%;
   min-height: 120rpx;
-  font-size: 26rpx;
+  font-size: var(--font-size-sm);
 }
 
 .comment-submit,
 .load-more button {
   margin-top: 14rpx;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 26rpx;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-sm);
 }
 
 .comment-submit::after,

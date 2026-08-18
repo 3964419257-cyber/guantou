@@ -47,6 +47,7 @@
 </template>
 
 <script>
+import { goCanDetail, goPostDetail } from '@/services/navigation';
 import { playManaged, stopAudio } from '@/utils/audio';
 
 export default {
@@ -77,7 +78,7 @@ export default {
     },
     title() {
       if (this.forwardFrom) {
-        return `转发了 @${this.forwardFrom.authorName || this.forwardFrom.author_name || '某人'} 的博文`;
+        return `转发了 @${this.forwardFrom.authorName || this.forwardFrom.author_name || '某人'} 的表达`;
       }
       const name = this.useSameFrom?.authorName
         || this.useSameFrom?.author_name
@@ -113,18 +114,18 @@ export default {
       }
       if (this.forwardFrom?.postId || this.forwardFrom?.post_id) {
         const postId = this.forwardFrom.postId || this.forwardFrom.post_id;
-        uni.navigateTo({ url: `/pages/posts/details?id=${postId}` });
+        goPostDetail(postId);
         return;
       }
       const sourcePostId = this.useSameFrom?.sourcePostId
         || this.useSameFrom?.source_post_id;
       if (sourcePostId) {
-        uni.navigateTo({ url: `/pages/posts/details?id=${sourcePostId}` });
+        goPostDetail(sourcePostId);
         return;
       }
       const canId = this.useSameFrom?.canId || this.useSameFrom?.can_id;
       if (canId) {
-        uni.navigateTo({ url: `/pages/cans/details?id=${canId}` });
+        goCanDetail(canId);
         return;
       }
       uni.showToast({ title: '暂无法查看', icon: 'none' });
@@ -144,19 +145,19 @@ export default {
   align-items: stretch;
   gap: 12rpx;
   margin-top: 22rpx;
-  padding: 20rpx;
-  border-radius: 14rpx;
-  border: 1px solid #dce5d8;
-  background: #f7faf5;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--surface-subtle-color);
 }
 
 .source-bar.use-same {
-  border-left: 8rpx solid #1f5c43;
+  border-left: 8rpx solid var(--accent-color);
 }
 
 .source-bar.forward {
-  border-left: 8rpx solid #7b4f2f;
-  background: #fff8f1;
+  border-left: 8rpx solid var(--warning-color);
+  background: var(--accent-subtle-color);
 }
 
 .source-main {
@@ -168,31 +169,31 @@ export default {
   font-size: 20rpx;
   font-weight: 800;
   letter-spacing: 2rpx;
-  color: #657168;
+  color: var(--muted-color);
 }
 
 .source-bar.forward .source-kicker {
-  color: #885331;
+  color: var(--warning-color);
 }
 
 .source-title {
   margin-top: 8rpx;
-  font-size: 28rpx;
+  font-size: var(--font-size-md);
   font-weight: 800;
-  color: #1d2a24;
+  color: var(--text-color);
 }
 
 .source-snippet,
 .source-meta,
 .source-unavailable {
   margin-top: 8rpx;
-  color: #657168;
-  font-size: 22rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
   line-height: 1.45;
 }
 
 .source-unavailable {
-  color: #8a958c;
+  color: var(--muted-color);
 }
 
 .mini-play {
@@ -202,9 +203,9 @@ export default {
   height: 64rpx;
   padding: 0;
   border-radius: 50%;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 24rpx;
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-xs);
   line-height: 64rpx;
 }
 
