@@ -164,7 +164,7 @@
           登录后可以查看自己的罐头、草稿和贡献记录。查词与收听公开乡音无需登录。
         </view>
         <BaseButton
-          class="guest-action"
+          class="guest-action login-button"
           block
           @click="openLoginFromMine"
         >

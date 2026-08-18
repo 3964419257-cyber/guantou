@@ -127,6 +127,15 @@ describe('account UI tokens', () => {
     });
   });
 
+  it('keeps the guest login hook used by H5 e2e', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/me.vue'),
+      'utf8',
+    );
+    expect(source).toContain('login-button');
+    expect(source).toContain('还没有登录');
+  });
+
   it('keeps private account fields from being labeled public', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/pages/users/settings/information.vue'),
