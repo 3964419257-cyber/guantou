@@ -1,86 +1,100 @@
 <template>
-  <PageShell title="修改昵称">
-    <view class="setting-hint">
-      昵称用于站内交流和公开展示。
+  <PageShell
+    title="修改昵称"
+    :back-fallback="ROUTES.userInformation"
+  >
+    <view class="hint">
+      昵称用于用户之间的交流，会经常展示。
     </view>
-    <BaseForm
-      ref="form"
-      :data="form"
-      :rules="rules"
+    <BaseField
+      v-model="nickname"
+      label="昵称"
+      required
+      placeholder="不要超过 20 个字"
+      :maxlength="20"
+      :error="error"
+      :disabled="saving"
+    />
+    <BaseButton
+      block
+      :disabled="saving || nickname === currentNickname"
+      :loading="saving"
+      @click="saveNickname"
     >
-      <BaseField
-        v-model="form.nickname"
-        name="nickname"
-        label="昵称"
-        placeholder="请输入不超过 20 位的昵称"
-        :maxlength="20"
-        required
-        clearable
-      />
-      <BaseButton
-        block
-        text="保存"
-        :disabled="form.nickname === currentNickname"
-        @click="saveNickname"
-      />
-    </BaseForm>
+      保存
+    </BaseButton>
   </PageShell>
 </template>
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
-import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
-import { changeUserInfo } from '@/services/user';
-import { toLoginPage } from '@/routers/login';
+import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import request from '@/utils/request';
 
 const app = getApp();
+
+function fieldErrorMessage(error, field) {
+  const item = error?.data?.[field] || error?.data?.user?.[field];
+  if (typeof item === 'string') return item;
+  if (item?.message) return item.message;
+  return error?.message || '';
+}
+
 export default {
-  name: 'ChangeNickname',
-  components: {
-    BaseButton, BaseField, BaseForm, PageShell,
-  },
+  components: { BaseButton, BaseField, PageShell },
   data() {
     return {
-      form: { nickname: '' },
-      rules: {
-        nickname: [
-          { required: true, message: '请输入正确的昵称' },
-          { whitespace: true, message: '请输入正确的昵称' },
-        ],
-      },
+      ROUTES,
+      nickname: '',
+      error: '',
+      saving: false,
     };
   },
   computed: {
     currentNickname() {
-      return app.globalData.userInfo.nickname;
+      return app.globalData.userInfo?.nickname || '';
     },
   },
   onShow() {
-    if (!this.currentNickname) toLoginPage();
-    this.form.nickname = this.currentNickname || '';
+    if (!app.globalData.id) {
+      goLogin({}, { reset: true });
+      return;
+    }
+    this.nickname = this.currentNickname;
+    this.error = '';
   },
   methods: {
     async saveNickname() {
-      const valid = await this.$refs.form.validate();
-      if (valid !== true) return;
-      const userInfo = { ...app.globalData.userInfo, nickname: this.form.nickname };
-      await changeUserInfo(app.globalData.id, userInfo);
-      app.globalData.userInfo = userInfo;
-      setTimeout(() => uni.navigateBack(), 1500);
+      const nickname = String(this.nickname || '').trim();
+      if (!nickname) {
+        this.error = '请输入昵称';
+        return;
+      }
+      this.error = '';
+      this.saving = true;
+      try {
+        const userInfo = { ...app.globalData.userInfo, nickname };
+        const res = await request.put(`/users/${app.globalData.id}`, { user: userInfo }, true);
+        if (res.token) uni.setStorageSync('token', res.token);
+        app.globalData.userInfo = res.user || userInfo;
+        uni.showToast({ title: '修改成功' });
+        goBack(ROUTES.userInformation);
+      } catch (error) {
+        this.error = fieldErrorMessage(error, 'nickname') || '保存失败';
+      } finally {
+        this.saving = false;
+      }
     },
   },
 };
 </script>
 
 <style scoped>
-.setting-hint {
+.hint {
   margin-bottom: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--accent-subtle-color);
-  color: var(--text-secondary-color);
+  color: var(--muted-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
 }

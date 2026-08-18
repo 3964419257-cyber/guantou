@@ -1,111 +1,145 @@
 <template>
-  <view>
-    <cu-custom title="修改邮箱" />
-    <view class="cu-form-group">
-      <view class="text-df text-bold-less margin-right-sm">
-        原邮箱
+  <PageShell
+    title="修改邮箱"
+    :back-fallback="ROUTES.userInformation"
+  >
+    <BaseField
+      :model-value="oldEmail"
+      label="原邮箱"
+      disabled
+    />
+    <BaseField
+      v-model="newEmail"
+      label="新邮箱"
+      required
+      placeholder="请输入新邮箱"
+      :error="emailError"
+      :disabled="saving || sending"
+    />
+    <view class="code-row">
+      <view class="code-field">
+        <BaseField
+          v-model="code"
+          label="验证码"
+          required
+          placeholder="请输入验证码"
+          :error="codeError"
+          :disabled="saving"
+        />
       </view>
-      <input
-        :value="old_email"
-        :disabled="true"
-      >
-    </view>
-    <view class="cu-form-group">
-      <view class="text-df text-bold-less margin-right-sm">
-        新邮箱
-      </view>
-      <input
-        placeholder="请输入新邮箱"
-        @input="getNewEmail"
-      >
-    </view>
-    <view class="cu-form-group">
-      <view class="text-df text-bold-less margin-right-sm">
-        验证码
-      </view>
-      <input
-        placeholder="请输入验证码"
-        @input="getCode"
-      >
-      <button
-        class="cu-btn bg-gradual-blue shadow"
-        style="width: 32vw; border-radius: 5000rpx"
-        @tap="sendCode"
+      <BaseButton
+        size="small"
+        variant="ghost"
+        :disabled="sending || saving"
+        :loading="sending"
+        @click="sendCode"
       >
         获取验证码
-      </button>
+      </BaseButton>
     </view>
-    <button
-      class="cu-btn round bg-gradual-blue shadow text-df margin-top-sm"
-      style="display: flex; justify-content: center"
-      @tap="setNewEmail"
+    <BaseButton
+      block
+      :disabled="saving || sending"
+      :loading="saving"
+      @click="setNewEmail"
     >
       保存
-    </button>
-  </view>
+    </BaseButton>
+  </PageShell>
 </template>
 
 <script>
-import { changeUserEmail, getUserInfo } from '@/services/user';
-import { sendEmailCode } from '@/services/verification';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import PageShell from '@/components/PageShell.vue';
+import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import { getUserInfo } from '@/services/user';
+import request from '@/utils/request';
 
 const app = getApp();
+
+function fieldErrorMessage(error, field) {
+  const item = error?.data?.[field] || error?.data?.user?.[field];
+  if (typeof item === 'string') return item;
+  if (item?.message) return item.message;
+  return error?.message || '';
+}
+
 export default {
+  components: { BaseButton, BaseField, PageShell },
   data() {
     return {
-      old_email: '',
+      ROUTES,
+      oldEmail: '',
+      newEmail: '',
       code: '',
-      new_email: '',
+      emailError: '',
+      codeError: '',
+      sending: false,
+      saving: false,
     };
   },
   onLoad() {
+    if (!app.globalData.id) {
+      goLogin({}, { reset: true });
+      return;
+    }
     this.getUserEmail();
   },
   methods: {
-    /**
-     * 获取用户未更改前的邮箱信息
-     * @returns {Promise<void>}
-     */
     async getUserEmail() {
       const userInfo = await getUserInfo(app.globalData.id);
-      this.old_email = userInfo.user.email;
+      this.oldEmail = userInfo.user.email || '';
     },
-
-    getCode(e) {
-      this.code = e.detail.value;
+    async sendCode() {
+      const email = String(this.newEmail || '').trim();
+      if (!email) {
+        this.emailError = '请输入新邮箱';
+        return;
+      }
+      this.emailError = '';
+      this.sending = true;
+      try {
+        await request.post('/users/email-code', { email, purpose: 'bind' }, true);
+        uni.showToast({ title: '验证码已发送', icon: 'none' });
+      } catch (error) {
+        this.emailError = fieldErrorMessage(error, 'email') || '验证码发送失败';
+      } finally {
+        this.sending = false;
+      }
     },
-
-    getNewEmail(e) {
-      this.new_email = e.detail.value;
-    },
-
-    /**
-     * 发送邮箱验证码
-     */
-    sendCode() {
-      const email = this.new_email;
-      sendEmailCode(email, 'bind');
-    },
-
-    /**
-     * 发送新邮箱
-     */
-    setNewEmail() {
-      const { code } = this;
-      const email = this.new_email;
-      changeUserEmail(app.globalData.id, email, code).then(async () => {
-        setTimeout(() => {
-          uni.showToast({
-            title: '修改成功',
-          });
-        }, 100);
-        uni.navigateBack({
-          delta: 1,
-        }); // 返回上一个页面
-      });
+    async setNewEmail() {
+      const email = String(this.newEmail || '').trim();
+      const code = String(this.code || '').trim();
+      this.emailError = email ? '' : '请输入新邮箱';
+      this.codeError = code ? '' : '请输入验证码';
+      if (!email || !code) return;
+      this.saving = true;
+      try {
+        await request.put(`/users/${app.globalData.id}/email`, { email, code }, true);
+        uni.showToast({ title: '修改成功' });
+        goBack(ROUTES.userInformation);
+      } catch (error) {
+        this.emailError = fieldErrorMessage(error, 'email');
+        this.codeError = fieldErrorMessage(error, 'code')
+          || (!this.emailError ? (error?.message || '保存失败') : '');
+      } finally {
+        this.saving = false;
+      }
     },
   },
 };
 </script>
-<style>
+
+<style scoped>
+.code-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.code-field {
+  min-width: 0;
+  flex: 1;
+}
 </style>

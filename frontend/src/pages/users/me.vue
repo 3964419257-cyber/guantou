@@ -5,124 +5,139 @@
   >
     <view class="page">
       <template v-if="loggedIn">
-        <view class="profile">
-          <image
-            :src="avatar"
-            class="avatar"
-            mode="aspectFill"
-            @tap="toUserInfoPage"
-          />
-          <view>
-            <view class="name">
-              {{ nickname || '未登录' }}
+        <view
+          v-if="loadError"
+          class="state-card"
+        >
+          <view>{{ loadError }}</view>
+          <BaseButton
+            class="state-action"
+            block
+            @click="getInfo"
+          >
+            重试
+          </BaseButton>
+        </view>
+        <template v-else>
+          <view class="profile">
+            <image
+              :src="avatar"
+              class="avatar"
+              mode="aspectFill"
+              @tap="toUserInfoPage"
+            />
+            <view>
+              <view class="name">
+                {{ nickname || '未登录' }}
+              </view>
+              <view
+                v-if="primaryDialect"
+                class="dialect-badge"
+              >
+                {{ locationText }}
+              </view>
+              <view
+                v-else
+                class="meta"
+              >
+                未填写方言点
+              </view>
+            </view>
+          </view>
+
+          <view class="stats">
+            <view
+              class="stat"
+              @tap="toCanLibrary"
+            >
+              <view class="number">
+                {{ cansCount }}
+              </view>
+              <view class="label">
+                罐头
+              </view>
+            </view>
+            <view class="stat">
+              <view class="number">
+                {{ flavorsCount }}
+              </view>
+              <view class="label">
+                义项
+              </view>
+            </view>
+            <view class="stat">
+              <view class="number">
+                {{ nameplatesCount }}
+              </view>
+              <view class="label">
+                铭牌
+              </view>
+            </view>
+          </view>
+
+          <view class="menu">
+            <view
+              class="menu-item"
+              @tap="toCanLibrary"
+            >
+              我的罐头库
+              <text class="menu-meta">
+                录制 · 收藏 · 草稿
+              </text>
             </view>
             <view
-              v-if="primaryDialect"
-              class="dialect-badge"
+              class="menu-item"
+              @tap="toCreate"
             >
-              {{ locationText }}
+              装一罐
             </view>
             <view
-              v-else
-              class="meta"
+              class="menu-item"
+              @tap="toDrafts"
             >
-              未填写方言点
+              草稿箱
+              <text class="menu-meta">
+                {{ draftsCount }} 条
+              </text>
             </view>
-          </view>
-        </view>
-
-        <view class="stats">
-          <view
-            class="stat"
-            @tap="toCanLibrary"
-          >
-            <view class="number">
-              {{ cansCount }}
-            </view>
-            <view class="label">
-              罐头
-            </view>
-          </view>
-          <view class="stat">
-            <view class="number">
-              {{ flavorsCount }}
-            </view>
-            <view class="label">
-              义项
-            </view>
-          </view>
-          <view class="stat">
-            <view class="number">
-              {{ nameplatesCount }}
-            </view>
-            <view class="label">
-              铭牌
-            </view>
-          </view>
-        </view>
-
-        <view class="menu">
-          <view
-            class="menu-item"
-            @tap="toCanLibrary"
-          >
-            我的罐头库
-            <text class="menu-meta">
-              录制 · 收藏 · 草稿
-            </text>
-          </view>
-          <view
-            class="menu-item"
-            @tap="toCreate"
-          >
-            装一罐
-          </view>
-          <view
-            class="menu-item"
-            @tap="toDrafts"
-          >
-            草稿箱
-            <text class="menu-meta">
-              {{ draftsCount }} 条
-            </text>
-          </view>
-          <view
-            class="menu-item"
-            @tap="toMailsPage"
-          >
-            我的消息
-            <text
-              v-if="unreadMailsCount > 0"
-              class="badge"
+            <view
+              class="menu-item"
+              @tap="toMailsPage"
             >
-              {{ unreadMailsCount }}
-            </text>
+              我的消息
+              <text
+                v-if="unreadMailsCount > 0"
+                class="badge"
+              >
+                {{ unreadMailsCount }}
+              </text>
+            </view>
+            <view
+              class="menu-item"
+              @tap="toUserInfoPage"
+            >
+              个人资料
+            </view>
+            <view
+              class="menu-item"
+              @tap="toChangePasswordPage"
+            >
+              修改密码
+            </view>
+            <view
+              class="menu-item"
+              @tap="bindingWechat"
+            >
+              {{ wechatBindText }}
+            </view>
+            <view
+              class="menu-item danger"
+              @tap="exit"
+            >
+              退出登录
+            </view>
           </view>
-          <view
-            class="menu-item"
-            @tap="toUserInfoPage"
-          >
-            个人资料
-          </view>
-          <view
-            class="menu-item"
-            @tap="toChangePasswordPage"
-          >
-            修改密码
-          </view>
-          <view
-            class="menu-item"
-            @tap="bindingWechat"
-          >
-            {{ wechatBindText }}
-          </view>
-          <view
-            class="menu-item danger"
-            @tap="exit"
-          >
-            退出登录
-          </view>
-        </view>
+        </template>
         <ThemeSwitcher />
       </template>
 
@@ -139,18 +154,21 @@
         <view class="guest-copy">
           登录后可以查看自己的罐头、草稿和贡献记录。查词与收听公开乡音无需登录。
         </view>
-        <button
-          class="login-button"
-          @tap="openLoginFromMine"
+        <BaseButton
+          class="guest-action"
+          block
+          @click="openLoginFromMine"
         >
           登录 / 注册
-        </button>
-        <button
-          class="search-button"
-          @tap="toSearch"
+        </BaseButton>
+        <BaseButton
+          class="guest-action"
+          variant="ghost"
+          block
+          @click="toSearch"
         >
           先去查词
-        </button>
+        </BaseButton>
         <ThemeSwitcher />
       </view>
     </view>
@@ -158,28 +176,32 @@
 </template>
 
 <script>
-import { toIndexPage } from '@/routers';
+import AppShell from '@/components/AppShell.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import confirmDialog from '@/components/ConfirmDialog';
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
+import { openLoginFromMine } from '@/services/authJourney';
+import { listCanDrafts } from '@/services/canDrafts';
+import {
+  goCanLibrary,
+  goCreateCan,
+  goHome,
+  goMails,
+  goSearch,
+  goUserInformation,
+  goUserPassword,
+} from '@/services/navigation';
 import {
   bindingWechat as bindingWechatService,
   cancelBindingWechat as cancelBindingWechatService,
   clearUserInfo,
   getUserInfo,
 } from '@/services/user';
-import {
-  toChangePasswordPage,
-  toUserInfoPage,
-} from '@/routers/user';
-import { toMailsPage } from '@/routers/mail';
-import { listCanDrafts } from '@/services/canDrafts';
-import { openLoginFromMine } from '@/services/authJourney';
-import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
-import AppShell from '@/components/AppShell.vue';
-import { goCanLibrary, goCreateCan, goSearch } from '@/services/navigation';
 
 const app = getApp();
 
 export default {
-  components: { AppShell, ThemeSwitcher },
+  components: { AppShell, BaseButton, ThemeSwitcher },
   data() {
     return {
       id: '',
@@ -193,6 +215,7 @@ export default {
       unreadMailsCount: 0,
       wechatBindText: '绑定微信',
       isBinding: false,
+      loadError: '',
       loggedIn: Boolean(uni.getStorageSync('token')),
     };
   },
@@ -210,9 +233,15 @@ export default {
     if (this.loggedIn) this.getInfo();
   },
   methods: {
-    toMailsPage,
-    toChangePasswordPage,
-    toUserInfoPage,
+    toMailsPage() {
+      goMails();
+    },
+    toChangePasswordPage() {
+      goUserPassword();
+    },
+    toUserInfoPage() {
+      goUserInformation();
+    },
     openLoginFromMine,
     toSearch() {
       goSearch();
@@ -231,30 +260,35 @@ export default {
     },
     async getInfo() {
       if (!app.globalData.id) return;
-      const userInfo = await getUserInfo(app.globalData.id);
-      this.id = userInfo.user.id;
-      this.avatar = userInfo.user.avatar;
-      this.nickname = userInfo.user.nickname || userInfo.user.username;
-      this.primaryDialect = userInfo.user.primary_dialect;
-      this.cansCount = userInfo.contribution.cans_uploaded || 0;
-      this.flavorsCount = userInfo.contribution.flavors_uploaded || 0;
-      this.nameplatesCount = userInfo.contribution.nameplates || 0;
-      this.unreadMailsCount = userInfo.notification
-        ? userInfo.notification.statistics.unread
-        : 0;
-      this.wechatBindText = userInfo.user.wechat ? '解绑微信' : '绑定微信';
+      this.loadError = '';
+      try {
+        const userInfo = await getUserInfo(app.globalData.id);
+        this.id = userInfo.user.id;
+        this.avatar = userInfo.user.avatar;
+        this.nickname = userInfo.user.nickname || userInfo.user.username;
+        this.primaryDialect = userInfo.user.primary_dialect;
+        this.cansCount = userInfo.contribution.cans_uploaded || 0;
+        this.flavorsCount = userInfo.contribution.flavors_uploaded || 0;
+        this.nameplatesCount = userInfo.contribution.nameplates || 0;
+        this.unreadMailsCount = userInfo.notification
+          ? userInfo.notification.statistics.unread
+          : 0;
+        this.wechatBindText = userInfo.user.wechat ? '解绑微信' : '绑定微信';
+      } catch (error) {
+        this.loadError = error?.message || '档案加载失败';
+      }
     },
-    exit() {
-      uni.showModal({
-        content: '是否退出当前登录？',
-        success: async (res) => {
-          if (res.confirm) {
-            clearUserInfo();
-            await toIndexPage(uni.getSystemInfoSync().uniPlatform === 'web');
-            uni.showToast({ title: '登出成功' });
-          }
-        },
+    async exit() {
+      const confirmed = await confirmDialog({
+        title: '退出登录？',
+        content: '退出后将回到游客模式，本地草稿仍会保留。',
+        confirmText: '退出',
+        danger: true,
       });
+      if (!confirmed) return;
+      clearUserInfo();
+      goHome(true);
+      uni.showToast({ title: '登出成功' });
     },
     async bindingWechat() {
       if (this.isBinding || !app.globalData.id) return;
@@ -286,24 +320,31 @@ export default {
 </script>
 
 <style scoped>
-/* 颜色 Token 来自全局 styles/tokens.scss；暗色由 .theme-dark 全局规则覆盖 */
 .page {
-  min-height: 100vh;
-  background: var(--page-color);
   color: var(--text-color);
-  padding: 44rpx 28rpx 80rpx;
+}
+
+.state-card,
+.guest-profile {
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
   box-sizing: border-box;
+}
+
+.state-card {
+  color: var(--text-secondary-color);
+}
+
+.state-action {
+  margin-top: var(--space-3);
 }
 
 .guest-profile {
   max-width: 620rpx;
-  margin: 16vh auto 0;
-  padding: 48rpx 36rpx;
-  border: 1px solid var(--border-color, #dce3d8);
-  border-radius: 18rpx;
-  background: var(--surface-color, #ffffff);
+  margin: 8vh auto 0;
   text-align: center;
-  box-sizing: border-box;
 }
 
 .guest-mark {
@@ -311,48 +352,28 @@ export default {
   height: 112rpx;
   margin: 0 auto;
   border-radius: 56rpx;
-  background: #1f5c43;
-  color: #ffffff;
-  font-size: 48rpx;
+  background: var(--accent-color);
+  color: var(--on-accent-color);
+  font-size: var(--font-size-xl);
   font-weight: 800;
   line-height: 112rpx;
 }
 
 .guest-title {
   margin-top: 28rpx;
-  font-size: 38rpx;
+  font-size: var(--font-size-xl);
   font-weight: 800;
 }
 
 .guest-copy {
-  margin-top: 16rpx;
-  color: var(--muted-color, #647068);
-  font-size: 26rpx;
+  margin-top: var(--space-2);
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
   line-height: 1.65;
 }
 
-.login-button,
-.search-button {
-  margin-top: 30rpx;
-  border-radius: 999rpx;
-  font-size: 28rpx;
-}
-
-.login-button {
-  background: #1f5c43;
-  color: #ffffff;
-}
-
-.search-button {
-  margin-top: 16rpx;
-  border: 1px solid #ccd7ca;
-  background: var(--surface-color, #ffffff);
-  color: var(--accent-color, #1f5c43);
-}
-
-.login-button::after,
-.search-button::after {
-  border: 0;
+.guest-action {
+  margin-top: var(--space-3);
 }
 
 .profile {
@@ -365,26 +386,26 @@ export default {
   width: 128rpx;
   height: 128rpx;
   border-radius: 64rpx;
-  background: #dfe5da;
+  background: var(--surface-subtle-color);
 }
 
 .name {
-  font-size: 38rpx;
+  font-size: var(--font-size-xl);
   font-weight: 800;
 }
 
 .meta {
   margin-top: 8rpx;
-  color: #6c776e;
+  color: var(--muted-color);
 }
 
 .dialect-badge {
   display: inline-flex;
   margin-top: 10rpx;
   padding: 7rpx 16rpx;
-  border-radius: 999rpx;
-  background: #e4eee5;
-  color: #285e45;
+  border-radius: var(--radius-pill);
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
   font-size: 23rpx;
 }
 
@@ -397,9 +418,9 @@ export default {
 
 .stat,
 .menu {
-  background: var(--surface-color, #fff);
-  border: 1px solid var(--border-color, #e1e6dc);
-  border-radius: 14rpx;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
 }
 
 .stat {
@@ -408,14 +429,14 @@ export default {
 }
 
 .number {
-  font-size: 38rpx;
+  font-size: var(--font-size-xl);
   font-weight: 800;
-  color: var(--accent-color, #1f5c43);
+  color: var(--accent-color);
 }
 
 .label {
   margin-top: 8rpx;
-  color: var(--muted-color, #6c776e);
+  color: var(--muted-color);
 }
 
 .menu {
@@ -429,7 +450,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 0 28rpx;
-  border-bottom: 1px solid var(--border-color, #eef1eb);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .menu-item:last-child {
@@ -437,7 +458,7 @@ export default {
 }
 
 .danger {
-  color: #9b3a2d;
+  color: var(--danger-color);
 }
 
 .badge {
@@ -445,14 +466,14 @@ export default {
   height: 36rpx;
   line-height: 36rpx;
   text-align: center;
-  color: #fff;
-  background: #9b3a2d;
+  color: var(--on-danger-color);
+  background: var(--danger-color);
   border-radius: 18rpx;
-  font-size: 22rpx;
+  font-size: var(--font-size-xs);
 }
 
 .menu-meta {
-  color: var(--muted-color, #6c776e);
-  font-size: 26rpx;
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
 }
 </style>

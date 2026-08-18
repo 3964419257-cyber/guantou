@@ -1,116 +1,110 @@
 <template>
-  <view>
-    <cu-custom title="修改密码" />
-    <form @submit="changePassword">
-      <view
-        v-for="(item, index) in pwd"
-        :key="index"
-        class="cu-form-group"
-      >
-        <view class="text-df text-bold-less margin-right-sm">
-          {{ item.str }}
-        </view>
-
-        <input
-          :name="item.name"
-          :password="item.is_pwd"
-          :placeholder="item.ph"
-        >
-
-        <text
-          :class="item.icon"
-          :data-index="index"
-          @tap="changeStatus"
-        />
-      </view>
-      <button
-        class="cu-btn round bg-gradual-blue shadow text-df margin-top-sm"
-        style="display: flex; justify-content: center"
-        form-type="submit"
-      >
-        保存
-      </button>
-    </form>
-  </view>
+  <PageShell
+    title="修改密码"
+    :back-fallback="ROUTES.userInformation"
+  >
+    <BaseField
+      v-model="oldPassword"
+      label="原密码"
+      type="password"
+      required
+      placeholder="请输入原密码"
+      :error="oldError"
+      :disabled="saving"
+    />
+    <BaseField
+      v-model="newPassword"
+      label="新密码"
+      type="password"
+      required
+      placeholder="请输入新密码"
+      :error="newError"
+      :disabled="saving"
+    />
+    <BaseField
+      v-model="confirmPassword"
+      label="确认密码"
+      type="password"
+      required
+      placeholder="请再次输入新密码"
+      :error="confirmError"
+      :disabled="saving"
+    />
+    <BaseButton
+      block
+      :disabled="saving"
+      :loading="saving"
+      @click="savePassword"
+    >
+      保存
+    </BaseButton>
+  </PageShell>
 </template>
 
 <script>
-import { changeUserPassword } from '@/services/user';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
+import PageShell from '@/components/PageShell.vue';
+import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import request from '@/utils/request';
 
 const app = getApp();
+
+function fieldErrorMessage(error, field) {
+  const item = error?.data?.[field];
+  if (typeof item === 'string') return item;
+  if (item?.message) return item.message;
+  return error?.message || '';
+}
+
 export default {
+  components: { BaseButton, BaseField, PageShell },
   data() {
     return {
-      pwd: [
-        {
-          str: '原密码',
-          ph: '请输入原密码',
-          is_pwd: true,
-          icon: 'cuIcon-attention',
-          name: 'old',
-        },
-        {
-          str: '新密码',
-          ph: '请输入新密码',
-          is_pwd: true,
-          icon: 'cuIcon-attention',
-          name: 'new1',
-        },
-        {
-          str: '确认密码',
-          ph: '请确认新密码',
-          is_pwd: true,
-          icon: 'cuIcon-attention',
-          name: 'new2',
-        },
-      ],
+      ROUTES,
+      oldPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+      oldError: '',
+      newError: '',
+      confirmError: '',
+      saving: false,
     };
   },
+  onShow() {
+    if (!app.globalData.id) {
+      goLogin({}, { reset: true });
+    }
+  },
   methods: {
-    changeStatus(e) {
-      const { index } = e.currentTarget.dataset;
-      const { pwd } = this;
-
-      if (pwd[index].is_pwd === true) {
-        pwd[index].is_pwd = false;
-        pwd[index].icon = 'cuIcon-attentionforbid';
-      } else {
-        pwd[index].is_pwd = true;
-        pwd[index].icon = 'cuIcon-attention';
+    async savePassword() {
+      const oldPassword = String(this.oldPassword || '').trim();
+      const newPassword = String(this.newPassword || '').trim();
+      const confirmPassword = String(this.confirmPassword || '').trim();
+      this.oldError = oldPassword ? '' : '请输入原密码';
+      this.newError = newPassword ? '' : '请输入新密码';
+      this.confirmError = confirmPassword ? '' : '请确认新密码';
+      if (!oldPassword || !newPassword || !confirmPassword) return;
+      if (newPassword !== confirmPassword) {
+        this.confirmError = '两次密码不一样';
+        return;
       }
-
-      this.pwd = pwd;
-    },
-
-    changePassword(e) {
-      const { old } = e.detail.value;
-      const new1 = e.detail.value.new1.trim();
-      const new2 = e.detail.value.new2.trim();
-
-      if (old === '' || new1 === '' || new2 === '') {
-        uni.showToast({
-          title: '内容不完整',
-          icon: 'error',
-        });
-        return;
-      } if (new1 !== new2) {
-        uni.showToast({
-          title: '两次密码不一样',
-          icon: 'error',
-        });
-        return;
-      } // 修改密码
-
-      changeUserPassword(app.globalData.id, old, new1).then(async () => {
-        setTimeout(() => {
-          uni.navigateBack({
-            delta: 1,
-          }); // 返回上一个页面
-        }, 1000);
-      });
+      this.saving = true;
+      try {
+        await request.put(`/users/${app.globalData.id}/password`, {
+          oldpassword: oldPassword,
+          newpassword: newPassword,
+        }, true);
+        uni.showToast({ title: '修改成功' });
+        goBack(ROUTES.userInformation);
+      } catch (error) {
+        this.oldError = fieldErrorMessage(error, 'oldpassword');
+        this.newError = fieldErrorMessage(error, 'newpassword')
+          || (!this.oldError ? (error?.message || '保存失败') : '');
+      } finally {
+        this.saving = false;
+      }
     },
   },
 };
 </script>
-<style>
-</style>

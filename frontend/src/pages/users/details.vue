@@ -1,93 +1,114 @@
 <template>
-  <view class="page">
-    <view class="topbar">
-      <text
-        class="back"
-        @tap="goBack"
+  <PageShell
+    title="用户"
+    :back-fallback="ROUTES.home"
+  >
+    <view
+      v-if="loading"
+      class="state-card"
+    >
+      正在读取用户档案…
+    </view>
+    <view
+      v-else-if="loadError"
+      class="state-card"
+    >
+      <view>{{ loadError }}</view>
+      <BaseButton
+        class="state-action"
+        block
+        @click="getInfo"
       >
-        ‹
-      </text>
-      <text class="title">
-        用户
-      </text>
+        重试
+      </BaseButton>
     </view>
-    <view class="profile">
-      <image
-        class="avatar"
-        :src="userInfo.user.avatar"
-        mode="aspectFill"
-      />
-      <view>
-        <view class="name">
-          {{ userInfo.user.nickname || userInfo.user.username }}
+    <template v-else>
+      <view class="profile">
+        <image
+          class="avatar"
+          :src="userInfo.user.avatar"
+          mode="aspectFill"
+        />
+        <view class="profile-copy">
+          <view class="name">
+            {{ userInfo.user.nickname || userInfo.user.username }}
+          </view>
+          <view
+            v-if="userInfo.user.primary_dialect"
+            class="dialect-badge"
+          >
+            {{ locationText }}
+          </view>
+          <view
+            v-else
+            class="meta"
+          >
+            未填写方言点
+          </view>
         </view>
-        <view
-          v-if="userInfo.user.primary_dialect"
-          class="dialect-badge"
+        <BaseButton
+          v-if="!isSelf"
+          size="small"
+          :variant="userInfo.user.is_following ? 'ghost' : 'primary'"
+          :disabled="followingBusy"
+          :loading="followingBusy"
+          @click="toggleFollow"
         >
-          {{ locationText }}
+          {{ userInfo.user.is_following ? '已关注' : '关注' }}
+        </BaseButton>
+      </view>
+      <view class="social-stats">
+        <text>{{ userInfo.user.follower_count }} 位关注者</text>
+        <text>{{ userInfo.user.following_count }} 个关注</text>
+      </view>
+      <view class="stats">
+        <view class="stat">
+          <view class="number">
+            {{ userInfo.contribution.cans_uploaded }}
+          </view>
+          <view class="label">
+            罐头
+          </view>
         </view>
-        <view
-          v-else
-          class="meta"
-        >
-          未填写方言点
+        <view class="stat">
+          <view class="number">
+            {{ userInfo.contribution.flavors_uploaded }}
+          </view>
+          <view class="label">
+            义项
+          </view>
+        </view>
+        <view class="stat">
+          <view class="number">
+            {{ userInfo.contribution.nameplates }}
+          </view>
+          <view class="label">
+            铭牌
+          </view>
         </view>
       </view>
-      <button
-        v-if="!isSelf"
-        class="follow-button"
-        :class="{ following: userInfo.user.is_following }"
-        :disabled="followingBusy"
-        @tap="toggleFollow"
-      >
-        {{ userInfo.user.is_following ? '已关注' : '关注' }}
-      </button>
-    </view>
-    <view class="social-stats">
-      <text>{{ userInfo.user.follower_count }} 位关注者</text>
-      <text>{{ userInfo.user.following_count }} 个关注</text>
-    </view>
-    <view class="stats">
-      <view class="stat">
-        <view class="number">
-          {{ userInfo.contribution.cans_uploaded }}
-        </view>
-        <view class="label">
-          罐头
-        </view>
-      </view>
-      <view class="stat">
-        <view class="number">
-          {{ userInfo.contribution.flavors_uploaded }}
-        </view>
-        <view class="label">
-          义项
-        </view>
-      </view>
-      <view class="stat">
-        <view class="number">
-          {{ userInfo.contribution.nameplates }}
-        </view>
-        <view class="label">
-          铭牌
-        </view>
-      </view>
-    </view>
-  </view>
+    </template>
+  </PageShell>
 </template>
 
 <script>
-import { getUserInfo } from '@/services/user';
+import BaseButton from '@/components/BaseButton.vue';
+import PageShell from '@/components/PageShell.vue';
 import { APP_NAME } from '@/const/branding';
-import { defaultMessage } from '@/services/shareMessages';
 import { requireAuth } from '@/services/authGuard';
 import { followUser, unfollowUser } from '@/services/following';
+import { ROUTES } from '@/services/navigation';
+import { defaultMessage } from '@/services/shareMessages';
+import { getUserInfo } from '@/services/user';
 
 export default {
+  components: { BaseButton, PageShell },
   data() {
     return {
+      ROUTES,
       id: 0,
+      loading: true,
+      loadError: '',
       userInfo: {
         user: {
           avatar: '',
@@ -117,7 +138,7 @@ export default {
   },
   async onLoad(options) {
     this.id = options.id;
-    await this.getInfo(options.id);
+    await this.getInfo();
   },
   onShareAppMessage() {
     return {
@@ -127,8 +148,21 @@ export default {
     };
   },
   methods: {
-    async getInfo(id) {
-      this.userInfo = await getUserInfo(id);
+    async getInfo() {
+      if (!this.id) {
+        this.loading = false;
+        this.loadError = '缺少用户';
+        return;
+      }
+      this.loading = true;
+      this.loadError = '';
+      try {
+        this.userInfo = await getUserInfo(this.id);
+      } catch (error) {
+        this.loadError = error?.message || '用户档案加载失败';
+      } finally {
+        this.loading = false;
+      }
     },
     async toggleFollow() {
       if (!requireAuth('follow', { page: 'user_detail', userId: this.id })) return;
@@ -147,52 +181,35 @@ export default {
           Number(this.userInfo.user.follower_count || 0) + (wasFollowing ? -1 : 1),
         );
       } catch (error) {
-        uni.showToast({ title: '关注状态更新失败', icon: 'none' });
+        uni.showToast({ title: error?.message || '关注状态更新失败', icon: 'none' });
       } finally {
         this.followingBusy = false;
       }
-    },
-    goBack() {
-      uni.navigateBack();
     },
   },
 };
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #f6f7f3;
-  color: #1d2a24;
+.state-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--text-secondary-color);
 }
 
-.topbar {
-  height: 96rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 28rpx;
-  background: #fff;
-  border-bottom: 1px solid #e8ebe4;
-}
-
-.back {
-  font-size: 56rpx;
-  width: 54rpx;
-}
-
-.title {
-  font-size: 34rpx;
-  font-weight: 700;
+.state-action {
+  margin-top: var(--space-3);
 }
 
 .profile {
   display: flex;
   align-items: center;
   gap: 22rpx;
-  padding: 34rpx 28rpx;
 }
 
-.profile > view:nth-child(2) {
+.profile-copy {
   min-width: 0;
   flex: 1;
 }
@@ -201,80 +218,60 @@ export default {
   width: 128rpx;
   height: 128rpx;
   border-radius: 64rpx;
-  background: #dfe5da;
+  background: var(--surface-subtle-color);
 }
 
 .name {
-  font-size: 38rpx;
+  font-size: var(--font-size-xl);
   font-weight: 800;
 }
 
 .meta {
   margin-top: 8rpx;
-  color: #6c776e;
+  color: var(--muted-color);
 }
 
 .dialect-badge {
   display: inline-flex;
   margin-top: 10rpx;
   padding: 7rpx 16rpx;
-  border-radius: 999rpx;
-  background: #e4eee5;
-  color: #285e45;
+  border-radius: var(--radius-pill);
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
   font-size: 23rpx;
-}
-
-.follow-button {
-  width: 138rpx;
-  margin: 0;
-  border-radius: 999rpx;
-  background: #1f5c43;
-  color: #fff;
-  font-size: 26rpx;
-  line-height: 66rpx;
-}
-
-.follow-button.following {
-  border: 1px solid #cad7cc;
-  background: #fff;
-  color: #526158;
-}
-
-.follow-button::after {
-  border: 0;
 }
 
 .social-stats {
   display: flex;
   gap: 28rpx;
-  padding: 0 28rpx 28rpx 178rpx;
-  color: #68756d;
-  font-size: 24rpx;
+  margin-top: var(--space-3);
+  color: var(--muted-color);
+  font-size: var(--font-size-xs);
 }
 
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16rpx;
-  padding: 0 28rpx;
+  margin-top: var(--space-3);
 }
 
 .stat {
-  background: #fff;
-  border: 1px solid #e1e6dc;
-  border-radius: 14rpx;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   padding: 24rpx 12rpx;
   text-align: center;
 }
 
 .number {
-  font-size: 38rpx;
+  font-size: var(--font-size-xl);
   font-weight: 800;
-  color: #1f5c43;
+  color: var(--accent-color);
 }
 
 .label {
   margin-top: 8rpx;
-  color: #6c776e;
+  color: var(--muted-color);
 }
 </style>

@@ -1,85 +1,101 @@
 <template>
-  <PageShell title="修改用户名">
-    <view class="setting-hint">
-      用户名是账号的唯一标识，也用于登录。
+  <PageShell
+    title="修改用户名"
+    :back-fallback="ROUTES.userInformation"
+  >
+    <view class="hint">
+      用户名是识别账号的标识，也用于账号密码登录。
     </view>
-    <BaseForm
-      ref="form"
-      :data="form"
-      :rules="rules"
+    <BaseField
+      v-model="username"
+      label="用户名"
+      required
+      placeholder="不要超过 20 个字"
+      :maxlength="20"
+      :error="error"
+      :disabled="saving"
+    />
+    <BaseButton
+      block
+      :disabled="saving || username === currentUsername"
+      :loading="saving"
+      @click="saveUsername"
     >
-      <BaseField
-        v-model="form.username"
-        name="username"
-        label="用户名"
-        placeholder="请输入不超过 20 位的用户名"
-        :maxlength="20"
-        required
-        clearable
-      />
-      <BaseButton
-        block
-        text="保存"
-        @click="saveUsername"
-      />
-    </BaseForm>
+      保存
+    </BaseButton>
   </PageShell>
 </template>
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
-import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
-import { changeUserInfo } from '@/services/user';
-import { toLoginPage } from '@/routers/login';
+import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import request from '@/utils/request';
 
 const app = getApp();
+
+function fieldErrorMessage(error, field) {
+  const item = error?.data?.[field] || error?.data?.user?.[field];
+  if (typeof item === 'string') return item;
+  if (item?.message) return item.message;
+  return error?.message || '';
+}
+
 export default {
   name: 'ChangeUsername',
-  components: {
-    BaseButton, BaseField, BaseForm, PageShell,
-  },
+  components: { BaseButton, BaseField, PageShell },
   data() {
     return {
-      form: { username: '' },
-      rules: {
-        username: [
-          { required: true, message: '请输入正确的用户名' },
-          { whitespace: true, message: '请输入正确的用户名' },
-        ],
-      },
+      ROUTES,
+      username: '',
+      error: '',
+      saving: false,
     };
   },
   computed: {
     currentUsername() {
-      return app.globalData.userInfo.username;
+      return app.globalData.userInfo?.username || '';
     },
   },
   onShow() {
-    if (!this.currentUsername) toLoginPage();
-    this.form.username = this.currentUsername || '';
+    if (!app.globalData.id) {
+      goLogin({}, { reset: true });
+      return;
+    }
+    this.username = this.currentUsername;
+    this.error = '';
   },
   methods: {
     async saveUsername() {
-      const valid = await this.$refs.form.validate();
-      if (valid !== true) return;
-      const userInfo = { ...app.globalData.userInfo, username: this.form.username };
-      await changeUserInfo(app.globalData.id, userInfo);
-      app.globalData.userInfo = userInfo;
-      setTimeout(() => uni.navigateBack(), 1500);
+      const username = String(this.username || '').trim();
+      if (!username) {
+        this.error = '请输入用户名';
+        return;
+      }
+      this.error = '';
+      this.saving = true;
+      try {
+        const userInfo = { ...app.globalData.userInfo, username };
+        const res = await request.put(`/users/${app.globalData.id}`, { user: userInfo }, true);
+        if (res.token) uni.setStorageSync('token', res.token);
+        app.globalData.userInfo = res.user || userInfo;
+        uni.showToast({ title: '修改成功' });
+        goBack(ROUTES.userInformation);
+      } catch (error) {
+        this.error = fieldErrorMessage(error, 'username') || '保存失败';
+      } finally {
+        this.saving = false;
+      }
     },
   },
 };
 </script>
 
 <style scoped>
-.setting-hint {
+.hint {
   margin-bottom: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--accent-subtle-color);
-  color: var(--text-secondary-color);
+  color: var(--muted-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
 }
