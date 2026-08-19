@@ -1,10 +1,12 @@
 import json
+import threading
+from unittest import skipUnless
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.db import IntegrityError, connection, transaction
 from django.http import JsonResponse
-from django.test import Client, RequestFactory, TestCase
+from django.test import Client, RequestFactory, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from rest_framework.exceptions import APIException
 from rest_framework.test import APIClient
@@ -18,6 +20,7 @@ from utils.exceptions.types.common import CommonException
 from .models import (
     Can,
     CanPost,
+    CanTransition,
     Dialect,
     DialectCircle,
     Flavor,
@@ -1372,3 +1375,181 @@ class CanQueryAndStateTests(DomainFixture):
         can.refresh_from_db()
         self.assertEqual(can.views, 1)
         self.assertEqual(can.updated_at, previous_updated_at)
+
+
+class CanTransitionRelationalTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="owner", password="pw")
+        self.staff = User.objects.create_user(
+            username="staff", password="pw", is_staff=True
+        )
+        self.dialect = Dialect.objects.create(name="Puxian", code="puxian")
+        self.can = Can.objects.create(
+            audio_url="https://example.test/audio.mp3",
+            recorder=self.user,
+            submitted_dialect=self.dialect,
+            status=Can.Status.PENDING,
+        )
+
+    def test_transition_creates_relational_row_and_keeps_json_compat(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        response = client.post(
+            f"/cans/{self.can.id}/transition/",
+            {"action": "submit", "reason": "confirm"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.can.refresh_from_db()
+
+        row = CanTransition.objects.get(can=self.can)
+        self.assertEqual(row.from_status, Can.Status.PENDING)
+        self.assertEqual(row.to_status, Can.Status.TENTATIVE)
+        self.assertEqual(row.action, "submit")
+        self.assertEqual(row.actor, self.user)
+        self.assertEqual(row.reason, "confirm")
+
+        self.assertEqual(len(self.can.transition_log), 1)
+        self.assertEqual(self.can.transition_log[-1]["action"], "submit")
+
+    def test_transition_actor_is_nullable_after_user_delete(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        response = client.post(
+            f"/cans/{self.can.id}/transition/",
+            {"action": "submit", "reason": "confirm"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        row = CanTransition.objects.get(can=self.can)
+        self.user.delete()
+        row.refresh_from_db()
+        self.assertIsNone(row.actor)
+
+    def test_multiple_transitions_append_in_order(self):
+        client = APIClient()
+        client.force_authenticate(self.staff)
+        self.can.status = Can.Status.TENTATIVE
+        self.can.save(update_fields=["status"])
+        self.assertEqual(
+            client.post(
+                f"/cans/{self.can.id}/transition/",
+                {"action": "verify", "reason": "ok"},
+                format="json",
+            ).status_code,
+            200,
+        )
+        rows = list(CanTransition.objects.filter(can=self.can).order_by("id"))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].action, "verify")
+        self.assertEqual(rows[0].to_status, Can.Status.VERIFIED)
+        self.can.refresh_from_db()
+        self.assertEqual(len(self.can.transition_log), 1)
+
+    def test_nameplate_creation_records_unlabeled_to_pending_transition(self):
+        can = Can.objects.create(
+            audio_url="https://example.test/label.mp3",
+            recorder=self.user,
+            submitted_dialect=self.dialect,
+            status=Can.Status.UNLABELED,
+        )
+        package = Package.objects.create(
+            text="moon", package_type=Package.PackageType.ORTHODOX
+        )
+        flavor = Flavor.objects.create(name="moon", definition="definition")
+        client = APIClient()
+        client.force_authenticate(self.user)
+        response = client.post(
+            "/nameplates/",
+            {
+                "can_id": can.id,
+                "package_id": package.id,
+                "flavor_id": flavor.id,
+                "dialect_id": self.dialect.id,
+                "text_content": "moon",
+                "source": {"type": "oral", "attributed_to": "elder"},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        can.refresh_from_db()
+        self.assertEqual(can.status, Can.Status.PENDING)
+        row = CanTransition.objects.get(can=can)
+        self.assertEqual(row.from_status, Can.Status.UNLABELED)
+        self.assertEqual(row.to_status, Can.Status.PENDING)
+        self.assertEqual(row.action, "label")
+        self.assertEqual(row.actor, self.user)
+        self.assertEqual(len(can.transition_log), 1)
+
+
+@skipUnless(connection.vendor == "postgresql", "requires PostgreSQL row locking")
+class CanTransitionConcurrencyTests(TransactionTestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username="owner", password="pw")
+        self.dialect = Dialect.objects.create(name="Puxian", code="puxian")
+        self.can = Can.objects.create(
+            audio_url="https://example.test/audio.mp3",
+            recorder=self.owner,
+            submitted_dialect=self.dialect,
+            status=Can.Status.PENDING,
+        )
+
+    def test_concurrent_submit_is_deterministic(self):
+        barrier = threading.Barrier(2)
+        statuses = []
+
+        def attempt():
+            client = APIClient()
+            client.force_authenticate(self.owner)
+            barrier.wait()
+            response = client.post(
+                f"/cans/{self.can.id}/transition/",
+                {"action": "submit", "reason": "race"},
+                format="json",
+            )
+            statuses.append(response.status_code)
+
+        threads = [threading.Thread(target=attempt) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(sorted(statuses), [200, 409])
+        self.assertEqual(CanTransition.objects.filter(can=self.can).count(), 1)
+        self.can.refresh_from_db()
+        self.assertEqual(len(self.can.transition_log), 1)
+        self.assertEqual(self.can.transition_log[-1]["action"], "submit")
+
+    def test_concurrent_nameplate_creation_has_single_transition(self):
+        can = Can.objects.create(
+            audio_url="https://example.test/race-label.mp3",
+            recorder=self.owner,
+            submitted_dialect=self.dialect,
+            status=Can.Status.UNLABELED,
+        )
+        barrier = threading.Barrier(2)
+        statuses = []
+
+        def attempt():
+            client = APIClient()
+            client.force_authenticate(self.owner)
+            barrier.wait()
+            response = client.post(
+                "/nameplates/",
+                {"can_id": can.id, "text_content": "moon", "source": SOURCE},
+                format="json",
+            )
+            statuses.append(response.status_code)
+
+        threads = [threading.Thread(target=attempt) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(sorted(statuses), [201, 201])
+        can.refresh_from_db()
+        self.assertEqual(can.status, Can.Status.PENDING)
+        self.assertEqual(CanTransition.objects.filter(can=can).count(), 1)
+        self.assertEqual(len(can.transition_log), 1)

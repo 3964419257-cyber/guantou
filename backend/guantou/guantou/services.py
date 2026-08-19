@@ -26,6 +26,7 @@ from .models import (
     DailyCanSelection,
     CanLike,
     CanPost,
+    CanTransition,
     Flavor,
     FlavorPackage,
     Nameplate,
@@ -422,6 +423,34 @@ def _transition_actor(user):
     }
 
 
+def record_can_transition(
+    can, *, from_status, to_status, action, actor=None, reason=""
+):
+    """Append a CanTransition row and the legacy JSON transition_log entry."""
+    now = timezone.now()
+    transition_log = list(can.transition_log or [])
+    transition_log.append(
+        {
+            "action": action,
+            "from": from_status,
+            "to": to_status,
+            "by": _transition_actor(actor) if actor else None,
+            "at": now.isoformat(),
+            "reason": reason,
+        }
+    )
+    can.transition_log = transition_log
+    CanTransition.objects.create(
+        can=can,
+        from_status=from_status,
+        to_status=to_status,
+        action=action,
+        actor=actor,
+        reason=reason,
+        created_at=now,
+    )
+
+
 def normalize_transition_log(value):
     """Return the stable public audit schema while tolerating legacy JSON."""
 
@@ -486,19 +515,16 @@ def transition_can(*, can_id, user, action, reason=""):
     clean_reason = clean_text(reason)
     if len(clean_reason) > 300:
         raise serializers.ValidationError({"reason": "流转理由不能超过 300 字"})
-    transition_log = list(can.transition_log or [])
-    transition_log.append(
-        {
-            "action": action,
-            "from": can.status,
-            "to": target,
-            "by": _transition_actor(user),
-            "at": timezone.now().isoformat(),
-            "reason": clean_reason,
-        }
+    from_status = can.status
+    record_can_transition(
+        can,
+        from_status=from_status,
+        to_status=target,
+        action=action,
+        actor=user,
+        reason=clean_reason,
     )
     can.status = target
-    can.transition_log = transition_log
     if action in {"verify", "reject"}:
         can.verifier = user
     elif action == "restore":
@@ -700,8 +726,15 @@ def create_initial_nameplate(can, label, user):
     )
     nameplate.promote_to_primary()
     if can.status == Can.Status.UNLABELED:
+        record_can_transition(
+            can,
+            from_status=Can.Status.UNLABELED,
+            to_status=Can.Status.PENDING,
+            action="label",
+            actor=user,
+        )
         can.status = Can.Status.PENDING
-        can.save(update_fields=["status", "updated_at"])
+        can.save(update_fields=["status", "transition_log", "updated_at"])
     return nameplate
 
 
