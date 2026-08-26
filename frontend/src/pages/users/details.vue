@@ -65,7 +65,7 @@
       <view class="social-stats">
         <view class="social-stat">
           <view class="number">
-            {{ userInfo.contribution.cans_uploaded }}
+            {{ displayCansCount }}
           </view>
           <view class="label">
             罐头
@@ -158,21 +158,21 @@
             :class="{ active: worksTab === 'cans' }"
             @tap="worksTab = 'cans'"
           >
-            罐头 {{ userInfo.contribution.cans_uploaded }}
+            罐头 {{ displayCansCount }}
           </view>
           <view
             class="works-tab"
             :class="{ active: worksTab === 'nameplates' }"
             @tap="worksTab = 'nameplates'"
           >
-            铭牌 {{ userInfo.contribution.nameplates }}
+            铭牌 {{ displayNameplatesCount }}
           </view>
           <view
             class="works-tab"
             :class="{ active: worksTab === 'flavors' }"
             @tap="worksTab = 'flavors'"
           >
-            义项 {{ userInfo.contribution.flavors_uploaded }}
+            义项 {{ displayFlavorsCount }}
           </view>
         </view>
         <view class="works-empty">
@@ -252,8 +252,8 @@ export default {
           title: { title: '' },
         },
         contribution: {
-          cans_uploaded: 0,
-          flavors_uploaded: 0,
+          cans: 0,
+          flavors: 0,
           nameplates: 0,
         },
       },
@@ -283,10 +283,17 @@ export default {
       const theirs = Number(this.id);
       return Boolean(mine) && mine === theirs;
     },
+    displayCansCount() {
+      return this.contributionCount('cans');
+    },
+    displayFlavorsCount() {
+      return this.contributionCount('flavors');
+    },
+    displayNameplatesCount() {
+      return this.contributionCount('nameplates');
+    },
     worksCount() {
-      if (this.worksTab === 'nameplates') return this.userInfo.contribution.nameplates || 0;
-      if (this.worksTab === 'flavors') return this.userInfo.contribution.flavors_uploaded || 0;
-      return this.userInfo.contribution.cans_uploaded || 0;
+      return this.contributionCount(this.worksTab);
     },
     worksPanelTitle() {
       if (this.worksCount > 0) {
@@ -336,7 +343,22 @@ export default {
     goCanLibrary,
     openMail() {
       if (!requireAuth('dm', { page: 'user_detail', userId: this.id })) return;
-      goMailSend();
+      goMailSend(this.id);
+    },
+    contributionCount(kind) {
+      const contribution = this.userInfo.contribution || {};
+      if (this.isSelf) {
+        if (kind === 'nameplates') {
+          return contribution.nameplates_uploaded ?? contribution.nameplates ?? 0;
+        }
+        if (kind === 'flavors') {
+          return contribution.flavors_uploaded ?? contribution.flavors ?? 0;
+        }
+        return contribution.cans_uploaded ?? contribution.cans ?? 0;
+      }
+      if (kind === 'nameplates') return contribution.nameplates ?? 0;
+      if (kind === 'flavors') return contribution.flavors ?? 0;
+      return contribution.cans ?? 0;
     },
     async getInfo() {
       if (!this.id) {

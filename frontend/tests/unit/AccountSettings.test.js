@@ -202,6 +202,7 @@ describe('account UI tokens', () => {
 describe('nickname settings form', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    app.globalData.id = 7;
     globalThis.uni = {
       getStorageSync: vi.fn((key) => (key === 'id' ? 7 : '')),
       setStorageSync: vi.fn(),
@@ -228,6 +229,31 @@ describe('nickname settings form', () => {
     expect(wrapper.vm.error).toBe('昵称过长');
     expect(notify).toHaveBeenCalledWith({ title: '昵称过长' });
     expect(goBack).not.toHaveBeenCalled();
+  });
+
+  it('keeps a generic error off the field helper and uses it as form fallback', async () => {
+    const wrapper = mountForm(NicknamePage);
+    wrapper.vm.$options.onShow.call(wrapper.vm);
+    wrapper.vm.nickname = '新昵称';
+    request.put.mockRejectedValueOnce({ message: '请求参数校验失败' });
+    await wrapper.vm.saveNickname();
+    await flushPromises();
+    expect(wrapper.vm.error).toBe('请求参数校验失败');
+  });
+
+  it('does not kick a stored session to login before App hydrates globalData', () => {
+    app.globalData.id = null;
+    globalThis.uni.getStorageSync = vi.fn((key) => {
+      if (key === 'token') return 'token';
+      if (key === 'id') return 7;
+      return '';
+    });
+    const wrapper = mountForm(NicknamePage);
+    wrapper.vm.$options.onShow.call(wrapper.vm);
+    expect(goLogin).not.toHaveBeenCalled();
+    expect(app.globalData.id).toBe(7);
+    expect(wrapper.vm.nickname).toBe('采集者');
+    app.globalData.id = 7;
   });
 
   it('saves and returns after success', async () => {
@@ -283,14 +309,39 @@ describe('user details page', () => {
     expect(wrapper.html()).toContain('正在读取用户档案');
   });
 
-  it('switches works tabs and treats a non-zero count as a filled panel', () => {
+  it('switches works tabs and treats a non-zero public count as a filled panel', () => {
     const wrapper = mountForm(UserDetailsPage);
     wrapper.vm.id = 9;
-    wrapper.vm.userInfo.contribution.cans_uploaded = 4;
+    wrapper.vm.userInfo.contribution = { cans: 4, flavors: 0, nameplates: 0 };
     wrapper.vm.worksTab = 'cans';
     expect(wrapper.vm.worksPanelTitle).toBe('已有 4 罐');
     wrapper.vm.worksTab = 'nameplates';
     expect(wrapper.vm.worksPanelTitle).toBe('还没有公开铭牌');
+  });
+
+  it('hides uploaded contribution totals from visitors', () => {
+    const wrapper = mountForm(UserDetailsPage);
+    wrapper.vm.id = 9;
+    wrapper.vm.userInfo.contribution = {
+      cans: 1,
+      flavors: 0,
+      nameplates: 0,
+      cans_uploaded: 4,
+    };
+    expect(wrapper.vm.worksPanelTitle).toBe('已有 1 罐');
+  });
+
+  it('shows uploaded contribution totals on the owner profile', () => {
+    globalThis.uni.getStorageSync = vi.fn((key) => (key === 'id' ? 9 : ''));
+    const wrapper = mountForm(UserDetailsPage);
+    wrapper.vm.id = 9;
+    wrapper.vm.userInfo.contribution = {
+      cans: 1,
+      flavors: 0,
+      nameplates: 0,
+      cans_uploaded: 4,
+    };
+    expect(wrapper.vm.worksPanelTitle).toBe('已有 4 罐');
   });
 
   it('asks guests to login before sending a private mail', () => {
@@ -301,11 +352,21 @@ describe('user details page', () => {
     expect(goLogin).toHaveBeenCalled();
     expect(notify).toHaveBeenCalledWith({ title: '请先登录' });
   });
+
+  it('opens mail send with the profile user id when logged in', () => {
+    globalThis.uni.getStorageSync = vi.fn((key) => (key === 'token' ? 'token' : ''));
+    const wrapper = mountForm(UserDetailsPage);
+    wrapper.vm.id = 9;
+    wrapper.vm.openMail();
+    expect(goMailSend).toHaveBeenCalledWith(9);
+    expect(goLogin).not.toHaveBeenCalled();
+  });
 });
 
 describe('mine page logout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    app.globalData.id = 7;
     globalThis.uni = {
       getStorageSync: vi.fn((key) => {
         if (key === 'token') return 'token';
@@ -333,5 +394,24 @@ describe('mine page logout', () => {
     wrapper.vm.cansCount = 3;
     wrapper.vm.worksTab = 'cans';
     expect(wrapper.vm.worksPanelTitle).toBe('已有 3 罐');
+  });
+
+  it('loads the archive from a stored id before App hydrates globalData', async () => {
+    app.globalData.id = null;
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+    expect(request.get).toHaveBeenCalledWith('/users/7', null, true);
+    expect(wrapper.vm.loading).toBe(false);
+    app.globalData.id = 7;
+  });
+
+  it('clears loading when a token exists without a stored user id', async () => {
+    app.globalData.id = null;
+    globalThis.uni.getStorageSync = vi.fn((key) => (key === 'token' ? 'token' : ''));
+    const wrapper = mountForm(MePage);
+    await wrapper.vm.getInfo();
+    expect(wrapper.vm.loading).toBe(false);
+    expect(request.get).not.toHaveBeenCalled();
+    app.globalData.id = 7;
   });
 });

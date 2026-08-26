@@ -123,16 +123,13 @@ export default {
       submitting: false,
     };
   },
+  onLoad(options = {}) {
+    this.applyRecipient(options.id);
+  },
   methods: {
-    clearFieldError(field) {
-      if (this.fieldErrors[field]) delete this.fieldErrors[field];
-    },
-    payload() {
-      return {
-        recipients: [String(this.Notification.recipients[0]).trim()],
-        title: this.Notification.title.trim(),
-        content: this.Notification.content.trim(),
-      };
+    applyRecipient(id) {
+      if (id === undefined || id === null || id === '') return;
+      this.Notification.recipients = [String(id)];
     },
     async sendEmail() {
       if (this.submitting) return;

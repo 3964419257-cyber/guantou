@@ -242,6 +242,7 @@ import {
   goUserUsername,
   ROUTES,
 } from '@/services/navigation';
+import { resolveSessionUserId } from '@/services/session';
 import request from '@/utils/request';
 
 const app = getApp();
@@ -255,7 +256,7 @@ function fieldErrorMessage(error, field) {
   const item = error?.data?.[field] || error?.data?.user?.[field];
   if (typeof item === 'string') return item;
   if (item?.message) return item.message;
-  return error?.message || '';
+  return '';
 }
 
 function pickerEventValue(event) {
@@ -319,7 +320,7 @@ export default {
     },
   },
   onShow() {
-    if (!app.globalData.id) {
+    if (!resolveSessionUserId()) {
       goLogin({}, { reset: true });
       return;
     }
@@ -390,7 +391,7 @@ export default {
         await this.persistUser({ ...this.user, avatar: url });
         if (closeSheet) this.avatarSheetOpen = false;
       } catch (error) {
-        this.saveError = fieldErrorMessage(error, 'avatar') || '头像更新失败';
+        this.saveError = fieldErrorMessage(error, 'avatar') || error?.message || '头像更新失败';
         notify({ title: this.saveError });
       } finally {
         this.avatarBusy = false;
@@ -489,6 +490,7 @@ export default {
           || fieldErrorMessage(error, 'telephone')
           || fieldErrorMessage(error, 'avatar')
           || fieldErrorMessage(error, 'nickname')
+          || error?.message
           || '保存失败';
         notify({ title: this.saveError });
       } finally {

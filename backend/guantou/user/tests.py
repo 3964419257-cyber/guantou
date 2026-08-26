@@ -7,7 +7,7 @@ from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
-from guantou.models import Dialect
+from guantou.models import Can, Dialect, Flavor, Nameplate
 from user.models import EmailVerification, UserInfo
 from user.view.wechat import OpenId
 from utils.exceptions.types.not_found import NotFoundException
@@ -498,3 +498,106 @@ class UserPrimaryDialectTests(TestCase):
             "游洋",
         )
         self.assertEqual(response.json()["user"]["telephone"], "13800000000")
+
+
+class UserManageProfileTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="collector", password="pw")
+        UserInfo.objects.create(user=self.user, nickname="采集者")
+        self.auth = {"HTTP_AUTHORIZATION": f"Bearer {generate_token(self.user)}"}
+        self.public_can = Can.objects.create(
+            recorder=self.user,
+            audio_url="https://example.com/public.mp3",
+            visibility=True,
+        )
+        self.hidden_can = Can.objects.create(
+            recorder=self.user,
+            audio_url="https://example.com/hidden.mp3",
+            visibility=False,
+        )
+        Flavor.objects.create(
+            name="公开义项",
+            definition="公开",
+            created_by=self.user,
+            visibility=True,
+        )
+        Flavor.objects.create(
+            name="隐藏义项",
+            definition="隐藏",
+            created_by=self.user,
+            visibility=False,
+        )
+        Nameplate.objects.create(
+            can=self.public_can,
+            creator=self.user,
+            text_content="公开铭牌",
+            definition="公开",
+            source={"type": "creator"},
+        )
+        Nameplate.objects.create(
+            can=self.hidden_can,
+            creator=self.user,
+            text_content="隐藏铭牌",
+            definition="隐藏",
+            source={"type": "creator"},
+        )
+
+    def test_owner_can_update_username_and_receives_a_new_token(self):
+        old_token = generate_token(self.user)
+        response = self.client.put(
+            f"/users/{self.user.id}",
+            data='{"user": {"username": "new-handle"}}',
+            content_type="application/json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "new-handle")
+        self.assertEqual(response.json()["user"]["username"], "new-handle")
+        new_token = response.json()["token"]
+        self.assertEqual(token_user(new_token).id, self.user.id)
+        with self.assertRaises(InvalidTokenException):
+            token_user(old_token)
+
+    def test_username_change_rejects_a_taken_name_without_saving(self):
+        User.objects.create_user(username="taken", password="pw")
+        response = self.client.put(
+            f"/users/{self.user.id}",
+            data='{"user": {"username": "Taken"}}',
+            content_type="application/json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["message"], "用户名已被占用")
+        self.assertEqual(
+            response.json()["data"]["username"]["message"], "用户名已被占用"
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "collector")
+
+    def test_anonymous_profile_omits_uploaded_counts(self):
+        response = self.client.get(f"/users/{self.user.id}")
+
+        self.assertEqual(response.status_code, 200)
+        contribution = response.json()["contribution"]
+        self.assertEqual(contribution["cans"], 1)
+        self.assertEqual(contribution["flavors"], 1)
+        self.assertEqual(contribution["nameplates"], 1)
+        self.assertNotIn("cans_uploaded", contribution)
+        self.assertNotIn("flavors_uploaded", contribution)
+        self.assertNotIn("nameplates_uploaded", contribution)
+
+    def test_owner_profile_includes_uploaded_counts(self):
+        response = self.client.get(f"/users/{self.user.id}", **self.auth)
+
+        self.assertEqual(response.status_code, 200)
+        contribution = response.json()["contribution"]
+        self.assertEqual(contribution["cans"], 1)
+        self.assertEqual(contribution["cans_uploaded"], 2)
+        self.assertEqual(contribution["flavors"], 1)
+        self.assertEqual(contribution["flavors_uploaded"], 2)
+        self.assertEqual(contribution["nameplates"], 1)
+        self.assertEqual(contribution["nameplates_uploaded"], 2)

@@ -33,6 +33,7 @@ import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import { resolveSessionUserId } from '@/services/session';
 import request from '@/utils/request';
 
 const app = getApp();
@@ -41,7 +42,7 @@ function fieldErrorMessage(error, field) {
   const item = error?.data?.[field] || error?.data?.user?.[field];
   if (typeof item === 'string') return item;
   if (item?.message) return item.message;
-  return error?.message || '';
+  return '';
 }
 
 export default {
@@ -60,7 +61,7 @@ export default {
     },
   },
   onShow() {
-    if (!app.globalData.id) {
+    if (!resolveSessionUserId()) {
       goLogin({}, { reset: true });
       return;
     }
@@ -88,7 +89,7 @@ export default {
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
-        this.error = fieldErrorMessage(error, 'telephone') || '保存失败';
+        this.error = fieldErrorMessage(error, 'telephone') || error?.message || '保存失败';
         notify({ title: this.error });
       } finally {
         this.saving = false;
@@ -104,5 +105,13 @@ export default {
   color: var(--muted-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
+}
+
+:deep(.base-field-control),
+:deep(.uni-input-wrapper),
+:deep(.uni-input-input) {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 </style>

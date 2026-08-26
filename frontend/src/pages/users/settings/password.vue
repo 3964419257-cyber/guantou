@@ -98,6 +98,7 @@ import BaseField from '@/components/BaseField.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import { resolveSessionUserId } from '@/services/session';
 import request from '@/utils/request';
 
 const app = getApp();
@@ -141,7 +142,7 @@ export default {
     };
   },
   onShow() {
-    if (!app.globalData.id) {
+    if (!resolveSessionUserId()) {
       goLogin({}, { reset: true });
     }
   },

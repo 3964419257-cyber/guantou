@@ -132,7 +132,11 @@ export const goLoginForget = () => openPage(ROUTES.loginForget);
 export const goNotFound = () => openPage(ROUTES.notFound);
 export const goMails = () => openPage(ROUTES.mails);
 export const goMailDetail = (id) => openPage(ROUTES.mailDetail, { id });
-export const goMailSend = () => openPage(ROUTES.mailSend);
+export const goMailSend = (recipientId, options = {}) => openPage(
+  ROUTES.mailSend,
+  recipientId ? { id: recipientId } : {},
+  options,
+);
 export const goUserInformation = () => openPage(ROUTES.userInformation);
 export const goUserNickname = () => openPage(ROUTES.userNickname);
 export const goUserUsername = () => openPage(ROUTES.userUsername);

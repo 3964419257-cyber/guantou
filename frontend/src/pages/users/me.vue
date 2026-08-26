@@ -327,9 +327,8 @@ import {
   cancelBindingWechat as cancelBindingWechatService,
   clearUserInfo,
 } from '@/services/user';
+import { resolveSessionUserId } from '@/services/session';
 import request from '@/utils/request';
-
-const app = getApp();
 
 export default {
   components: { AppShell, BaseButton, ThemeSwitcher },
@@ -446,20 +445,31 @@ export default {
       this.resolvedTheme = theme?.resolved || 'light';
     },
     async getInfo() {
-      if (!app.globalData.id) return;
+      const id = resolveSessionUserId();
+      if (!id) {
+        this.loading = false;
+        if (!uni.getStorageSync('token')) this.loggedIn = false;
+        return;
+      }
       this.loading = true;
       this.loadError = '';
       try {
-        const userInfo = await request.get(`/users/${app.globalData.id}`, null, true);
+        const userInfo = await request.get(`/users/${id}`, null, true);
         this.id = userInfo.user.id;
         this.avatar = userInfo.user.avatar;
         this.username = userInfo.user.username || '';
         this.nickname = userInfo.user.nickname || userInfo.user.username;
         this.titleLabel = userInfo.user.title?.title || '';
         this.primaryDialect = userInfo.user.primary_dialect;
-        this.cansCount = userInfo.contribution.cans_uploaded || 0;
-        this.flavorsCount = userInfo.contribution.flavors_uploaded || 0;
-        this.nameplatesCount = userInfo.contribution.nameplates || 0;
+        this.cansCount = userInfo.contribution.cans_uploaded
+          ?? userInfo.contribution.cans
+          ?? 0;
+        this.flavorsCount = userInfo.contribution.flavors_uploaded
+          ?? userInfo.contribution.flavors
+          ?? 0;
+        this.nameplatesCount = userInfo.contribution.nameplates_uploaded
+          ?? userInfo.contribution.nameplates
+          ?? 0;
         this.followerCount = userInfo.user.follower_count || 0;
         this.followingCount = userInfo.user.following_count || 0;
         this.followedDialects = userInfo.user.followed_dialects || [];
@@ -486,20 +496,21 @@ export default {
       notifySuccess('登出成功');
     },
     async bindingWechat() {
-      if (this.isBinding || !app.globalData.id) return;
+      const id = resolveSessionUserId();
+      if (this.isBinding || !id) return;
       this.isBinding = true;
       try {
-        const userInfo = await request.get(`/users/${app.globalData.id}`, null, true);
+        const userInfo = await request.get(`/users/${id}`, null, true);
         if (!userInfo.user.wechat) {
           // #ifndef MP-WEIXIN
           notify({ title: '请在微信小程序中绑定微信' });
           // #endif
           // #ifdef MP-WEIXIN
-          await bindingWechatService(app.globalData.id, false);
+          await bindingWechatService(id, false);
           notifySuccess('绑定成功');
           // #endif
         } else {
-          await cancelBindingWechatService(app.globalData.id);
+          await cancelBindingWechatService(id);
           notifySuccess('解绑成功');
         }
         await this.getInfo();
