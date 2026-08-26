@@ -68,6 +68,20 @@ async function mockSignedInCollector(page) {
     }
     await route.continue();
   });
+  await page.route('**/users/7/email', async (route) => {
+    if (route.request().method() === 'PUT') {
+      await route.fulfill({ json: { user: { id: 7, email: 'new@example.com' } } });
+      return;
+    }
+    await route.continue();
+  });
+  await page.route('**/users/email-code', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ json: { retry_after: 60 } });
+      return;
+    }
+    await route.continue();
+  });
   await page.route('**/users/7/password', async (route) => {
     if (route.request().method() === 'PUT') {
       await route.fulfill({ json: { user: { id: 7 }, token: 'fresh-token' } });
@@ -168,4 +182,31 @@ test('information settings replace native pickers and open the avatar sheet', as
   await page.getByText('取消').click();
   await page.getByText('生日').click();
   await expect(page.getByText('确定').first()).toBeVisible();
+});
+
+test('email settings send a bind code without native form controls', async ({ page }) => {
+  await mockSignedInCollector(page);
+  await page.goto('/pages/users/settings/email');
+
+  await expect(page.getByText('修改邮箱').first()).toBeVisible();
+  await expect(page.getByText('原邮箱')).toBeVisible();
+  await expect(page.getByText('c@example.com')).toBeVisible();
+  await expect(page.getByText('获取验证码')).toBeVisible();
+  await expect(page.locator('form')).toHaveCount(0);
+
+  await page.getByRole('button', { name: '保存' }).click();
+  await expect(page.getByText('请输入新邮箱')).toBeVisible();
+
+  const inputs = page.locator('input');
+  await inputs.nth(1).fill('new@example.com');
+  await page.getByRole('button', { name: '获取验证码' }).click();
+  await expect(page.getByText('验证码已发送')).toBeVisible();
+  await expect(page.getByRole('button', { name: /后重发/ })).toBeDisabled();
+
+  if (process.env.E2E_SCREENSHOT_DIR) {
+    await page.screenshot({
+      path: `${process.env.E2E_SCREENSHOT_DIR}/account-email-light.png`,
+      fullPage: true,
+    });
+  }
 });
