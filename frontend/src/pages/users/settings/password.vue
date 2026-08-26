@@ -3,41 +3,92 @@
     title="修改密码"
     :back-fallback="ROUTES.userInformation"
   >
-    <BaseField
-      v-model="oldPassword"
-      label="原密码"
-      type="password"
-      required
-      placeholder="请输入原密码"
-      :error="oldError"
-      :disabled="saving"
-    />
-    <BaseField
-      v-model="newPassword"
-      label="新密码"
-      type="password"
-      required
-      placeholder="请输入新密码"
-      :error="newError"
-      :disabled="saving"
-    />
-    <BaseField
-      v-model="confirmPassword"
-      label="确认密码"
-      type="password"
-      required
-      placeholder="请再次输入新密码"
-      :error="confirmError"
-      :disabled="saving"
-    />
-    <BaseButton
-      block
-      :disabled="saving"
-      :loading="saving"
-      @click="savePassword"
-    >
-      保存
-    </BaseButton>
+    <view class="password-form">
+      <view class="hint">
+        新密码长度为 6 到 32 个字符。修改成功后，下次登录请使用新密码。
+      </view>
+
+      <view class="password-row">
+        <view class="password-field">
+          <BaseField
+            v-model="oldPassword"
+            label="原密码"
+            :type="oldVisible ? 'text' : 'password'"
+            required
+            placeholder="请输入原密码"
+            :maxlength="32"
+            :error="oldError"
+            :disabled="saving"
+          />
+        </view>
+        <BaseButton
+          class="password-toggle"
+          size="small"
+          variant="ghost"
+          :disabled="saving"
+          @click="toggleVisible('old')"
+        >
+          {{ oldVisible ? '隐藏' : '显示' }}
+        </BaseButton>
+      </view>
+
+      <view class="password-row">
+        <view class="password-field">
+          <BaseField
+            v-model="newPassword"
+            label="新密码"
+            :type="newVisible ? 'text' : 'password'"
+            required
+            placeholder="请输入新密码"
+            :maxlength="32"
+            :error="newError"
+            :disabled="saving"
+          />
+        </view>
+        <BaseButton
+          class="password-toggle"
+          size="small"
+          variant="ghost"
+          :disabled="saving"
+          @click="toggleVisible('new')"
+        >
+          {{ newVisible ? '隐藏' : '显示' }}
+        </BaseButton>
+      </view>
+
+      <view class="password-row">
+        <view class="password-field">
+          <BaseField
+            v-model="confirmPassword"
+            label="确认密码"
+            :type="confirmVisible ? 'text' : 'password'"
+            required
+            placeholder="请再次输入新密码"
+            :maxlength="32"
+            :error="confirmError"
+            :disabled="saving"
+          />
+        </view>
+        <BaseButton
+          class="password-toggle"
+          size="small"
+          variant="ghost"
+          :disabled="saving"
+          @click="toggleVisible('confirm')"
+        >
+          {{ confirmVisible ? '隐藏' : '显示' }}
+        </BaseButton>
+      </view>
+
+      <BaseButton
+        block
+        :disabled="saving"
+        :loading="saving"
+        @click="savePassword"
+      >
+        保存
+      </BaseButton>
+    </view>
   </PageShell>
 </template>
 
@@ -55,10 +106,24 @@ function fieldErrorMessage(error, field) {
   const item = error?.data?.[field];
   if (typeof item === 'string') return item;
   if (item?.message) return item.message;
-  return error?.message || '';
+  return '';
+}
+
+function applyPasswordErrors(error) {
+  const oldError = fieldErrorMessage(error, 'oldpassword');
+  const newError = fieldErrorMessage(error, 'newpassword');
+  if (oldError || newError) {
+    return { oldError, newError };
+  }
+  const message = error?.message || '保存失败';
+  if (error?.statusCode === 401) {
+    return { oldError: message, newError: '' };
+  }
+  return { oldError: '', newError: message };
 }
 
 export default {
+  name: 'ChangePassword',
   components: { BaseButton, BaseField, PageShell },
   data() {
     return {
@@ -69,6 +134,9 @@ export default {
       oldError: '',
       newError: '',
       confirmError: '',
+      oldVisible: false,
+      newVisible: false,
+      confirmVisible: false,
       saving: false,
     };
   },
@@ -78,7 +146,13 @@ export default {
     }
   },
   methods: {
+    toggleVisible(field) {
+      if (this.saving) return;
+      const key = `${field}Visible`;
+      this[key] = !this[key];
+    },
     async savePassword() {
+      if (this.saving) return;
       const oldPassword = String(this.oldPassword || '').trim();
       const newPassword = String(this.newPassword || '').trim();
       const confirmPassword = String(this.confirmPassword || '').trim();
@@ -99,9 +173,9 @@ export default {
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
-        this.oldError = fieldErrorMessage(error, 'oldpassword');
-        this.newError = fieldErrorMessage(error, 'newpassword')
-          || (!this.oldError ? (error?.message || '保存失败') : '');
+        const next = applyPasswordErrors(error);
+        this.oldError = next.oldError;
+        this.newError = next.newError;
         notify({ title: this.oldError || this.newError || '保存失败' });
       } finally {
         this.saving = false;
@@ -110,3 +184,42 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.password-form {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.hint {
+  margin-bottom: var(--space-3);
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+.password-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.password-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.password-toggle {
+  margin-bottom: var(--space-3);
+  flex-shrink: 0;
+}
+
+:deep(.base-field-control),
+:deep(.uni-input-wrapper),
+:deep(.uni-input-input) {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+</style>

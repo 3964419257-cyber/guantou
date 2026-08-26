@@ -55,3 +55,72 @@ test('account settings stay behind login and use PageShell titles', async ({ pag
   await page.goto('/pages/users/settings/password');
   await expect(page).toHaveURL(/\/pages\/login\/login/);
 });
+
+async function mockSignedInCollector(page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('token', 'test-token');
+    localStorage.setItem('id', '7');
+  });
+  await page.route('**/login', async (route) => {
+    if (route.request().method() === 'PUT') {
+      await route.fulfill({ json: { token: 'fresh-token', id: 7 } });
+      return;
+    }
+    await route.continue();
+  });
+  await page.route('**/users/7/password', async (route) => {
+    if (route.request().method() === 'PUT') {
+      await route.fulfill({ json: { user: { id: 7 }, token: 'fresh-token' } });
+      return;
+    }
+    await route.continue();
+  });
+  await page.route('**/users/7', async (route) => {
+    await route.fulfill({
+      json: {
+        user: {
+          id: 7,
+          username: 'collector',
+          nickname: '采集者',
+          primary_dialect: { id: 3, name: '四川话' },
+        },
+        contribution: {},
+      },
+    });
+  });
+}
+
+test('password settings use design-system fields, visibility, and loading', async ({ page }) => {
+  await mockSignedInCollector(page);
+  await page.goto('/pages/users/settings/password');
+
+  await expect(page.getByText('修改密码').first()).toBeVisible();
+  await expect(page.getByText('原密码').first()).toBeVisible();
+  await expect(page.getByText('新密码').first()).toBeVisible();
+  await expect(page.getByText('确认密码')).toBeVisible();
+  await expect(page.locator('form')).toHaveCount(0);
+
+  await page.getByRole('button', { name: '保存' }).click();
+  await expect(page.getByText('请输入原密码')).toBeVisible();
+
+  const oldInput = page.locator('input').first();
+  await expect(oldInput).toHaveAttribute('type', 'password');
+  await page.getByRole('button', { name: '显示' }).first().click();
+  await expect(oldInput).toHaveAttribute('type', 'text');
+  await page.getByRole('button', { name: '隐藏' }).click();
+  await expect(oldInput).toHaveAttribute('type', 'password');
+
+  if (process.env.E2E_SCREENSHOT_DIR) {
+    await page.screenshot({
+      path: `${process.env.E2E_SCREENSHOT_DIR}/account-password-light.png`,
+      fullPage: true,
+    });
+  }
+
+  const inputs = page.locator('input');
+  await inputs.nth(0).fill('old-pass');
+  await inputs.nth(1).fill('new-pass');
+  await inputs.nth(2).fill('new-pass');
+  await page.getByRole('button', { name: '保存' }).click();
+  await expect(page.getByText('修改成功')).toBeVisible();
+});
