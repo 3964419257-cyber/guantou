@@ -75,6 +75,21 @@ async function mockSignedInCollector(page) {
     }
     await route.continue();
   });
+  await page.route('**/dialects/**', async (route) => {
+    await route.fulfill({
+      json: {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [{
+          id: 3,
+          name: '四川话',
+          qualified_code: '西南官话.四川',
+          sort_order: 1,
+        }],
+      },
+    });
+  });
   await page.route('**/users/7', async (route) => {
     await route.fulfill({
       json: {
@@ -82,7 +97,10 @@ async function mockSignedInCollector(page) {
           id: 7,
           username: 'collector',
           nickname: '采集者',
-          primary_dialect: { id: 3, name: '四川话' },
+          email: 'c@example.com',
+          telephone: '13900000001',
+          birthday: '1991-02-03',
+          primary_dialect: { id: 3, name: '四川话', qualified_code: '西南官话.四川' },
         },
         contribution: {},
       },
@@ -123,4 +141,31 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await inputs.nth(2).fill('new-pass');
   await page.getByRole('button', { name: '保存' }).click();
   await expect(page.getByText('修改成功')).toBeVisible();
+});
+
+test('information settings replace native pickers and open the avatar sheet', async ({ page }) => {
+  await mockSignedInCollector(page);
+  await page.goto('/pages/users/settings/information');
+
+  await expect(page.getByText('编辑资料').first()).toBeVisible();
+  await expect(page.getByText('公开档案')).toBeVisible();
+  await expect(page.getByText('仅自己可见')).toBeVisible();
+  await expect(page.getByText('发音默认地点')).toBeVisible();
+  await expect(page.getByText('西南官话.四川')).toBeVisible();
+  await expect(page.locator('picker')).toHaveCount(0);
+
+  await page.locator('.avatar-hit').click();
+  await expect(page.getByText('从相册选择')).toBeVisible();
+  await expect(page.getByText('拍照')).toBeVisible();
+
+  if (process.env.E2E_SCREENSHOT_DIR) {
+    await page.screenshot({
+      path: `${process.env.E2E_SCREENSHOT_DIR}/account-information-light.png`,
+      fullPage: true,
+    });
+  }
+
+  await page.getByText('取消').click();
+  await page.getByText('生日').click();
+  await expect(page.getByText('确定').first()).toBeVisible();
 });

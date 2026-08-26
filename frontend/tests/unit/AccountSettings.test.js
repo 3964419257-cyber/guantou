@@ -191,6 +191,10 @@ describe('account UI tokens', () => {
     expect(source).toContain('公开档案');
     expect(source).toContain('仅自己可见');
     expect(source).toContain('goLogin');
+    expect(source).toContain('overflow-wrap: anywhere');
+    expect(source).toContain('从相册选择');
+    expect(source).toContain('chooseAvatar');
+    expect(source).toContain('chooseMessageFile');
     expect(source).not.toContain('将会默认公开');
   });
 });
