@@ -93,16 +93,10 @@ export async function getUserInfo(id) {
  * @returns {Promise<unknown>}
  */
 export async function changeUserInfo(id, userInfo) {
-  return new Promise((resolve) => {
-    request.put(`/users/${id}`, { user: userInfo }).then((res) => {
-      uni.setStorageSync('token', res.token);
-      getApp().globalData.userInfo = userInfo;
-      uni.showToast({
-        title: '修改成功',
-      });
-      resolve(res);
-    });
-  });
+  const res = await request.put(`/users/${id}`, { user: userInfo }, true);
+  if (res.token) uni.setStorageSync('token', res.token);
+  getApp().globalData.userInfo = res.user || userInfo;
+  return res;
 }
 
 /**

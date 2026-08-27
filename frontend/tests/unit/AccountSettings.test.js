@@ -40,6 +40,7 @@ vi.mock('@/services/user', () => ({
     contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
     notification: { statistics: { unread: 0 } },
   })),
+  changeUserInfo: vi.fn(async () => ({ token: 'token', user: { nickname: '新昵称' } })),
   clearUserInfo: vi.fn(),
   bindingWechat: vi.fn(),
   cancelBindingWechat: vi.fn(),
@@ -86,7 +87,7 @@ vi.mock('@/components/ConfirmDialog', () => ({
 
 import { goBack, goHome, goLogin, goMailSend } from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
-import { clearUserInfo } from '@/services/user';
+import { clearUserInfo, changeUserInfo } from '@/services/user';
 import request from '@/utils/request';
 import confirmDialog from '@/components/ConfirmDialog';
 
@@ -126,6 +127,12 @@ function mountForm(Page) {
         PageShell: { template: '<main><slot /></main>' },
         AppShell: { template: '<main><slot /></main>' },
         SectionBlock: { template: '<section><slot /></section>' },
+        BaseForm: {
+          name: 'BaseForm',
+          props: ['data', 'rules'],
+          template: '<div><slot /></div>',
+          methods: { validate() { return Promise.resolve(true); } },
+        },
         ThemeSwitcher: true,
       },
     },
@@ -209,18 +216,19 @@ describe('nickname settings form', () => {
       showToast: vi.fn(),
     };
     request.put.mockResolvedValue({ token: 'token', user: { nickname: '新昵称' } });
+    changeUserInfo.mockResolvedValue({ token: 'token', user: { nickname: '新昵称' } });
   });
 
   it('blocks empty nickname and maps field errors from data.nickname', async () => {
     const wrapper = mountForm(NicknamePage);
     wrapper.vm.$options.onShow.call(wrapper.vm);
-    wrapper.vm.nickname = '   ';
+    wrapper.vm.form.nickname = '   ';
     await wrapper.vm.saveNickname();
     expect(wrapper.vm.error).toBe('请输入昵称');
-    expect(request.put).not.toHaveBeenCalled();
+    expect(changeUserInfo).not.toHaveBeenCalled();
 
-    wrapper.vm.nickname = '新昵称';
-    request.put.mockRejectedValueOnce({
+    wrapper.vm.form.nickname = '新昵称';
+    changeUserInfo.mockRejectedValueOnce({
       message: '请求参数校验失败',
       data: { nickname: { code: 'invalid', message: '昵称过长' } },
     });
@@ -234,8 +242,8 @@ describe('nickname settings form', () => {
   it('keeps a generic error off the field helper and uses it as form fallback', async () => {
     const wrapper = mountForm(NicknamePage);
     wrapper.vm.$options.onShow.call(wrapper.vm);
-    wrapper.vm.nickname = '新昵称';
-    request.put.mockRejectedValueOnce({ message: '请求参数校验失败' });
+    wrapper.vm.form.nickname = '新昵称';
+    changeUserInfo.mockRejectedValueOnce({ message: '请求参数校验失败' });
     await wrapper.vm.saveNickname();
     await flushPromises();
     expect(wrapper.vm.error).toBe('请求参数校验失败');
@@ -252,17 +260,17 @@ describe('nickname settings form', () => {
     wrapper.vm.$options.onShow.call(wrapper.vm);
     expect(goLogin).not.toHaveBeenCalled();
     expect(app.globalData.id).toBe(7);
-    expect(wrapper.vm.nickname).toBe('采集者');
+    expect(wrapper.vm.form.nickname).toBe('采集者');
     app.globalData.id = 7;
   });
 
   it('saves and returns after success', async () => {
     const wrapper = mountForm(NicknamePage);
     wrapper.vm.$options.onShow.call(wrapper.vm);
-    wrapper.vm.nickname = '新昵称';
+    wrapper.vm.form.nickname = '新昵称';
     await wrapper.vm.saveNickname();
     await flushPromises();
-    expect(request.put).toHaveBeenCalled();
+    expect(changeUserInfo).toHaveBeenCalled();
     expect(goBack).toHaveBeenCalled();
     expect(notifySuccess).toHaveBeenCalledWith('修改成功');
   });

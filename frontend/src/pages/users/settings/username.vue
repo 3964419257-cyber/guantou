@@ -3,37 +3,45 @@
     title="修改用户名"
     :back-fallback="ROUTES.userInformation"
   >
-    <view class="hint">
+    <view class="setting-hint">
       用户名是识别账号的标识，也用于账号密码登录。
     </view>
-    <BaseField
-      v-model="username"
-      label="用户名"
-      required
-      placeholder="不要超过 20 个字"
-      :maxlength="20"
-      :error="error"
-      :disabled="saving"
-    />
-    <BaseButton
-      block
-      :disabled="saving || username === currentUsername"
-      :loading="saving"
-      @click="saveUsername"
+    <BaseForm
+      ref="form"
+      :data="form"
+      :rules="rules"
     >
-      保存
-    </BaseButton>
+      <BaseField
+        v-model="form.username"
+        name="username"
+        label="用户名"
+        required
+        clearable
+        placeholder="请输入不超过 20 位的用户名"
+        :maxlength="20"
+        :error="error"
+        :disabled="saving"
+      />
+      <BaseButton
+        block
+        text="保存"
+        :disabled="saving || form.username === currentUsername"
+        :loading="saving"
+        @click="saveUsername"
+      />
+    </BaseForm>
   </PageShell>
 </template>
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
-import request from '@/utils/request';
+import { changeUserInfo } from '@/services/user';
 
 const app = getApp();
 
@@ -46,11 +54,19 @@ function fieldErrorMessage(error, field) {
 
 export default {
   name: 'ChangeUsername',
-  components: { BaseButton, BaseField, PageShell },
+  components: {
+    BaseButton, BaseField, BaseForm, PageShell,
+  },
   data() {
     return {
       ROUTES,
-      username: '',
+      form: { username: '' },
+      rules: {
+        username: [
+          { required: true, message: '请输入正确的用户名' },
+          { whitespace: true, message: '请输入正确的用户名' },
+        ],
+      },
       error: '',
       saving: false,
     };
@@ -65,12 +81,14 @@ export default {
       goLogin({}, { reset: true });
       return;
     }
-    this.username = this.currentUsername;
+    this.form.username = this.currentUsername;
     this.error = '';
   },
   methods: {
     async saveUsername() {
-      const username = String(this.username || '').trim();
+      const valid = await this.$refs.form.validate();
+      if (valid !== true) return;
+      const username = String(this.form.username || '').trim();
       if (!username) {
         this.error = '请输入用户名';
         return;
@@ -79,9 +97,8 @@ export default {
       this.saving = true;
       try {
         const userInfo = { ...app.globalData.userInfo, username };
-        const res = await request.put(`/users/${app.globalData.id}`, { user: userInfo }, true);
-        if (res.token) uni.setStorageSync('token', res.token);
-        app.globalData.userInfo = res.user || userInfo;
+        await changeUserInfo(app.globalData.id, userInfo);
+        app.globalData.userInfo = userInfo;
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
@@ -96,18 +113,13 @@ export default {
 </script>
 
 <style scoped>
-.hint {
+.setting-hint {
   margin-bottom: var(--space-3);
-  color: var(--muted-color);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
+  color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
-}
-
-:deep(.base-field-control),
-:deep(.uni-input-wrapper),
-:deep(.uni-input-input) {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 </style>

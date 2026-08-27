@@ -53,6 +53,12 @@ function mountPage() {
     global: {
       stubs: {
         PageShell: { template: '<main><slot /></main>' },
+        BaseForm: {
+          name: 'BaseForm',
+          props: ['data', 'rules'],
+          template: '<div><slot /></div>',
+          methods: { validate() { return Promise.resolve(true); } },
+        },
       },
     },
   });
@@ -83,6 +89,7 @@ describe('email settings form', () => {
 
   it('uses design-system primitives instead of native form controls', () => {
     expect(source).toContain('PageShell');
+    expect(source).toContain('BaseForm');
     expect(source).toContain('BaseField');
     expect(source).toContain('BaseButton');
     expect(source).not.toMatch(/<form[\s>]/);

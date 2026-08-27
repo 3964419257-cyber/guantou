@@ -3,38 +3,46 @@
     title="修改手机"
     :back-fallback="ROUTES.userInformation"
   >
-    <view class="hint">
+    <view class="setting-hint">
       请填写 11 位大陆手机号，用于验证码登录。
     </view>
-    <BaseField
-      v-model="telephone"
-      label="手机"
-      type="number"
-      required
-      placeholder="请输入 11 位手机号"
-      :maxlength="11"
-      :error="error"
-      :disabled="saving"
-    />
-    <BaseButton
-      block
-      :disabled="saving || telephone === currentTelephone"
-      :loading="saving"
-      @click="savePhone"
+    <BaseForm
+      ref="form"
+      :data="form"
+      :rules="rules"
     >
-      保存
-    </BaseButton>
+      <BaseField
+        v-model="form.telephone"
+        name="telephone"
+        type="tel"
+        label="手机号"
+        required
+        clearable
+        placeholder="请输入 11 位手机号"
+        :maxlength="11"
+        :error="error"
+        :disabled="saving"
+      />
+      <BaseButton
+        block
+        text="保存"
+        :disabled="saving || form.telephone === currentTelephone"
+        :loading="saving"
+        @click="savePhone"
+      />
+    </BaseForm>
   </PageShell>
 </template>
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
-import request from '@/utils/request';
+import { changeUserInfo, getUserInfo } from '@/services/user';
 
 const app = getApp();
 
@@ -46,11 +54,20 @@ function fieldErrorMessage(error, field) {
 }
 
 export default {
-  components: { BaseButton, BaseField, PageShell },
+  name: 'ChangeTelephone',
+  components: {
+    BaseButton, BaseField, BaseForm, PageShell,
+  },
   data() {
     return {
       ROUTES,
-      telephone: '',
+      form: { telephone: app.globalData.userInfo?.telephone || '' },
+      rules: {
+        telephone: [{
+          validator: (value) => /^\d{11}$/.test(String(value || '')),
+          message: '请输入正确格式的手机号码',
+        }],
+      },
       error: '',
       saving: false,
     };
@@ -65,12 +82,14 @@ export default {
       goLogin({}, { reset: true });
       return;
     }
-    this.telephone = this.currentTelephone;
+    this.form.telephone = this.currentTelephone;
     this.error = '';
   },
   methods: {
     async savePhone() {
-      const telephone = String(this.telephone || '').trim();
+      const valid = await this.$refs.form.validate();
+      if (valid !== true) return;
+      const telephone = String(this.form.telephone || '').trim();
       if (!/^\d{11}$/.test(telephone)) {
         this.error = '请输入正确格式的手机号码';
         return;
@@ -78,14 +97,10 @@ export default {
       this.error = '';
       this.saving = true;
       try {
-        const userInfo = { ...app.globalData.userInfo, telephone };
-        const res = await request.put(
-          `/users/${app.globalData.id}`,
-          { user: userInfo },
-          true,
-        );
-        if (res.token) uni.setStorageSync('token', res.token);
-        app.globalData.userInfo = res.user || userInfo;
+        const userInfo = await getUserInfo(app.globalData.id);
+        userInfo.user.telephone = telephone;
+        await changeUserInfo(app.globalData.id, userInfo.user);
+        app.globalData.userInfo.telephone = telephone;
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
@@ -100,18 +115,13 @@ export default {
 </script>
 
 <style scoped>
-.hint {
+.setting-hint {
   margin-bottom: var(--space-3);
-  color: var(--muted-color);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
+  color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
-}
-
-:deep(.base-field-control),
-:deep(.uni-input-wrapper),
-:deep(.uni-input-input) {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 </style>

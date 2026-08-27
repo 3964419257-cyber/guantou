@@ -29,50 +29,59 @@
       <view class="hint">
         验证码会发到新邮箱。若该地址已经绑定其他账号，需要换一个。
       </view>
-      <BaseField
-        :model-value="oldEmailDisplay"
-        label="原邮箱"
-        disabled
-      />
-      <BaseField
-        v-model="newEmail"
-        label="新邮箱"
-        required
-        placeholder="请输入新邮箱"
-        :error="emailError"
-        :disabled="saving"
-      />
-      <view class="code-row">
-        <view class="code-field">
-          <BaseField
-            v-model="code"
-            label="验证码"
-            required
-            placeholder="请输入验证码"
-            :maxlength="6"
-            :error="codeError"
-            :disabled="saving"
-          />
+      <BaseForm
+        ref="form"
+        :data="formData"
+        :rules="rules"
+      >
+        <BaseField
+          :model-value="oldEmailDisplay"
+          name="oldEmail"
+          label="原邮箱"
+          disabled
+        />
+        <BaseField
+          v-model="newEmail"
+          name="email"
+          label="新邮箱"
+          required
+          placeholder="请输入新邮箱"
+          :error="emailError"
+          :disabled="saving"
+        />
+        <view class="code-row">
+          <view class="code-field">
+            <BaseField
+              v-model="code"
+              name="code"
+              label="验证码"
+              required
+              placeholder="请输入验证码"
+              :maxlength="6"
+              :error="codeError"
+              :disabled="saving"
+            />
+          </view>
+          <BaseButton
+            class="code-button"
+            size="small"
+            variant="ghost"
+            :disabled="sending || saving || countdown > 0"
+            :loading="sending"
+            @click="sendCode"
+          >
+            {{ sendCodeLabel }}
+          </BaseButton>
         </view>
         <BaseButton
-          class="code-button"
-          size="small"
-          variant="ghost"
-          :disabled="sending || saving || countdown > 0"
-          :loading="sending"
-          @click="sendCode"
+          block
+          :disabled="saving || sending"
+          :loading="saving"
+          @click="setNewEmail"
         >
-          {{ sendCodeLabel }}
+          保存
         </BaseButton>
-      </view>
-      <BaseButton
-        block
-        :disabled="saving || sending"
-        :loading="saving"
-        @click="setNewEmail"
-      >
-        保存
-      </BaseButton>
+      </BaseForm>
     </view>
   </PageShell>
 </template>
@@ -80,6 +89,7 @@
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
@@ -111,7 +121,9 @@ function applyEmailErrors(error) {
 
 export default {
   name: 'ChangeEmail',
-  components: { BaseButton, BaseField, PageShell },
+  components: {
+    BaseButton, BaseField, BaseForm, PageShell,
+  },
   data() {
     return {
       ROUTES,
@@ -127,6 +139,10 @@ export default {
       ready: false,
       countdown: 0,
       countdownTimer: null,
+      rules: {
+        email: [{ required: true, message: '请输入新邮箱' }],
+        code: [{ required: true, message: '请输入验证码' }],
+      },
     };
   },
   computed: {
@@ -136,6 +152,9 @@ export default {
     sendCodeLabel() {
       if (this.countdown > 0) return `${this.countdown}s 后重发`;
       return '获取验证码';
+    },
+    formData() {
+      return { email: this.newEmail, code: this.code };
     },
   },
   onShow() {
@@ -219,6 +238,8 @@ export default {
         this.emailError = '请填写与当前邮箱不同的地址';
         return;
       }
+      const valid = await this.$refs.form.validate();
+      if (valid !== true) return;
       this.saving = true;
       try {
         await request.put(`/users/${app.globalData.id}/email`, { email, code }, true);

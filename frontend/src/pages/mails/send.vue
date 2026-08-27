@@ -131,6 +131,16 @@ export default {
       if (id === undefined || id === null || id === '') return;
       this.Notification.recipients = [String(id)];
     },
+    clearFieldError(field) {
+      if (this.fieldErrors[field]) delete this.fieldErrors[field];
+    },
+    payload() {
+      return {
+        recipients: [String(this.Notification.recipients[0]).trim()],
+        title: this.Notification.title.trim(),
+        content: this.Notification.content.trim(),
+      };
+    },
     async sendEmail() {
       if (this.submitting) return;
       const valid = await this.$refs.form.validate();

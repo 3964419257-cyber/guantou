@@ -17,9 +17,9 @@
 | `pages/mails/send` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：标准表单、字段错误与 payload 回归测试 |
 | `pages/login/login` | issue | [#238](https://github.com/e-dialect/guantou/issues/238)：倒计时、双登录模式与登录恢复 |
 | `pages/nameplates/create` | issue | [#237](https://github.com/e-dialect/guantou/issues/237)：原生 Picker、联合校验与来源映射 |
-| `pages/users/settings/information` | issue | [#225](https://github.com/e-dialect/guantou/issues/225)：头像开放能力、日期与方言 Picker |
-| `pages/users/settings/password` | issue | [#229](https://github.com/e-dialect/guantou/issues/229)：密码显示与原生 form submit |
-| `pages/users/settings/email` | issue | [#227](https://github.com/e-dialect/guantou/issues/227)：验证码与邮箱绑定流程 |
+| `pages/users/settings/information` | done | [#225](https://github.com/e-dialect/guantou/issues/225) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：头像开放能力、日期与方言 Picker |
+| `pages/users/settings/password` | done | [#229](https://github.com/e-dialect/guantou/issues/229) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：密码显示与表单提交 |
+| `pages/users/settings/email` | done | [#227](https://github.com/e-dialect/guantou/issues/227) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：验证码与邮箱绑定流程 |
 | `pages/login/register` | issue | [#228](https://github.com/e-dialect/guantou/issues/228)：验证码、协议与注册校验 |
 | `pages/login/register/wechat` | issue | [#230](https://github.com/e-dialect/guantou/issues/230)：微信昵称/授权能力 |
 | `pages/login/forget` | issue | [#226](https://github.com/e-dialect/guantou/issues/226)：多阶段找回密码流程 |

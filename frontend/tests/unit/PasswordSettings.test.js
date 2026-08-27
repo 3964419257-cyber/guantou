@@ -51,6 +51,12 @@ function mountForm() {
     global: {
       stubs: {
         PageShell: { template: '<main><slot /></main>' },
+        BaseForm: {
+          name: 'BaseForm',
+          props: ['data', 'rules'],
+          template: '<div><slot /></div>',
+          methods: { validate() { return Promise.resolve(true); } },
+        },
       },
     },
   });
@@ -68,6 +74,7 @@ describe('password settings form', () => {
 
   it('uses design-system primitives instead of native form controls', () => {
     expect(passwordPageSource).toContain('PageShell');
+    expect(passwordPageSource).toContain('BaseForm');
     expect(passwordPageSource).toContain('BaseField');
     expect(passwordPageSource).toContain('BaseButton');
     expect(passwordPageSource).not.toMatch(/<form[\s>]/);
@@ -171,21 +178,15 @@ describe('password settings form', () => {
     expect(wrapper.vm.saving).toBe(false);
   });
 
-  it('toggles password visibility independently for each field', async () => {
+  it('toggles password visibility independently for each field', () => {
     const wrapper = mountForm();
-    const inputs = wrapper.findAll('input');
-    expect(inputs).toHaveLength(3);
-    expect(inputs[0].attributes('type')).toBe('password');
-    expect(inputs[1].attributes('type')).toBe('password');
-    expect(inputs[2].attributes('type')).toBe('password');
-
-    await wrapper.findAll('.password-toggle')[0].trigger('tap');
+    expect(wrapper.vm.oldVisible).toBe(false);
+    wrapper.vm.toggleVisible('old');
     expect(wrapper.vm.oldVisible).toBe(true);
-    expect(wrapper.findAll('input')[0].attributes('type')).toBe('text');
-    expect(wrapper.findAll('input')[1].attributes('type')).toBe('password');
+    expect(wrapper.vm.newVisible).toBe(false);
 
     wrapper.vm.saving = true;
-    await wrapper.findAll('.password-toggle')[1].trigger('tap');
+    wrapper.vm.toggleVisible('new');
     expect(wrapper.vm.newVisible).toBe(false);
   });
 

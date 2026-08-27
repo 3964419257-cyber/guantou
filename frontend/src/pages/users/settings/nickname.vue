@@ -3,37 +3,45 @@
     title="修改昵称"
     :back-fallback="ROUTES.userInformation"
   >
-    <view class="hint">
+    <view class="setting-hint">
       昵称用于用户之间的交流，会经常展示。
     </view>
-    <BaseField
-      v-model="nickname"
-      label="昵称"
-      required
-      placeholder="不要超过 20 个字"
-      :maxlength="20"
-      :error="error"
-      :disabled="saving"
-    />
-    <BaseButton
-      block
-      :disabled="saving || nickname === currentNickname"
-      :loading="saving"
-      @click="saveNickname"
+    <BaseForm
+      ref="form"
+      :data="form"
+      :rules="rules"
     >
-      保存
-    </BaseButton>
+      <BaseField
+        v-model="form.nickname"
+        name="nickname"
+        label="昵称"
+        required
+        clearable
+        placeholder="请输入不超过 20 位的昵称"
+        :maxlength="20"
+        :error="error"
+        :disabled="saving"
+      />
+      <BaseButton
+        block
+        text="保存"
+        :disabled="saving || form.nickname === currentNickname"
+        :loading="saving"
+        @click="saveNickname"
+      />
+    </BaseForm>
   </PageShell>
 </template>
 
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
+import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
-import request from '@/utils/request';
+import { changeUserInfo } from '@/services/user';
 
 const app = getApp();
 
@@ -45,11 +53,20 @@ function fieldErrorMessage(error, field) {
 }
 
 export default {
-  components: { BaseButton, BaseField, PageShell },
+  name: 'ChangeNickname',
+  components: {
+    BaseButton, BaseField, BaseForm, PageShell,
+  },
   data() {
     return {
       ROUTES,
-      nickname: '',
+      form: { nickname: '' },
+      rules: {
+        nickname: [
+          { required: true, message: '请输入正确的昵称' },
+          { whitespace: true, message: '请输入正确的昵称' },
+        ],
+      },
       error: '',
       saving: false,
     };
@@ -64,12 +81,14 @@ export default {
       goLogin({}, { reset: true });
       return;
     }
-    this.nickname = this.currentNickname;
+    this.form.nickname = this.currentNickname;
     this.error = '';
   },
   methods: {
     async saveNickname() {
-      const nickname = String(this.nickname || '').trim();
+      const valid = await this.$refs.form.validate();
+      if (valid !== true) return;
+      const nickname = String(this.form.nickname || '').trim();
       if (!nickname) {
         this.error = '请输入昵称';
         return;
@@ -78,9 +97,8 @@ export default {
       this.saving = true;
       try {
         const userInfo = { ...app.globalData.userInfo, nickname };
-        const res = await request.put(`/users/${app.globalData.id}`, { user: userInfo }, true);
-        if (res.token) uni.setStorageSync('token', res.token);
-        app.globalData.userInfo = res.user || userInfo;
+        await changeUserInfo(app.globalData.id, userInfo);
+        app.globalData.userInfo = userInfo;
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
@@ -95,18 +113,13 @@ export default {
 </script>
 
 <style scoped>
-.hint {
+.setting-hint {
   margin-bottom: var(--space-3);
-  color: var(--muted-color);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle-color);
+  color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
-}
-
-:deep(.base-field-control),
-:deep(.uni-input-wrapper),
-:deep(.uni-input-input) {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 </style>
