@@ -79,6 +79,8 @@ describe('can creation draft recovery', () => {
     globalThis.uni = {
       redirectTo: vi.fn(),
       reLaunch: vi.fn(),
+      getStorageSync: vi.fn(() => ''),
+      setStorageSync: vi.fn(),
       showModal: vi.fn(),
       showToast: vi.fn(),
     };
@@ -92,6 +94,95 @@ describe('can creation draft recovery', () => {
         available: true,
       } : null,
     }));
+  });
+
+  it('cascades dialect columns and clears the old leaf when an ancestor changes', async () => {
+    listAllDialects.mockResolvedValue([
+      { id: 1, name: '闽语', qualified_code: '闽', sort_order: 1 },
+      { id: 2, name: '莆仙片', qualified_code: '闽.莆仙', sort_order: 1 },
+      { id: 3, name: '游洋话', qualified_code: '闽.莆仙.游洋', sort_order: 1 },
+      { id: 4, name: '闽南片', qualified_code: '闽.闽南', sort_order: 2 },
+      { id: 5, name: '厦门话', qualified_code: '闽.闽南.厦门', sort_order: 1 },
+      { id: 6, name: '粤语', qualified_code: '粤', sort_order: 2 },
+      { id: 7, name: '广府片', qualified_code: '粤.广府', sort_order: 1 },
+    ]);
+    const wrapper = mountCreate();
+
+    await wrapper.vm.loadDialects();
+    wrapper.vm.onDialectChange({ detail: { value: [0, 0, 0] } });
+    expect(wrapper.vm.form.submitted_dialect_id).toBe(3);
+
+    wrapper.vm.onDialectColumnChange({ detail: { column: 1, value: 1 } });
+    expect(wrapper.vm.form.submitted_dialect_id).toBeNull();
+    expect(wrapper.vm.dialectColumns[2].map((item) => item.name)).toEqual(['厦门话']);
+
+    wrapper.vm.onDialectChange({ detail: { value: [0, 1, 0] } });
+    expect(wrapper.vm.form.submitted_dialect_id).toBe(5);
+    expect(wrapper.vm.dialectLabel).toBe('闽.闽南.厦门');
+
+    wrapper.vm.onDialectColumnChange({ detail: { column: 0, value: 1 } });
+    expect(wrapper.vm.form.submitted_dialect_id).toBeNull();
+    expect(wrapper.vm.dialectColumns).toHaveLength(2);
+    expect(wrapper.vm.dialectColumns[1].map((item) => item.name)).toEqual(['广府片']);
+
+    wrapper.vm.onDialectChange({ detail: { value: [1, 0] } });
+    expect(wrapper.vm.form.submitted_dialect_id).toBe(7);
+  });
+
+  it('shows the complete dialect path and remembers a cascader selection', async () => {
+    listAllDialects.mockResolvedValue([
+      { id: 1, name: '闽语', qualified_code: '闽', sort_order: 1 },
+      { id: 4, name: '闽南片', qualified_code: '闽.闽南', sort_order: 1 },
+      { id: 5, name: '厦门话', qualified_code: '闽.闽南.厦门', sort_order: 1 },
+    ]);
+    const wrapper = mountCreate();
+    await wrapper.vm.loadDialects();
+    const [root] = wrapper.vm.dialectTree;
+    const [branch] = root.children;
+    const [leaf] = branch.children;
+
+    wrapper.vm.onDialectCascadeChange({
+      value: leaf.id,
+      selectedOptions: [root, branch, leaf],
+    });
+
+    expect(wrapper.vm.dialectDisplayLabel).toBe('闽语 · 闽南片 · 厦门话');
+    expect(wrapper.vm.filterDialectOption('厦门', leaf, [root, branch])).toBe(true);
+    expect(wrapper.vm.filterDialectOption('闽.闽南.厦门', leaf, [root, branch])).toBe(true);
+    expect(uni.setStorageSync).toHaveBeenCalledWith(
+      'can_create_recent_dialects_v1:user:7',
+      JSON.stringify([5]),
+    );
+  });
+
+  it('restores a draft leaf into every dialect cascade column', async () => {
+    getCanDraftWithAudio.mockResolvedValue({
+      id: 'draft-cascade',
+      ownerScope: 'user:7',
+      mode: 'free',
+      dialectName: '闽.闽南.厦门',
+      form: { concept_text: '月亮', submitted_dialect_id: 5 },
+      label: {},
+      audio: { path: '/tmp/moon.mp3', name: 'moon.mp3', origin: 'record' },
+    });
+    listAllDialects.mockResolvedValue([
+      { id: 1, name: '闽语', qualified_code: '闽', sort_order: 1 },
+      { id: 2, name: '莆仙片', qualified_code: '闽.莆仙', sort_order: 1 },
+      { id: 3, name: '游洋话', qualified_code: '闽.莆仙.游洋', sort_order: 1 },
+      { id: 4, name: '闽南片', qualified_code: '闽.闽南', sort_order: 2 },
+      { id: 5, name: '厦门话', qualified_code: '闽.闽南.厦门', sort_order: 1 },
+    ]);
+    const wrapper = mountCreate();
+
+    await wrapper.vm.restoreDraft('draft-cascade');
+    await wrapper.vm.loadDialects();
+
+    expect(wrapper.vm.dialectIndexes).toEqual([0, 1, 0]);
+    expect(wrapper.vm.dialectColumns.map(
+      (options, index) => options[wrapper.vm.dialectIndexes[index]].name,
+    )).toEqual(['闽语', '闽南片', '厦门话']);
+    expect(wrapper.vm.form.submitted_dialect_id).toBe(5);
+    expect(wrapper.vm.dialectLabel).toBe('闽.闽南.厦门');
   });
 
   it('restores form and audio while keeping required-field validation', async () => {
