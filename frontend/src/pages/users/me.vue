@@ -3,10 +3,7 @@
     title="我的"
     active="me"
   >
-    <view
-      class="page"
-      :class="`theme-${resolvedTheme}`"
-    >
+    <view class="page">
       <template v-if="loggedIn">
         <view
           v-if="loading"
@@ -31,7 +28,7 @@
           <view class="hero">
             <image
               :src="avatar"
-              class="avatar"
+              class="avatar pressable"
               mode="aspectFill"
               @tap="toUserInfoPage"
             />
@@ -70,7 +67,7 @@
 
           <view class="social-stats">
             <view
-              class="social-stat"
+              class="social-stat pressable"
               @tap="toCanLibrary"
             >
               <view class="number">
@@ -151,21 +148,21 @@
           <view class="works">
             <view class="works-tabs">
               <view
-                class="works-tab"
+                class="works-tab pressable"
                 :class="{ active: worksTab === 'cans' }"
                 @tap="worksTab = 'cans'"
               >
                 罐头 {{ cansCount }}
               </view>
               <view
-                class="works-tab"
+                class="works-tab pressable"
                 :class="{ active: worksTab === 'nameplates' }"
                 @tap="worksTab = 'nameplates'"
               >
                 铭牌 {{ nameplatesCount }}
               </view>
               <view
-                class="works-tab"
+                class="works-tab pressable"
                 :class="{ active: worksTab === 'flavors' }"
                 @tap="worksTab = 'flavors'"
               >
@@ -201,7 +198,7 @@
 
           <view class="tool-grid">
             <view
-              class="tool-item"
+              class="tool-item pressable"
               @tap="toCanLibrary"
             >
               <view class="tool-count">
@@ -212,7 +209,7 @@
               </view>
             </view>
             <view
-              class="tool-item"
+              class="tool-item pressable"
               @tap="toLikes"
             >
               <view class="tool-count">
@@ -223,7 +220,7 @@
               </view>
             </view>
             <view
-              class="tool-item"
+              class="tool-item pressable"
               @tap="toDrafts"
             >
               <view class="tool-count">
@@ -240,19 +237,19 @@
               账号与安全
             </view>
             <view
-              class="menu-item"
+              class="menu-item pressable"
               @tap="toChangePasswordPage"
             >
               修改密码
             </view>
             <view
-              class="menu-item"
+              class="menu-item pressable"
               @tap="bindingWechat"
             >
               {{ wechatBindText }}
             </view>
             <view
-              class="menu-item danger"
+              class="menu-item danger pressable"
               @tap="exit"
             >
               退出登录
@@ -311,7 +308,6 @@ import confirmDialog from '@/components/ConfirmDialog';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { openLoginFromMine } from '@/services/authJourney';
-import { applyTheme, getThemePreference } from '@/services/theme';
 import { listCanDrafts } from '@/services/canDrafts';
 import {
   goCanLibrary,
@@ -326,9 +322,9 @@ import {
   bindingWechat as bindingWechatService,
   cancelBindingWechat as cancelBindingWechatService,
   clearUserInfo,
+  getUserInfo,
 } from '@/services/user';
 import { resolveSessionUserId } from '@/services/session';
-import request from '@/utils/request';
 
 export default {
   components: { AppShell, BaseButton, ThemeSwitcher },
@@ -353,7 +349,6 @@ export default {
       loading: Boolean(uni.getStorageSync('token')),
       loadError: '',
       loggedIn: Boolean(uni.getStorageSync('token')),
-      resolvedTheme: 'light',
       worksTab: 'cans',
     };
   },
@@ -386,20 +381,13 @@ export default {
         return '完整列表在罐头库，可按录制、收藏和草稿查看。';
       }
       if (this.worksTab === 'nameplates') {
-        return '铭牌是你对某条罐头的写法、释义和出处主张。';
+        return '铭牌是你对某条罐头的写法、释义和出处主张。先听一罐再去贴。';
       }
       if (this.worksTab === 'flavors') {
-        return '义项用来收纳“同一个意思在各地怎么说”。';
+        return '义项用来收纳“同一个意思在各地怎么说”。去罐头库看看别人怎么装。';
       }
       return '罐头是一段乡音录音。装一罐后会出现在这里和罐头库。';
     },
-  },
-  mounted() {
-    this.handleThemeChange(applyTheme(getThemePreference()));
-    uni.$on('theme-change', this.handleThemeChange);
-  },
-  beforeUnmount() {
-    uni.$off('theme-change', this.handleThemeChange);
   },
   beforeMount() {
     this.getInfo();
@@ -441,9 +429,6 @@ export default {
     toCanLibrary() {
       goCanLibrary();
     },
-    handleThemeChange(theme) {
-      this.resolvedTheme = theme?.resolved || 'light';
-    },
     async getInfo() {
       const id = resolveSessionUserId();
       if (!id) {
@@ -454,7 +439,7 @@ export default {
       this.loading = true;
       this.loadError = '';
       try {
-        const userInfo = await request.get(`/users/${id}`, null, true);
+        const userInfo = await getUserInfo(id, true);
         this.id = userInfo.user.id;
         this.avatar = userInfo.user.avatar;
         this.username = userInfo.user.username || '';
@@ -478,7 +463,7 @@ export default {
           : 0;
         this.wechatBindText = userInfo.user.wechat ? '解绑微信' : '绑定微信';
       } catch (error) {
-        this.loadError = error?.message || '档案加载失败';
+        this.loadError = error?.message || '档案加载失败，请检查网络后重试';
       } finally {
         this.loading = false;
       }
@@ -500,7 +485,7 @@ export default {
       if (this.isBinding || !id) return;
       this.isBinding = true;
       try {
-        const userInfo = await request.get(`/users/${id}`, null, true);
+        const userInfo = await getUserInfo(id, true);
         if (!userInfo.user.wechat) {
           // #ifndef MP-WEIXIN
           notify({ title: '请在微信小程序中绑定微信' });
@@ -515,7 +500,7 @@ export default {
         }
         await this.getInfo();
       } catch (err) {
-        notify({ title: (err && err.message) || '操作失败' });
+        notify({ title: (err && err.message) || '操作失败，请检查网络后重试' });
       } finally {
         this.isBinding = false;
       }
@@ -774,5 +759,24 @@ export default {
 
 .menu-kicker {
   margin: var(--space-3) var(--space-3) 0;
+}
+
+.pressable {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.pressable:active {
+  opacity: 0.72;
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable {
+    transition: none;
+  }
+
+  .pressable:active {
+    transform: none;
+  }
 }
 </style>

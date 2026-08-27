@@ -88,6 +88,9 @@ describe('email settings form', () => {
   });
 
   it('uses design-system primitives instead of native form controls', () => {
+    expect(source).toContain('getUserInfo');
+    expect(source).toContain('changeUserEmail');
+    expect(source).toContain('sendEmailCode');
     expect(source).toContain('PageShell');
     expect(source).toContain('BaseForm');
     expect(source).toContain('BaseField');

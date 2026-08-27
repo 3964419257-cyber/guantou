@@ -68,11 +68,13 @@ describe('password settings form', () => {
     app.globalData.id = 7;
     globalThis.uni = {
       showToast: vi.fn(),
+      setStorageSync: vi.fn(),
     };
     request.put.mockResolvedValue({});
   });
 
   it('uses design-system primitives instead of native form controls', () => {
+    expect(passwordPageSource).toContain('changeUserPassword');
     expect(passwordPageSource).toContain('PageShell');
     expect(passwordPageSource).toContain('BaseForm');
     expect(passwordPageSource).toContain('BaseField');
@@ -99,7 +101,18 @@ describe('password settings form', () => {
     expect(request.put).not.toHaveBeenCalled();
   });
 
+  it('rejects a new password outside the 6 to 32 character rule', async () => {
+    const wrapper = mountForm();
+    wrapper.vm.oldPassword = 'old-pass';
+    wrapper.vm.newPassword = '123';
+    wrapper.vm.confirmPassword = '123';
+    await wrapper.vm.savePassword();
+    expect(wrapper.vm.newError).toBe('新密码长度为 6 到 32 个字符');
+    expect(request.put).not.toHaveBeenCalled();
+  });
+
   it('sends the existing password payload and returns after success', async () => {
+    request.put.mockResolvedValueOnce({ token: 'fresh-token', user: { id: 7 } });
     const wrapper = mountForm();
     wrapper.vm.oldPassword = 'old-pass';
     wrapper.vm.newPassword = 'new-pass';
@@ -111,6 +124,7 @@ describe('password settings form', () => {
       { oldpassword: 'old-pass', newpassword: 'new-pass' },
       true,
     );
+    expect(uni.setStorageSync).toHaveBeenCalledWith('token', 'fresh-token');
     expect(notifySuccess).toHaveBeenCalledWith('修改成功');
     expect(goBack).toHaveBeenCalled();
   });

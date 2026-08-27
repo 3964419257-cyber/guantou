@@ -94,7 +94,8 @@ import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
-import request from '@/utils/request';
+import { changeUserEmail, getUserInfo } from '@/services/user';
+import { sendEmailCode } from '@/services/verification';
 
 const app = getApp();
 const CODE_THROTTLE_SECONDS = 60;
@@ -112,7 +113,7 @@ function applyEmailErrors(error) {
   if (emailError || codeError) {
     return { emailError, codeError };
   }
-  const message = error?.message || '保存失败';
+  const message = error?.message || '保存失败，请检查网络后重试';
   if (error?.statusCode === 409) {
     return { emailError: message, codeError: '' };
   }
@@ -185,10 +186,10 @@ export default {
       this.loading = true;
       this.loadError = '';
       try {
-        const userInfo = await request.get(`/users/${app.globalData.id}`, null, true);
+        const userInfo = await getUserInfo(app.globalData.id, true);
         this.oldEmail = userInfo.user.email || '';
       } catch (error) {
-        this.loadError = error?.message || '邮箱读取失败';
+        this.loadError = error?.message || '邮箱读取失败，请检查网络后重试';
       } finally {
         this.loading = false;
         this.ready = true;
@@ -208,11 +209,7 @@ export default {
       this.emailError = '';
       this.sending = true;
       try {
-        const response = await request.post(
-          '/users/email-code',
-          { email, purpose: 'bind' },
-          true,
-        );
+        const response = await sendEmailCode(email, 'bind', true);
         notify({ title: '验证码已发送' });
         this.startCountdown(response?.retry_after);
       } catch (error) {
@@ -242,14 +239,14 @@ export default {
       if (valid !== true) return;
       this.saving = true;
       try {
-        await request.put(`/users/${app.globalData.id}/email`, { email, code }, true);
+        await changeUserEmail(app.globalData.id, email, code);
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
         const next = applyEmailErrors(error);
         this.emailError = next.emailError;
         this.codeError = next.codeError;
-        notify({ title: this.emailError || this.codeError || '保存失败' });
+        notify({ title: this.emailError || this.codeError || '保存失败，请检查网络后重试' });
       } finally {
         this.saving = false;
       }

@@ -41,6 +41,8 @@ vi.mock('@/services/user', () => ({
     notification: { statistics: { unread: 0 } },
   })),
   changeUserInfo: vi.fn(async () => ({ token: 'token', user: { nickname: '新昵称' } })),
+  changeUserPassword: vi.fn(),
+  changeUserEmail: vi.fn(),
   clearUserInfo: vi.fn(),
   bindingWechat: vi.fn(),
   cancelBindingWechat: vi.fn(),
@@ -87,7 +89,7 @@ vi.mock('@/components/ConfirmDialog', () => ({
 
 import { goBack, goHome, goLogin, goMailSend } from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
-import { clearUserInfo, changeUserInfo } from '@/services/user';
+import { clearUserInfo, changeUserInfo, getUserInfo } from '@/services/user';
 import request from '@/utils/request';
 import confirmDialog from '@/components/ConfirmDialog';
 
@@ -176,6 +178,8 @@ describe('account UI tokens', () => {
     expect(mine).toContain('账号与安全');
     expect(details).toContain('私信');
     expect(details).toContain("requireAuth('dm'");
+    expect(mine).toContain('pressable');
+    expect(details).toContain('prefers-reduced-motion');
     expect(details).not.toContain('短视频');
     expect(mine).not.toContain('微博');
     expect(details).not.toContain('微博');
@@ -352,6 +356,14 @@ describe('user details page', () => {
     expect(wrapper.vm.worksPanelTitle).toBe('已有 4 罐');
   });
 
+  it('gives visitors a next step when the public can list is empty', () => {
+    const wrapper = mountForm(UserDetailsPage);
+    wrapper.vm.id = 9;
+    wrapper.vm.userInfo.contribution = { cans: 0, flavors: 0, nameplates: 0 };
+    wrapper.vm.worksTab = 'cans';
+    expect(wrapper.vm.worksPanelCopy).toContain('TA 还没有公开罐头');
+  });
+
   it('asks guests to login before sending a private mail', () => {
     const wrapper = mountForm(UserDetailsPage);
     wrapper.vm.id = 9;
@@ -408,7 +420,7 @@ describe('mine page logout', () => {
     app.globalData.id = null;
     const wrapper = mountForm(MePage);
     await flushPromises();
-    expect(request.get).toHaveBeenCalledWith('/users/7', null, true);
+    expect(getUserInfo).toHaveBeenCalledWith(7, true);
     expect(wrapper.vm.loading).toBe(false);
     app.globalData.id = 7;
   });

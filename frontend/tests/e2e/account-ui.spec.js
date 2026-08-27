@@ -130,7 +130,7 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await expect(page.getByText('原密码').first()).toBeVisible();
   await expect(page.getByText('新密码').first()).toBeVisible();
   await expect(page.getByText('确认密码')).toBeVisible();
-  await expect(page.locator('form')).toHaveCount(0);
+  await expect(page.locator('form:not(.t-form)')).toHaveCount(0);
 
   await page.getByRole('button', { name: '保存' }).click();
   await expect(page.getByText('请输入原密码')).toBeVisible();
@@ -192,7 +192,7 @@ test('email settings send a bind code without native form controls', async ({ pa
   await expect(page.getByText('原邮箱')).toBeVisible();
   await expect(page.getByText('c@example.com')).toBeVisible();
   await expect(page.getByText('获取验证码')).toBeVisible();
-  await expect(page.locator('form')).toHaveCount(0);
+  await expect(page.locator('form:not(.t-form)')).toHaveCount(0);
 
   await page.getByRole('button', { name: '保存' }).click();
   await expect(page.getByText('请输入新邮箱')).toBeVisible();

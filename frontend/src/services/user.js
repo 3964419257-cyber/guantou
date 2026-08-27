@@ -83,8 +83,8 @@ export function registerWechatUser(username, password, nickname) {
  * @param id 用户id
  * @returns {Promise<unknown>}
  */
-export async function getUserInfo(id) {
-  return request.get(`/users/${id}`);
+export async function getUserInfo(id, silent = false) {
+  return request.get(`/users/${id}`, null, silent);
 }
 
 /**
@@ -107,7 +107,14 @@ export async function changeUserInfo(id, userInfo) {
  * @returns {Promise<unknown>}
  */
 export async function changeUserPassword(id, oldPassword, newPassword) {
-  return request.put(`/users/${id}/password`, { oldpassword: oldPassword, newpassword: newPassword });
+  const res = await request.put(
+    `/users/${id}/password`,
+    { oldpassword: oldPassword, newpassword: newPassword },
+    true,
+  );
+  if (res?.token) uni.setStorageSync('token', res.token);
+  if (res?.user) getApp().globalData.userInfo = res.user;
+  return res;
 }
 
 /**
@@ -118,7 +125,9 @@ export async function changeUserPassword(id, oldPassword, newPassword) {
  * @returns {Promise<unknown>}
  */
 export async function changeUserEmail(id, email, code) {
-  return request.put(`/users/${id}/email`, { email, code });
+  const res = await request.put(`/users/${id}/email`, { email, code }, true);
+  if (res?.user) getApp().globalData.userInfo = res.user;
+  return res;
 }
 
 /**

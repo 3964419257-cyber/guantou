@@ -109,7 +109,7 @@ import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
-import request from '@/utils/request';
+import { changeUserPassword } from '@/services/user';
 
 const app = getApp();
 
@@ -126,11 +126,16 @@ function applyPasswordErrors(error) {
   if (oldError || newError) {
     return { oldError, newError };
   }
-  const message = error?.message || '保存失败';
+  const message = error?.message || '保存失败，请检查网络后重试';
   if (error?.statusCode === 401) {
     return { oldError: message, newError: '' };
   }
   return { oldError: '', newError: message };
+}
+
+function isPasswordLengthValid(value) {
+  const text = String(value || '').trim();
+  return text.length >= 6 && text.length <= 32;
 }
 
 export default {
@@ -148,7 +153,13 @@ export default {
       },
       rules: {
         oldpassword: [{ required: true, message: '请输入原密码' }],
-        newpassword: [{ required: true, message: '请输入新密码' }],
+        newpassword: [
+          { required: true, message: '请输入新密码' },
+          {
+            validator: isPasswordLengthValid,
+            message: '新密码长度为 6 到 32 个字符',
+          },
+        ],
         confirm: [{ required: true, message: '请确认新密码' }],
       },
       oldError: '',
@@ -210,21 +221,22 @@ export default {
         this.confirmError = '两次密码不一样';
         return;
       }
+      if (newPassword.length < 6 || newPassword.length > 32) {
+        this.newError = '新密码长度为 6 到 32 个字符';
+        return;
+      }
       const valid = await this.$refs.form.validate();
       if (valid !== true) return;
       this.saving = true;
       try {
-        await request.put(`/users/${app.globalData.id}/password`, {
-          oldpassword: oldPassword,
-          newpassword: newPassword,
-        }, true);
+        await changeUserPassword(app.globalData.id, oldPassword, newPassword);
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
         const next = applyPasswordErrors(error);
         this.oldError = next.oldError;
         this.newError = next.newError;
-        notify({ title: this.oldError || this.newError || '保存失败' });
+        notify({ title: this.oldError || this.newError || '保存失败，请检查网络后重试' });
       } finally {
         this.saving = false;
       }

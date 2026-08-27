@@ -154,21 +154,21 @@
       <view class="works">
         <view class="works-tabs">
           <view
-            class="works-tab"
+            class="works-tab pressable"
             :class="{ active: worksTab === 'cans' }"
             @tap="worksTab = 'cans'"
           >
             罐头 {{ displayCansCount }}
           </view>
           <view
-            class="works-tab"
+            class="works-tab pressable"
             :class="{ active: worksTab === 'nameplates' }"
             @tap="worksTab = 'nameplates'"
           >
             铭牌 {{ displayNameplatesCount }}
           </view>
           <view
-            class="works-tab"
+            class="works-tab pressable"
             :class="{ active: worksTab === 'flavors' }"
             @tap="worksTab = 'flavors'"
           >
@@ -230,7 +230,7 @@ import {
   ROUTES,
 } from '@/services/navigation';
 import { defaultMessage } from '@/services/shareMessages';
-import request from '@/utils/request';
+import { getUserInfo } from '@/services/user';
 
 export default {
   components: { BaseButton, PageShell },
@@ -316,12 +316,18 @@ export default {
           : '主页展示贡献数量。他们装过的罐头会出现在罐头详情和搜索结果里。';
       }
       if (this.worksTab === 'nameplates') {
-        return '铭牌是对某条罐头的写法、释义和出处主张。';
+        return this.isSelf
+          ? '铭牌是对某条罐头的写法、释义和出处主张。先听一罐再去贴。'
+          : 'TA 还没有公开铭牌。先去听推荐，或者稍后再来看看。';
       }
       if (this.worksTab === 'flavors') {
-        return '义项用来收纳“同一个意思在各地怎么说”。';
+        return this.isSelf
+          ? '义项用来收纳“同一个意思在各地怎么说”。去罐头库看看别人怎么装。'
+          : 'TA 还没有公开义项。先去听推荐，或者稍后再来看看。';
       }
-      return '罐头是一段乡音录音。装罐后会出现在主页数量和罐头库里。';
+      return this.isSelf
+        ? '罐头是一段乡音录音。装罐后会出现在主页数量和罐头库里。'
+        : 'TA 还没有公开罐头。先去听推荐，或者稍后再来看看。';
     },
   },
   async onLoad(options) {
@@ -363,15 +369,15 @@ export default {
     async getInfo() {
       if (!this.id) {
         this.loading = false;
-        this.loadError = '缺少用户';
+        this.loadError = '缺少用户编号，请从主页或搜索再打开一次';
         return;
       }
       this.loading = true;
       this.loadError = '';
       try {
-        this.userInfo = await request.get(`/users/${this.id}`, null, true);
+        this.userInfo = await getUserInfo(this.id, true);
       } catch (error) {
-        this.loadError = error?.message || '用户档案加载失败';
+        this.loadError = error?.message || '用户档案加载失败，请检查网络后重试';
       } finally {
         this.loading = false;
       }
@@ -552,5 +558,24 @@ export default {
 
 .works-empty-action {
   margin-top: var(--space-3);
+}
+
+.pressable {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.pressable:active {
+  opacity: 0.72;
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable {
+    transition: none;
+  }
+
+  .pressable:active {
+    transform: none;
+  }
 }
 </style>

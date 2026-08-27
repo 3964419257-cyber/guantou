@@ -97,14 +97,14 @@ export default {
       this.error = '';
       this.saving = true;
       try {
-        const userInfo = await getUserInfo(app.globalData.id);
+        const userInfo = await getUserInfo(app.globalData.id, true);
         userInfo.user.telephone = telephone;
         await changeUserInfo(app.globalData.id, userInfo.user);
         app.globalData.userInfo.telephone = telephone;
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
-        this.error = fieldErrorMessage(error, 'telephone') || error?.message || '保存失败';
+        this.error = fieldErrorMessage(error, 'telephone') || error?.message || '保存失败，请检查网络后重试';
         notify({ title: this.error });
       } finally {
         this.saving = false;

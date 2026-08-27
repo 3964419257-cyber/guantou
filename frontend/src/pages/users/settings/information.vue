@@ -21,13 +21,13 @@
             选好照片后立刻上传并保存。微信头像和昵称需要分别点选授权。
           </view>
           <view
-            class="sheet-item"
+            class="sheet-item pressable"
             @tap="pickFromAlbum"
           >
             从相册选择
           </view>
           <view
-            class="sheet-item"
+            class="sheet-item pressable"
             @tap="pickFromCamera"
           >
             拍照
@@ -35,13 +35,13 @@
           <!-- 微信头像必须用原生 button open-type="chooseAvatar"；H5 改走相册/拍照。 -->
           <!--  #ifdef  MP-WEIXIN -->
           <view
-            class="sheet-item"
+            class="sheet-item pressable"
             @tap="pickFromChat"
           >
             从聊天记录选择
           </view>
           <button
-            class="sheet-item sheet-button"
+            class="sheet-item sheet-button pressable"
             open-type="chooseAvatar"
             :disabled="saving || avatarBusy"
             @chooseavatar="onChooseWechatAvatar"
@@ -63,7 +63,7 @@
           </view>
           <!--  #endif -->
           <view
-            class="sheet-item sheet-cancel"
+            class="sheet-item sheet-cancel pressable"
             @tap="closeAvatarSheet"
           >
             取消
@@ -103,7 +103,7 @@
       </view>
       <view class="edit-hero">
         <view
-          class="avatar-hit"
+          class="avatar-hit pressable"
           @tap="openAvatarSheet"
         >
           <image
@@ -119,7 +119,7 @@
 
       <SectionBlock title="公开档案">
         <view
-          class="row"
+          class="row pressable"
           @tap="goUserUsername"
         >
           <view class="row-label">
@@ -130,7 +130,7 @@
           </view>
         </view>
         <view
-          class="row"
+          class="row pressable"
           @tap="goUserNickname"
         >
           <view class="row-label">
@@ -144,7 +144,7 @@
 
       <SectionBlock title="账号与安全（仅自己可见）">
         <view
-          class="row"
+          class="row pressable"
           @tap="goUserEmail"
         >
           <view class="row-label">
@@ -156,7 +156,7 @@
         </view>
         <!--  #ifndef  MP-WEIXIN -->
         <view
-          class="row"
+          class="row pressable"
           @tap="goUserPhone"
         >
           <view class="row-label">
@@ -168,7 +168,7 @@
         </view>
         <!--  #endif -->
         <view
-          class="row"
+          class="row pressable"
           @tap="openBirthdayPicker"
         >
           <view class="row-label">
@@ -182,7 +182,7 @@
 
       <SectionBlock title="装罐默认">
         <view
-          class="row"
+          class="row pressable"
           @tap="openDialectPicker"
         >
           <view class="row-label">
@@ -243,7 +243,7 @@ import {
   ROUTES,
 } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
-import request from '@/utils/request';
+import { changeUserInfo, getUserInfo } from '@/services/user';
 
 const app = getApp();
 // 微信头像/昵称只能写在原生 button[open-type=chooseAvatar] 与 input[type=nickname] 上；
@@ -456,7 +456,7 @@ export default {
       this.loadError = '';
       try {
         this.dialectOptions = await listAllDialects();
-        const userInfo = await request.get(`/users/${app.globalData.id}`, null, true);
+        const userInfo = await getUserInfo(app.globalData.id, true);
         this.user = { ...userInfo.user };
         this.date = userInfo.user.birthday || '未知';
         this.dialectIndex = userInfo.user.primary_dialect
@@ -465,7 +465,7 @@ export default {
           )
           : -1;
       } catch (error) {
-        this.loadError = error?.message || '资料加载失败';
+        this.loadError = error?.message || '资料加载失败，请检查网络后重试';
       } finally {
         this.loading = false;
       }
@@ -475,12 +475,7 @@ export default {
       this.saving = true;
       this.saveError = '';
       try {
-        const res = await request.put(
-          `/users/${app.globalData.id}`,
-          { user: nextUser },
-          true,
-        );
-        if (res.token) uni.setStorageSync('token', res.token);
+        const res = await changeUserInfo(app.globalData.id, nextUser);
         this.user = { ...(res.user || nextUser) };
         app.globalData.userInfo = this.user;
         notifySuccess('修改成功');
@@ -491,7 +486,7 @@ export default {
           || fieldErrorMessage(error, 'avatar')
           || fieldErrorMessage(error, 'nickname')
           || error?.message
-          || '保存失败';
+          || '保存失败，请检查网络后重试';
         notify({ title: this.saveError });
       } finally {
         this.saving = false;
@@ -684,5 +679,24 @@ export default {
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.pressable {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.pressable:active {
+  opacity: 0.72;
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable {
+    transition: none;
+  }
+
+  .pressable:active {
+    transform: none;
+  }
 }
 </style>

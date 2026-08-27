@@ -117,6 +117,8 @@ describe('information settings page', () => {
   });
 
   it('uses PageShell, TDesign pickers and no native picker or ColorUI', () => {
+    expect(source).toContain('getUserInfo');
+    expect(source).toContain('changeUserInfo');
     expect(source).toContain('PageShell');
     expect(source).toContain('BaseButton');
     expect(source).toContain('TDateTimePicker');

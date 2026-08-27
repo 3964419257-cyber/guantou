@@ -102,7 +102,7 @@ export default {
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {
-        this.error = fieldErrorMessage(error, 'nickname') || error?.message || '保存失败';
+        this.error = fieldErrorMessage(error, 'nickname') || error?.message || '保存失败，请检查网络后重试';
         notify({ title: this.error });
       } finally {
         this.saving = false;
