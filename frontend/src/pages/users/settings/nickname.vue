@@ -4,7 +4,13 @@
     :back-fallback="ROUTES.userInformation"
   >
     <view class="setting-hint">
-      昵称用于用户之间的交流，会经常展示。
+      昵称会展示给其他乡友。
+      <text
+        v-if="canUseWechatAuth"
+        class="setting-hint-extra"
+      >
+        也可以点下方授权，填入微信昵称后再保存。
+      </text>
     </view>
     <BaseForm
       ref="form"
@@ -22,6 +28,18 @@
         :error="error"
         :disabled="saving"
       />
+      <!-- 微信昵称只能写在原生 input[type=nickname] 上，H5 编译时会去掉。 -->
+      <!--  #ifdef  MP-WEIXIN -->
+      <input
+        v-if="canUseWechatAuth"
+        class="wechat-nickname"
+        type="nickname"
+        :value="form.nickname"
+        placeholder="点这里填入微信昵称"
+        :disabled="saving"
+        @blur="onWechatNickname"
+      >
+      <!--  #endif -->
       <BaseButton
         block
         text="保存"
@@ -40,6 +58,7 @@ import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import canUseWechatMiniProgramAuth from '@/services/platform';
 import { resolveSessionUserId } from '@/services/session';
 import { changeUserInfo } from '@/services/user';
 
@@ -69,6 +88,7 @@ export default {
       },
       error: '',
       saving: false,
+      canUseWechatAuth: canUseWechatMiniProgramAuth(),
     };
   },
   computed: {
@@ -85,6 +105,13 @@ export default {
     this.error = '';
   },
   methods: {
+    onWechatNickname(event) {
+      const nickname = String(event?.detail?.value || '').trim().slice(0, 20);
+      if (!nickname) return;
+      this.form.nickname = nickname;
+      this.error = '';
+      notifySuccess('已填入微信昵称，确认后点保存');
+    },
     async saveNickname() {
       const valid = await this.$refs.form.validate();
       if (valid !== true) return;
@@ -121,5 +148,24 @@ export default {
   color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
+}
+
+.setting-hint-extra {
+  display: block;
+  margin-top: var(--space-1);
+}
+
+.wechat-nickname {
+  width: 100%;
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-color);
+  color: var(--text-color);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
 }
 </style>

@@ -1,11 +1,20 @@
 <template>
   <PageShell
-    title="修改密码"
+    :title="hasPassword ? '修改密码' : '设置密码'"
     :back-fallback="ROUTES.userInformation"
   >
     <view class="password-form">
       <view class="hint">
-        新密码长度为 6 到 32 个字符。修改成功后，下次登录请使用新密码。
+        {{ hasPassword
+          ? '新密码长度为 6 到 32 个字符。修改成功后，下次登录请使用新密码。'
+          : '当前账号还没有登录密码。设置 6 到 32 个字符的密码后，可以用账号密码登录。' }}
+      </view>
+      <view
+        v-if="hasPassword"
+        class="forget-link pressable"
+        @tap="goForgetPassword"
+      >
+        不记得原密码？去邮箱找回
       </view>
 
       <BaseForm
@@ -13,7 +22,10 @@
         :data="form"
         :rules="rules"
       >
-        <view class="password-row">
+        <view
+          v-if="hasPassword"
+          class="password-row"
+        >
           <view class="password-field">
             <BaseField
               v-model="form.oldpassword"
@@ -107,9 +119,14 @@ import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
 import PageShell from '@/components/PageShell.vue';
 import { notify, notifySuccess } from '@/services/feedback';
-import { goBack, goLogin, ROUTES } from '@/services/navigation';
+import {
+  goBack,
+  goLogin,
+  goLoginForget,
+  ROUTES,
+} from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
-import { changeUserPassword } from '@/services/user';
+import { changeUserPassword, getUserInfo } from '@/services/user';
 
 const app = getApp();
 
@@ -151,17 +168,7 @@ export default {
         newpassword: '',
         confirm: '',
       },
-      rules: {
-        oldpassword: [{ required: true, message: '请输入原密码' }],
-        newpassword: [
-          { required: true, message: '请输入新密码' },
-          {
-            validator: isPasswordLengthValid,
-            message: '新密码长度为 6 到 32 个字符',
-          },
-        ],
-        confirm: [{ required: true, message: '请确认新密码' }],
-      },
+      hasPassword: true,
       oldError: '',
       newError: '',
       confirmError: '',
@@ -196,11 +203,29 @@ export default {
         this.form.confirm = value;
       },
     },
+    rules() {
+      const rules = {
+        newpassword: [
+          { required: true, message: '请输入新密码' },
+          {
+            validator: isPasswordLengthValid,
+            message: '新密码长度为 6 到 32 个字符',
+          },
+        ],
+        confirm: [{ required: true, message: '请确认新密码' }],
+      };
+      if (this.hasPassword) {
+        rules.oldpassword = [{ required: true, message: '请输入原密码' }];
+      }
+      return rules;
+    },
   },
   onShow() {
     if (!resolveSessionUserId()) {
       goLogin({}, { reset: true });
+      return;
     }
+    this.loadPasswordState();
   },
   methods: {
     toggleVisible(field) {
@@ -208,15 +233,35 @@ export default {
       const key = `${field}Visible`;
       this[key] = !this[key];
     },
+    async loadPasswordState() {
+      try {
+        const userInfo = await getUserInfo(app.globalData.id, true);
+        const user = userInfo?.user || {};
+        this.hasPassword = user.has_password !== false;
+        if (user.username) {
+          app.globalData.userInfo = {
+            ...(app.globalData.userInfo || {}),
+            ...user,
+          };
+        }
+      } catch (error) {
+        this.hasPassword = true;
+      }
+    },
+    goForgetPassword() {
+      if (this.saving) return;
+      const username = String(app.globalData.userInfo?.username || '').trim();
+      goLoginForget(username ? { username } : {});
+    },
     async savePassword() {
       if (this.saving) return;
       const oldPassword = String(this.form.oldpassword || '').trim();
       const newPassword = String(this.form.newpassword || '').trim();
       const confirmPassword = String(this.form.confirm || '').trim();
-      this.oldError = oldPassword ? '' : '请输入原密码';
+      this.oldError = (this.hasPassword && !oldPassword) ? '请输入原密码' : '';
       this.newError = newPassword ? '' : '请输入新密码';
       this.confirmError = confirmPassword ? '' : '请确认新密码';
-      if (!oldPassword || !newPassword || !confirmPassword) return;
+      if ((this.hasPassword && !oldPassword) || !newPassword || !confirmPassword) return;
       if (newPassword !== confirmPassword) {
         this.confirmError = '两次密码不一样';
         return;
@@ -257,6 +302,12 @@ export default {
   color: var(--muted-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
+}
+
+.forget-link {
+  margin-bottom: var(--space-4);
+  color: var(--accent-color);
+  font-size: var(--font-size-sm);
 }
 
 .password-row {

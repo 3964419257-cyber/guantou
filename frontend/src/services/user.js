@@ -136,24 +136,27 @@ export async function changeUserEmail(id, email, code) {
  * @param overwrite{boolean} 是否覆盖
  * @returns {Promise<unknown>}
  */
-export async function bindingWechat(id, overwrite) {
+export async function bindingWechat(id, overwrite, { demo = false } = {}) {
+  if (demo) {
+    await request.put(`/users/${id}/wechat`, { demo: true, overwrite }, true);
+    return { success: true, message: '绑定成功' };
+  }
   return new Promise((resolve, reject) => {
     uni.login({
       async success(res) {
         if (!res.code) {
-          reject(new Error('获取账号失败'));
+          reject(new Error('获取微信授权失败'));
           return;
         }
         try {
-          await request.put(`/users/${id}/wechat`, { jscode: res.code, overwrite });
+          await request.put(`/users/${id}/wechat`, { jscode: res.code, overwrite }, true);
           resolve({ success: true, message: '绑定成功' });
         } catch (err) {
-          // 传递错误给调用方，由调用方统一显示提示
           reject(err instanceof Error ? err : new Error((err && (err.message || JSON.stringify(err))) || '绑定失败'));
         }
       },
       fail() {
-        reject(new Error('获取账号失败'));
+        reject(new Error('获取微信授权失败'));
       },
     });
   });
@@ -165,7 +168,7 @@ export async function bindingWechat(id, overwrite) {
  * @returns {Promise<unknown>}
  */
 export async function cancelBindingWechat(id) {
-  return request.del(`/users/${id}/wechat`);
+  return request.del(`/users/${id}/wechat`, null, true);
 }
 
 /**

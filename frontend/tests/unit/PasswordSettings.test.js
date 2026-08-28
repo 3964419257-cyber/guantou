@@ -9,6 +9,7 @@ vi.mock('@/services/navigation', async (importOriginal) => {
     ...actual,
     goBack: vi.fn(),
     goLogin: vi.fn(),
+    goLoginForget: vi.fn(),
   };
 });
 
@@ -17,6 +18,16 @@ vi.mock('@/utils/request', () => ({
     put: vi.fn(),
   },
 }));
+
+vi.mock('@/services/user', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    getUserInfo: vi.fn(async () => ({
+      user: { id: 7, username: 'collector', has_password: true },
+    })),
+  };
+});
 
 vi.mock('@/services/feedback', () => ({
   notify: vi.fn(),
@@ -28,7 +39,7 @@ vi.mock('@/services/theme', () => ({
   getThemePreference: vi.fn(() => 'light'),
 }));
 
-import { goBack, goLogin } from '@/services/navigation';
+import { goBack, goLogin, goLoginForget } from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
 import request from '@/utils/request';
 
@@ -66,6 +77,7 @@ describe('password settings form', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     app.globalData.id = 7;
+    app.globalData.userInfo = { username: 'collector' };
     globalThis.uni = {
       showToast: vi.fn(),
       setStorageSync: vi.fn(),
@@ -75,6 +87,9 @@ describe('password settings form', () => {
 
   it('uses design-system primitives instead of native form controls', () => {
     expect(passwordPageSource).toContain('changeUserPassword');
+    expect(passwordPageSource).toContain('goLoginForget');
+    expect(passwordPageSource).toContain('has_password');
+    expect(passwordPageSource).toContain('设置密码');
     expect(passwordPageSource).toContain('PageShell');
     expect(passwordPageSource).toContain('BaseForm');
     expect(passwordPageSource).toContain('BaseField');
@@ -209,5 +224,28 @@ describe('password settings form', () => {
     const wrapper = mountForm();
     wrapper.vm.$options.onShow.call(wrapper.vm);
     expect(goLogin).toHaveBeenCalled();
+  });
+
+  it('opens email recovery with the signed-in username', () => {
+    app.globalData.userInfo = { username: 'collector' };
+    const wrapper = mountForm();
+    wrapper.vm.goForgetPassword();
+    expect(goLoginForget).toHaveBeenCalledWith({ username: 'collector' });
+  });
+
+  it('lets a passwordless account set a password without the old field', async () => {
+    request.put.mockResolvedValueOnce({ token: 'fresh-token', user: { id: 7, has_password: true } });
+    const wrapper = mountForm();
+    wrapper.vm.hasPassword = false;
+    wrapper.vm.newPassword = 'new-pass';
+    wrapper.vm.confirmPassword = 'new-pass';
+    await wrapper.vm.savePassword();
+    await flushPromises();
+    expect(request.put).toHaveBeenCalledWith(
+      '/users/7/password',
+      { oldpassword: '', newpassword: 'new-pass' },
+      true,
+    );
+    expect(wrapper.vm.oldError).toBe('');
   });
 });

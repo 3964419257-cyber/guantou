@@ -22,7 +22,7 @@
 | `pages/users/settings/email` | done | [#227](https://github.com/e-dialect/guantou/issues/227) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：验证码与邮箱绑定流程 |
 | `pages/login/register` | issue | [#228](https://github.com/e-dialect/guantou/issues/228)：验证码、协议与注册校验 |
 | `pages/login/register/wechat` | issue | [#230](https://github.com/e-dialect/guantou/issues/230)：微信昵称/授权能力 |
-| `pages/login/forget` | issue | [#226](https://github.com/e-dialect/guantou/issues/226)：多阶段找回密码流程 |
+| `pages/login/forget` | done | [#226](https://github.com/e-dialect/guantou/issues/226) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：多阶段找回密码与修改密码入口 |
 | `pages/cans/create` | partial | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：录音、草稿、TDesign 级联与枚举 Picker 已迁移；项目表单原语的进一步收敛由 [#232](https://github.com/e-dialect/guantou/issues/232) 跟踪 |
 | `pages/pronunciations/create` | partial | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：写法 Picker、方言级联、字段校验和状态反馈已迁移；项目表单原语的进一步收敛由 [#234](https://github.com/e-dialect/guantou/issues/234) 跟踪 |
 | `pages/shelves/index` | issue | [#231](https://github.com/e-dialect/guantou/issues/231)：创建表单与列表状态 |

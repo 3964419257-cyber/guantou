@@ -11,6 +11,8 @@ vi.mock('@/services/navigation', async (importOriginal) => {
     goHome: vi.fn(),
     goLogin: vi.fn(),
     goMailSend: vi.fn(),
+    goUserEmail: vi.fn(),
+    goUserInformation: vi.fn(),
   };
 });
 
@@ -36,7 +38,13 @@ vi.mock('@/utils/request', () => ({
 
 vi.mock('@/services/user', () => ({
   getUserInfo: vi.fn(async () => ({
-    user: { id: 7, nickname: '采集者', username: 'collector', wechat: false },
+    user: {
+      id: 7,
+      nickname: '采集者',
+      username: 'collector',
+      email: '',
+      wechat: false,
+    },
     contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
     notification: { statistics: { unread: 0 } },
   })),
@@ -87,9 +95,9 @@ vi.mock('@/components/ConfirmDialog', () => ({
   default: vi.fn(async () => true),
 }));
 
-import { goBack, goHome, goLogin, goMailSend } from '@/services/navigation';
+import { goBack, goHome, goLogin, goMailSend, goUserEmail, goUserInformation } from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
-import { clearUserInfo, changeUserInfo, getUserInfo } from '@/services/user';
+import { bindingWechat, cancelBindingWechat, clearUserInfo, changeUserInfo, getUserInfo } from '@/services/user';
 import request from '@/utils/request';
 import confirmDialog from '@/components/ConfirmDialog';
 
@@ -176,6 +184,8 @@ describe('account UI tokens', () => {
     expect(mine).toContain('草稿箱');
     expect(mine).toContain('关注的方言');
     expect(mine).toContain('账号与安全');
+    expect(mine).toContain('邮箱');
+    expect(mine).not.toContain('网页演示绑定微信');
     expect(details).toContain('私信');
     expect(details).toContain("requireAuth('dm'");
     expect(mine).toContain('pressable');
@@ -206,6 +216,8 @@ describe('account UI tokens', () => {
     expect(source).toContain('从相册选择');
     expect(source).toContain('chooseAvatar');
     expect(source).toContain('chooseMessageFile');
+    expect(source).not.toContain('type="nickname"');
+    expect(source).not.toContain('微信头像和聊天记录需要在小程序里使用');
     expect(source).not.toContain('将会默认公开');
   });
 });
@@ -221,6 +233,15 @@ describe('nickname settings form', () => {
     };
     request.put.mockResolvedValue({ token: 'token', user: { nickname: '新昵称' } });
     changeUserInfo.mockResolvedValue({ token: 'token', user: { nickname: '新昵称' } });
+  });
+
+  it('keeps WeChat nickname fill on the nickname page for mini-program builds', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/pages/users/settings/nickname.vue'),
+      'utf8',
+    );
+    expect(source).toContain('type="nickname"');
+    expect(source).toContain('MP-WEIXIN');
   });
 
   it('blocks empty nickname and maps field errors from data.nickname', async () => {
@@ -277,6 +298,15 @@ describe('nickname settings form', () => {
     expect(changeUserInfo).toHaveBeenCalled();
     expect(goBack).toHaveBeenCalled();
     expect(notifySuccess).toHaveBeenCalledWith('修改成功');
+  });
+
+  it('fills a WeChat nickname into the form without saving until confirm', async () => {
+    const wrapper = mountForm(NicknamePage);
+    wrapper.vm.$options.onShow.call(wrapper.vm);
+    wrapper.vm.onWechatNickname({ detail: { value: ' 微信昵称 ' } });
+    expect(wrapper.vm.form.nickname).toBe('微信昵称');
+    expect(changeUserInfo).not.toHaveBeenCalled();
+    expect(notifySuccess).toHaveBeenCalledWith('已填入微信昵称，确认后点保存');
   });
 });
 
@@ -406,6 +436,73 @@ describe('mine page logout', () => {
     expect(confirmDialog).toHaveBeenCalled();
     expect(clearUserInfo).toHaveBeenCalled();
     expect(goHome).toHaveBeenCalledWith(true);
+  });
+
+  it('hides WeChat bind on H5 when the account is not bound', async () => {
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+    expect(wrapper.vm.canUseWechatAuth).toBe(false);
+    expect(wrapper.vm.showWechatMenu).toBe(false);
+    expect(wrapper.text()).not.toContain('点此授权');
+    expect(bindingWechat).not.toHaveBeenCalled();
+  });
+
+  it('asks before binding WeChat when mini-program auth is available', async () => {
+    const wrapper = mountForm(MePage);
+    await flushPromises();
+    wrapper.vm.canUseWechatAuth = true;
+    wrapper.vm.wechatBound = false;
+    await wrapper.vm.onWechatMenuTap();
+    expect(confirmDialog).toHaveBeenCalledWith(expect.objectContaining({
+      title: '绑定当前微信？',
+    }));
+    expect(bindingWechat).toHaveBeenCalledWith(7, false);
+    expect(goUserInformation).toHaveBeenCalled();
+  });
+
+  it('lets H5 unbind an already bound WeChat account', async () => {
+    getUserInfo.mockResolvedValue({
+      user: {
+        id: 7,
+        nickname: '采集者',
+        username: 'collector',
+        email: 'c@example.com',
+        wechat: true,
+      },
+      contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
+      notification: { statistics: { unread: 0 } },
+    });
+    const wrapper = mountForm(MePage);
+    await wrapper.vm.getInfo();
+    expect(wrapper.vm.showWechatMenu).toBe(true);
+    await wrapper.vm.onWechatMenuTap();
+    expect(confirmDialog).toHaveBeenCalledWith(expect.objectContaining({
+      title: '解绑微信？',
+    }));
+    expect(cancelBindingWechat).toHaveBeenCalledWith(7);
+    expect(bindingWechat).not.toHaveBeenCalled();
+  });
+
+  it('sends users without email to bind email instead of unbinding WeChat', async () => {
+    getUserInfo.mockResolvedValue({
+      user: {
+        id: 7,
+        nickname: '采集者',
+        username: 'collector',
+        email: '',
+        wechat: true,
+      },
+      contribution: { cans_uploaded: 0, flavors_uploaded: 0, nameplates: 0 },
+      notification: { statistics: { unread: 0 } },
+    });
+    const wrapper = mountForm(MePage);
+    await wrapper.vm.getInfo();
+    await wrapper.vm.onWechatMenuTap();
+    expect(confirmDialog).toHaveBeenCalledWith(expect.objectContaining({
+      title: '还不能解绑',
+    }));
+    expect(goUserEmail).toHaveBeenCalled();
+    expect(cancelBindingWechat).not.toHaveBeenCalled();
   });
 
   it('does not treat a non-zero can count as an empty works tab', async () => {

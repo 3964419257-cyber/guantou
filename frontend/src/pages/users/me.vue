@@ -238,15 +238,29 @@
             </view>
             <view
               class="menu-item pressable"
+              @tap="toEmailPage"
+            >
+              <view>邮箱</view>
+              <view class="menu-value">
+                {{ emailLabel }}
+              </view>
+            </view>
+            <view
+              class="menu-item pressable"
               @tap="toChangePasswordPage"
             >
               修改密码
             </view>
             <view
+              v-if="showWechatMenu"
               class="menu-item pressable"
-              @tap="bindingWechat"
+              :class="{ busy: isBinding }"
+              @tap="onWechatMenuTap"
             >
-              {{ wechatBindText }}
+              <view>微信</view>
+              <view class="menu-value">
+                {{ wechatStatusText }}
+              </view>
             </view>
             <view
               class="menu-item danger pressable"
@@ -315,9 +329,11 @@ import {
   goHome,
   goMails,
   goSearch,
+  goUserEmail,
   goUserInformation,
   goUserPassword,
 } from '@/services/navigation';
+import canUseWechatMiniProgramAuth from '@/services/platform';
 import {
   bindingWechat as bindingWechatService,
   cancelBindingWechat as cancelBindingWechatService,
@@ -344,7 +360,9 @@ export default {
       draftsCount: 0,
       unreadMailsCount: 0,
       followedDialects: [],
-      wechatBindText: '绑定微信',
+      email: '',
+      wechatBound: false,
+      canUseWechatAuth: canUseWechatMiniProgramAuth(),
       isBinding: false,
       loading: Boolean(uni.getStorageSync('token')),
       loadError: '',
@@ -388,6 +406,17 @@ export default {
       }
       return '罐头是一段乡音录音。装一罐后会出现在这里和罐头库。';
     },
+    emailLabel() {
+      return this.email || '未绑定';
+    },
+    showWechatMenu() {
+      return this.canUseWechatAuth || this.wechatBound;
+    },
+    wechatStatusText() {
+      if (this.isBinding) return this.wechatBound ? '解绑中…' : '绑定中…';
+      if (this.wechatBound) return '已绑定 · 点此解绑';
+      return '未绑定 · 点此授权';
+    },
   },
   beforeMount() {
     this.getInfo();
@@ -403,6 +432,9 @@ export default {
     },
     toChangePasswordPage() {
       goUserPassword();
+    },
+    toEmailPage() {
+      goUserEmail();
     },
     toUserInfoPage() {
       goUserInformation();
@@ -461,7 +493,8 @@ export default {
         this.unreadMailsCount = userInfo.notification
           ? userInfo.notification.statistics.unread
           : 0;
-        this.wechatBindText = userInfo.user.wechat ? '解绑微信' : '绑定微信';
+        this.email = userInfo.user.email || '';
+        this.wechatBound = Boolean(userInfo.user.wechat);
       } catch (error) {
         this.loadError = error?.message || '档案加载失败，请检查网络后重试';
       } finally {
@@ -480,27 +513,85 @@ export default {
       goHome(true);
       notifySuccess('登出成功');
     },
-    async bindingWechat() {
+    async onWechatMenuTap() {
       const id = resolveSessionUserId();
       if (this.isBinding || !id) return;
+      if (this.wechatBound) {
+        await this.unbindWechat(id);
+        return;
+      }
+      if (!this.canUseWechatAuth) return;
+      await this.bindWechat(id);
+    },
+    async bindWechat(id) {
+      const confirmed = await confirmDialog({
+        title: '绑定当前微信？',
+        content: '绑定后可用这个微信一键登录。头像请到编辑资料里授权，昵称请到修改昵称里填入。',
+        confirmText: '去授权',
+      });
+      if (!confirmed) return;
       this.isBinding = true;
       try {
-        const userInfo = await getUserInfo(id, true);
-        if (!userInfo.user.wechat) {
-          // #ifndef MP-WEIXIN
-          notify({ title: '请在微信小程序中绑定微信' });
-          // #endif
-          // #ifdef MP-WEIXIN
-          await bindingWechatService(id, false);
+        await bindingWechatService(id, false);
+        notifySuccess('绑定成功');
+        await this.getInfo();
+        const goEdit = await confirmDialog({
+          title: '要用微信头像吗？',
+          content: '去编辑资料可授权微信头像；去修改昵称可填入微信昵称。',
+          confirmText: '去编辑资料',
+          cancelText: '稍后',
+        });
+        if (goEdit) goUserInformation();
+      } catch (err) {
+        await this.handleBindError(id, err);
+      } finally {
+        this.isBinding = false;
+      }
+    },
+    async handleBindError(id, err) {
+      const message = err?.message || '绑定失败，请检查网络后重试';
+      if (err?.statusCode === 409 && message.includes('该账户已绑定微信')) {
+        const overwrite = await confirmDialog({
+          title: '更换绑定的微信？',
+          content: '这个账号已经绑过微信。要用现在这个微信替换吗？',
+          confirmText: '替换',
+        });
+        if (!overwrite) return;
+        try {
+          await bindingWechatService(id, true);
           notifySuccess('绑定成功');
-          // #endif
-        } else {
-          await cancelBindingWechatService(id);
-          notifySuccess('解绑成功');
+          await this.getInfo();
+        } catch (retryError) {
+          notify({ title: retryError?.message || '绑定失败，请检查网络后重试' });
         }
+        return;
+      }
+      notify({ title: message });
+    },
+    async unbindWechat(id) {
+      if (!this.email) {
+        const goEmail = await confirmDialog({
+          title: '还不能解绑',
+          content: '解绑前请先绑定邮箱，否则可能无法再登录这个账号。',
+          confirmText: '去绑定邮箱',
+        });
+        if (goEmail) goUserEmail();
+        return;
+      }
+      const confirmed = await confirmDialog({
+        title: '解绑微信？',
+        content: '解绑后不能再用这个微信登录，邮箱和密码登录不受影响。',
+        confirmText: '解绑',
+        danger: true,
+      });
+      if (!confirmed) return;
+      this.isBinding = true;
+      try {
+        await cancelBindingWechatService(id);
+        notifySuccess('解绑成功');
         await this.getInfo();
       } catch (err) {
-        notify({ title: (err && err.message) || '操作失败，请检查网络后重试' });
+        notify({ title: (err && err.message) || '解绑失败，请检查网络后重试' });
       } finally {
         this.isBinding = false;
       }
@@ -751,6 +842,15 @@ export default {
 
 .menu-item:last-child {
   border-bottom: 0;
+}
+
+.menu-item.busy {
+  opacity: 0.72;
+}
+
+.menu-value {
+  color: var(--muted-color);
+  font-size: var(--font-size-sm);
 }
 
 .danger {

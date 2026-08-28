@@ -126,6 +126,9 @@ describe('information settings page', () => {
     expect(source).toContain('open-type="chooseAvatar"');
     expect(source).toContain('从相册选择');
     expect(source).toContain('chooseMessageFile');
+    expect(source).not.toContain('type="nickname"');
+    expect(source).not.toContain('微信头像和聊天记录需要在小程序里使用');
+    expect(source).not.toContain('H5 用相册');
     expect(source).toContain('overflow-wrap: anywhere');
     expect(source).toContain('公开档案');
     expect(source).toContain('仅自己可见');
@@ -143,6 +146,8 @@ describe('information settings page', () => {
     expect(wrapper.vm.date).toBe('1991-02-03');
     expect(wrapper.vm.dialectIndex).toBe(0);
     expect(wrapper.vm.selectedDialectLabel).toBe('西南官话.四川');
+    expect(wrapper.vm.canUseWechatAuth).toBe(false);
+    expect(wrapper.vm.avatarHint).toBe('点击头像更换，可用相册或相机选取。');
   });
 
   it('saves birthday and dialect with the existing user payload', async () => {
@@ -204,6 +209,38 @@ describe('information settings page', () => {
       true,
     );
     expect(wrapper.vm.avatarSheetOpen).toBe(false);
+    expect(wrapper.vm.avatarPreview).toBe('');
+    expect(wrapper.vm.avatarSrc).toBe(profile.user.avatar);
+  });
+
+  it('does not refetch the profile while an avatar upload is in flight', async () => {
+    const wrapper = await showPage();
+    request.get.mockClear();
+    wrapper.vm.avatarBusy = true;
+    await wrapper.vm.$options.onShow.call(wrapper.vm);
+    expect(request.get).not.toHaveBeenCalled();
+    wrapper.vm.avatarBusy = false;
+    wrapper.vm.pickingAvatar = true;
+    await wrapper.vm.$options.onShow.call(wrapper.vm);
+    expect(request.get).not.toHaveBeenCalled();
+  });
+
+  it('previews the local file before the upload finishes', async () => {
+    let finishUpload;
+    uploadFile.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        finishUpload = resolve;
+      }),
+    );
+    const wrapper = await showPage();
+    const pending = wrapper.vm.saveAvatarFromPath('/tmp/avatar.jpg');
+    await flushPromises();
+    expect(wrapper.vm.avatarPreview).toBe('/tmp/avatar.jpg');
+    expect(wrapper.vm.avatarSrc).toBe('/tmp/avatar.jpg');
+    finishUpload({ url: 'https://example.com/new.png' });
+    await pending;
+    await flushPromises();
+    expect(wrapper.vm.avatarPreview).toBe('');
   });
 
   it('keeps the sheet open and notifies when avatar upload fails', async () => {
@@ -219,6 +256,16 @@ describe('information settings page', () => {
     expect(wrapper.vm.saveError).toBe('文件过大');
     expect(notify).toHaveBeenCalledWith({ title: '文件过大' });
     expect(wrapper.vm.avatarSheetOpen).toBe(true);
+  });
+
+  it('notifies when avatar upload returns no url', async () => {
+    const wrapper = await showPage();
+    uploadFile.mockResolvedValueOnce({});
+    await wrapper.vm.saveAvatarFromPath('/tmp/avatar.jpg');
+    await flushPromises();
+    expect(request.put).not.toHaveBeenCalled();
+    expect(wrapper.vm.saveError).toBe('头像上传失败，请检查网络后重试');
+    expect(wrapper.vm.avatarPreview).toBe('');
   });
 
   it('ignores a cancelled album picker', async () => {

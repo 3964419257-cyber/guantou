@@ -87,6 +87,76 @@ paths:
                 $ref: "#/components/schemas/AuthToken"
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /login/forget/:
+    get:
+      tags: [Auth]
+      operationId: lookupPasswordResetAccount
+      summary: 按用户名查询找回密码用的脱敏邮箱
+      security: []
+      parameters:
+        - in: query
+          name: username
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: 账号已绑定邮箱
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email_masked: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Auth]
+      operationId: sendPasswordResetCode
+      summary: 向账号绑定邮箱发送重置验证码
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username: { type: string }
+      responses:
+        "200":
+          description: 请求已受理。未配置 SMTP 的演示环境会额外返回 demo_code。
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email_masked: { type: string }
+                  retry_after: { type: integer, minimum: 0 }
+                  delivery: { type: string, enum: [demo] }
+                  demo_code: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    put:
+      tags: [Auth]
+      operationId: resetPassword
+      summary: 用邮箱验证码重置密码
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, code]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                code: { type: string }
+      responses:
+        "200":
+          description: 重置成功
+        "400": { $ref: "#/components/responses/BadRequest" }
+
   /users/email-code/:
     post:
       tags: [Users]
@@ -108,13 +178,15 @@ paths:
                   description: register 注册；bind 绑定或更换邮箱；reset_password 找回密码
       responses:
         "200":
-          description: 请求已受理。绑定用途下，邮箱已被占用时返回 409。
+          description: 请求已受理。绑定用途下，邮箱已被占用时返回 409。未配置 SMTP 的演示环境会额外返回 demo_code。
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   retry_after: { type: integer, minimum: 0 }
+                  delivery: { type: string, enum: [demo] }
+                  demo_code: { type: string, description: 仅演示环境返回，生产环境不会出现 }
         "400": { $ref: "#/components/responses/BadRequest" }
         "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }

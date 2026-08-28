@@ -73,6 +73,12 @@
             {{ sendCodeLabel }}
           </BaseButton>
         </view>
+        <view
+          v-if="demoCode"
+          class="demo-code"
+        >
+          Demo 验证码：<text>{{ demoCode }}</text>
+        </view>
         <BaseButton
           block
           :disabled="saving || sending"
@@ -140,6 +146,7 @@ export default {
       ready: false,
       countdown: 0,
       countdownTimer: null,
+      demoCode: '',
       rules: {
         email: [{ required: true, message: '请输入新邮箱' }],
         code: [{ required: true, message: '请输入验证码' }],
@@ -210,7 +217,8 @@ export default {
       this.sending = true;
       try {
         const response = await sendEmailCode(email, 'bind', true);
-        notify({ title: '验证码已发送' });
+        this.demoCode = response?.demo_code || '';
+        notify({ title: this.demoCode ? '验证码已生成' : '验证码已发送' });
         this.startCountdown(response?.retry_after);
       } catch (error) {
         this.emailError = fieldErrorMessage(error, 'email')
@@ -295,6 +303,19 @@ export default {
 .code-button {
   margin-bottom: var(--space-3);
   flex-shrink: 0;
+}
+
+.demo-code {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-subtle-color);
+  color: var(--warning-color);
+  font-size: var(--font-size-sm);
+}
+
+.demo-code text {
+  font-weight: 700;
+  letter-spacing: 0.2em;
 }
 
 :deep(.base-field-control),

@@ -211,9 +211,10 @@ class ManagePassword(View):
         if user.id != id:
             raise ForbiddenException
         body = demjson3.decode(request.body)
-        if not user.check_password(body["oldpassword"]):
-            raise WrongPassword()
         validate_password_policy(body["newpassword"])
+        if user.has_usable_password():
+            if not user.check_password(body.get("oldpassword") or ""):
+                raise WrongPassword()
         user.set_password(body["newpassword"])
         user.save()
         return JsonResponse(

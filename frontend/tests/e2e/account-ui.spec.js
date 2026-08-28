@@ -114,6 +114,7 @@ async function mockSignedInCollector(page) {
           email: 'c@example.com',
           telephone: '13900000001',
           birthday: '1991-02-03',
+          wechat: false,
           primary_dialect: { id: 3, name: '四川话', qualified_code: '西南官话.四川' },
         },
         contribution: {},
@@ -121,6 +122,17 @@ async function mockSignedInCollector(page) {
     });
   });
 }
+
+test('H5 mine account menu hides WeChat bind and keeps email', async ({ page }) => {
+  await mockSignedInCollector(page);
+  await page.goto('/pages/users/me');
+
+  await expect(page.getByText('账号与安全')).toBeVisible();
+  await expect(page.getByText('邮箱')).toBeVisible();
+  await expect(page.getByText('修改密码')).toBeVisible();
+  await expect(page.getByText('绑定微信')).toHaveCount(0);
+  await expect(page.getByText('点此授权')).toHaveCount(0);
+});
 
 test('password settings use design-system fields, visibility, and loading', async ({ page }) => {
   await mockSignedInCollector(page);
@@ -157,6 +169,15 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await expect(page.getByText('修改成功')).toBeVisible();
 });
 
+test('H5 nickname page hides WeChat nickname fill', async ({ page }) => {
+  await mockSignedInCollector(page);
+  await page.goto('/pages/users/settings/nickname');
+
+  await expect(page.getByText('修改昵称').first()).toBeVisible();
+  await expect(page.getByText('点这里填入微信昵称')).toHaveCount(0);
+  await expect(page.getByText('也可以点下方授权')).toHaveCount(0);
+});
+
 test('information settings replace native pickers and open the avatar sheet', async ({ page }) => {
   await mockSignedInCollector(page);
   await page.goto('/pages/users/settings/information');
@@ -169,8 +190,11 @@ test('information settings replace native pickers and open the avatar sheet', as
   await expect(page.locator('picker')).toHaveCount(0);
 
   await page.locator('.avatar-hit').click();
-  await expect(page.getByText('从相册选择')).toBeVisible();
-  await expect(page.getByText('拍照')).toBeVisible();
+  await expect(page.locator('.sheet-item', { hasText: '从相册选择' })).toBeVisible();
+  await expect(page.locator('.sheet-item', { hasText: '拍照' })).toBeVisible();
+  await expect(page.getByText('使用微信头像')).toHaveCount(0);
+  await expect(page.getByText('从聊天记录选择')).toHaveCount(0);
+  await expect(page.getByText('微信头像和聊天记录需要在小程序里使用')).toHaveCount(0);
 
   if (process.env.E2E_SCREENSHOT_DIR) {
     await page.screenshot({

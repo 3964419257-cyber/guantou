@@ -18,7 +18,13 @@
             更换头像
           </view>
           <view class="sheet-copy">
-            选好照片后立刻上传并保存。微信头像和昵称需要分别点选授权。
+            {{ avatarSheetCopy }}
+          </view>
+          <view
+            v-if="avatarBusy"
+            class="sheet-copy"
+          >
+            正在上传头像…
           </view>
           <view
             class="sheet-item pressable"
@@ -32,15 +38,17 @@
           >
             拍照
           </view>
-          <!-- 微信头像必须用原生 button open-type="chooseAvatar"；H5 改走相册/拍照。 -->
+          <!-- 微信头像必须用原生 button open-type="chooseAvatar"。 -->
           <!--  #ifdef  MP-WEIXIN -->
           <view
+            v-if="canUseWechatAuth"
             class="sheet-item pressable"
             @tap="pickFromChat"
           >
             从聊天记录选择
           </view>
           <button
+            v-if="canUseWechatAuth"
             class="sheet-item sheet-button pressable"
             open-type="chooseAvatar"
             :disabled="saving || avatarBusy"
@@ -48,19 +56,6 @@
           >
             使用微信头像
           </button>
-          <input
-            class="sheet-item sheet-nickname"
-            type="nickname"
-            :value="user.nickname"
-            placeholder="点这里填入微信昵称"
-            :disabled="saving || avatarBusy"
-            @blur="onChooseWechatNickname"
-          >
-          <!--  #endif -->
-          <!--  #ifndef  MP-WEIXIN -->
-          <view class="sheet-copy sheet-copy-foot">
-            微信头像和聊天记录需要在小程序里使用。
-          </view>
           <!--  #endif -->
           <view
             class="sheet-item sheet-cancel pressable"
@@ -108,12 +103,12 @@
         >
           <image
             class="hero-avatar"
-            :src="user.avatar"
+            :src="avatarSrc"
             mode="aspectFill"
           />
         </view>
         <view class="edit-hero-hint">
-          点击头像更换。H5 用相册或拍照；小程序还可选聊天记录和微信头像。
+          {{ avatarHint }}
         </view>
       </view>
 
@@ -154,7 +149,6 @@
             {{ user.email || '未填写' }}
           </view>
         </view>
-        <!--  #ifndef  MP-WEIXIN -->
         <view
           class="row pressable"
           @tap="goUserPhone"
@@ -166,7 +160,6 @@
             {{ user.telephone || '未填写' }}
           </view>
         </view>
-        <!--  #endif -->
         <view
           class="row pressable"
           @tap="openBirthdayPicker"
@@ -243,11 +236,12 @@ import {
   ROUTES,
 } from '@/services/navigation';
 import { resolveSessionUserId } from '@/services/session';
+import canUseWechatMiniProgramAuth from '@/services/platform';
 import { changeUserInfo, getUserInfo } from '@/services/user';
 
 const app = getApp();
-// 微信头像/昵称只能写在原生 button[open-type=chooseAvatar] 与 input[type=nickname] 上；
-// H5 没有这两项开放能力，改走 uni.chooseImage 相册/拍照，选完立即 uploadFile 再 PUT。
+// 微信头像只能写在原生 button[open-type=chooseAvatar] 上，因此保留小程序条件编译。
+// H5 没有这项开放能力，只保留相册/拍照。微信昵称改在修改昵称页授权填入。
 const BIRTHDAY_START = '1960-09-01';
 const BIRTHDAY_END = '2020-09-01';
 const BIRTHDAY_FALLBACK = '1990-01-01';
@@ -294,8 +288,11 @@ export default {
       saving: false,
       avatarSheetOpen: false,
       avatarBusy: false,
+      pickingAvatar: false,
+      avatarPreview: '',
       birthdayPickerOpen: false,
       dialectPickerOpen: false,
+      canUseWechatAuth: canUseWechatMiniProgramAuth(),
     };
   },
   computed: {
@@ -318,12 +315,28 @@ export default {
     birthdayPickerValue() {
       return isDateValue(this.date) ? this.date : BIRTHDAY_FALLBACK;
     },
+    avatarSrc() {
+      return this.avatarPreview || this.user.avatar;
+    },
+    avatarHint() {
+      if (this.canUseWechatAuth) {
+        return '点击头像更换。可用相册、拍照、聊天图片，或授权微信头像。';
+      }
+      return '点击头像更换，可用相册或相机选取。';
+    },
+    avatarSheetCopy() {
+      if (this.canUseWechatAuth) {
+        return '选好后立刻上传并保存。使用微信头像需要点选授权。';
+      }
+      return '选好照片后立刻上传并保存。';
+    },
   },
   onShow() {
     if (!resolveSessionUserId()) {
       goLogin({}, { reset: true });
       return;
     }
+    if (this.pickingAvatar || this.avatarBusy || this.saving) return;
     this.getInfo();
   },
   methods: {
@@ -386,39 +399,52 @@ export default {
       if (!path || this.saving || this.avatarBusy) return;
       this.avatarBusy = true;
       this.saveError = '';
+      this.avatarPreview = path;
       try {
-        const { url } = await uploadFile(path);
+        const uploaded = await uploadFile(path);
+        const url = uploaded?.url;
+        if (!url) {
+          throw new Error('头像上传失败，请检查网络后重试');
+        }
         await this.persistUser({ ...this.user, avatar: url });
+        this.avatarPreview = '';
         if (closeSheet) this.avatarSheetOpen = false;
       } catch (error) {
-        this.saveError = fieldErrorMessage(error, 'avatar') || error?.message || '头像更新失败';
+        this.avatarPreview = '';
+        this.saveError = fieldErrorMessage(error, 'avatar')
+          || error?.message
+          || '头像上传失败，请检查网络后重试';
         notify({ title: this.saveError });
       } finally {
         this.avatarBusy = false;
       }
     },
-    async pickFromAlbum() {
+    async withAvatarPicker(run, failMessage) {
+      this.pickingAvatar = true;
       try {
+        await run();
+      } catch (error) {
+        if (this.isUserCancel(error)) return;
+        this.saveError = failMessage;
+        notify({ title: this.saveError });
+      } finally {
+        this.pickingAvatar = false;
+      }
+    },
+    async pickFromAlbum() {
+      await this.withAvatarPicker(async () => {
         const path = await this.chooseImagePath(['album']);
         await this.saveAvatarFromPath(path);
-      } catch (error) {
-        if (this.isUserCancel(error)) return;
-        this.saveError = '选择相册图片失败';
-        notify({ title: this.saveError });
-      }
+      }, '选择相册图片失败');
     },
     async pickFromCamera() {
-      try {
+      await this.withAvatarPicker(async () => {
         const path = await this.chooseImagePath(['camera']);
         await this.saveAvatarFromPath(path);
-      } catch (error) {
-        if (this.isUserCancel(error)) return;
-        this.saveError = '拍照失败';
-        notify({ title: this.saveError });
-      }
+      }, '拍照失败');
     },
     async pickFromChat() {
-      try {
+      await this.withAvatarPicker(async () => {
         const path = await new Promise((resolve, reject) => {
           uni.chooseMessageFile({
             count: 1,
@@ -436,20 +462,11 @@ export default {
           });
         });
         await this.saveAvatarFromPath(path);
-      } catch (error) {
-        if (this.isUserCancel(error)) return;
-        this.saveError = '选择聊天记录图片失败';
-        notify({ title: this.saveError });
-      }
+      }, '选择聊天记录图片失败');
     },
     async onChooseWechatAvatar(event) {
       const path = event?.detail?.avatarUrl || '';
-      await this.saveAvatarFromPath(path, { closeSheet: false });
-    },
-    async onChooseWechatNickname(event) {
-      const nickname = String(event?.detail?.value || '').trim();
-      if (!nickname || nickname === this.user.nickname) return;
-      await this.persistUser({ ...this.user, nickname });
+      await this.saveAvatarFromPath(path);
     },
     async getInfo() {
       this.loading = true;
@@ -610,10 +627,6 @@ export default {
   text-align: center;
 }
 
-.sheet-copy-foot {
-  padding-top: var(--space-3);
-}
-
 .sheet-item {
   width: 100%;
   margin: 0;
@@ -635,11 +648,6 @@ export default {
 
 .sheet-button::after {
   border: 0;
-}
-
-.sheet-nickname {
-  height: auto;
-  min-height: 96rpx;
 }
 
 .sheet-cancel {

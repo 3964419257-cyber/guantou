@@ -130,6 +130,7 @@ describe('email settings form', () => {
     expect(notify).toHaveBeenCalledWith({ title: '验证码已发送' });
     expect(wrapper.vm.countdown).toBe(60);
     expect(wrapper.vm.newEmail).toBe('new@example.com');
+    expect(wrapper.vm.demoCode).toBe('');
 
     await wrapper.vm.sendCode();
     expect(request.post).toHaveBeenCalledTimes(1);
@@ -137,6 +138,16 @@ describe('email settings form', () => {
     vi.advanceTimersByTime(1000);
     expect(wrapper.vm.countdown).toBe(59);
     wrapper.vm.clearCountdown();
+  });
+
+  it('shows a demo code when the bind endpoint is in demo mode', async () => {
+    const wrapper = await showPage();
+    wrapper.vm.newEmail = 'new@example.com';
+    request.post.mockResolvedValueOnce({ retry_after: 60, demo_code: '654321' });
+    await wrapper.vm.sendCode();
+    await flushPromises();
+    expect(wrapper.vm.demoCode).toBe('654321');
+    expect(notify).toHaveBeenCalledWith({ title: '验证码已生成' });
   });
 
   it('maps an occupied mailbox onto the email field and keeps the draft', async () => {
