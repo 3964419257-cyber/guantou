@@ -13,3 +13,8 @@ export default function canUseWechatMiniProgramAuth() {
   // #endif
   return enabled;
 }
+
+/** Same compile-time branch as WeChat auth: H5 false, mp-weixin true. */
+export function isWechatMiniProgram() {
+  return canUseWechatMiniProgramAuth();
+}

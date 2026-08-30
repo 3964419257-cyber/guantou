@@ -25,5 +25,6 @@ module.exports = {
     uni: true,
     getApp: true,
     getCurrentPages: true,
+    globalThis: true,
   },
 };

@@ -20,6 +20,8 @@ async function themeTokens(page) {
 
 test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   await openMine(page);
+  await page.getByText('主题中心').click();
+  await expect(page.getByText('当前使用')).toBeVisible();
 
   const light = await themeTokens(page);
   expect(light.page).toBe('#f6f7f3');
@@ -30,7 +32,7 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
     fullPage: true,
   });
 
-  await page.locator('.theme-option', { hasText: '深色' }).click();
+  await page.locator('.filters.appearance .chip', { hasText: '深色' }).click();
   await expect.poll(async () => (await themeTokens(page)).theme).toBe('dark');
 
   const dark = await themeTokens(page);
@@ -42,6 +44,132 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
     path: 'test-results/account-me-dark.png',
     fullPage: true,
   });
+});
+
+test('theme center keeps one live pack and placeholders', async ({ page }) => {
+  await openMine(page);
+  await page.getByText('主题中心').click();
+  await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
+  await expect(page.getByText('默认方言主题').first()).toBeVisible();
+  await expect(page.getByText('已启用').first()).toBeVisible();
+  await expect(page.getByText('最近使用', { exact: true })).toBeVisible();
+  await expect(page.getByText('搜索主题、装扮名称、方言风格')).toBeVisible();
+  await expect(page.getByText('热门搜索词')).toBeVisible();
+  await expect(page.getByText('方言头像框')).toBeVisible();
+  await expect(page.getByText('名称A-Z')).toBeVisible();
+  await expect(page.getByText('提示：可以通过方言地域标签快速筛选家乡风格装扮；筛选条件会临时保留。')).toBeVisible();
+  await expect(page.getByText('提示：实时预览仅模拟展示效果；微信小程序部分系统原生组件不支持自定义装扮。')).toBeVisible();
+  await expect(page.getByText('暂无最近使用记录，快去挑选装扮吧')).toBeVisible();
+  await expect(page.getByText('提示：最近使用记录仅记录你启用过的装扮；保存搭配可一键还原整套界面组合；')).toBeVisible();
+  await expect(page.getByText('敬请期待').first()).toBeVisible();
+  await expect(page.getByText('装扮获取')).toBeVisible();
+  await expect(page.getByText('会员专属').first()).toBeVisible();
+  await expect(page.getByText('已绝版').first()).toBeVisible();
+  await expect(page.getByText('川渝烟火', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('地域方言风', { exact: true })).toBeVisible();
+  await expect(page.getByText('国风', { exact: true })).toBeVisible();
+  await expect(page.getByText('全局主题将统一改变导航栏、按钮、卡片、背景、文字色彩')).toBeVisible();
+  await expect(page.getByText('全局主题会带轻微地域纹理，不会改变罐头播放内容；部分组件在微信小程序存在限制。')).toBeVisible();
+  await expect(page.getByText('提示：部分限定装扮为限时活动产出，活动结束后将绝版；')).toBeVisible();
+  await expect(page.getByText('会员装扮权益在H5、小程序两端同步；')).toBeVisible();
+  await expect(page.getByText('最新上架').first()).toBeVisible();
+  await expect(page.getByText('我的收藏')).toBeVisible();
+  await expect(page.getByText('提示：收藏仅为个人标记，不会自动解锁装扮；')).toBeVisible();
+
+  await page.locator('.tab', { hasText: '我的收藏' }).click();
+  await expect(page.getByText('你还没有收藏任何主题装扮，快去挑选喜欢的吧')).toBeVisible();
+  await page.locator('.tab', { hasText: '全局主题' }).click();
+
+  await page.locator('.filter-toolbar .base-button').click({ force: true });
+  await expect(page.getByText('权限筛选')).toBeVisible();
+  await expect(page.getByText('地域方言标签')).toBeVisible();
+  await expect(page.getByText('可多选家乡风格')).toBeVisible();
+  await page.getByText('重置').click({ force: true });
+  await page.getByText('确定').click({ force: true });
+
+  await page.locator('.hot-scroll .chip', { hasText: '川渝烟火' }).click();
+  await expect(page.getByText('川渝烟火').first()).toBeVisible();
+  await expect(page.getByText('返回列表')).toBeVisible();
+  await page.locator('.search-bar').getByRole('textbox').fill('xyz-not-a-skin');
+  await page.locator('.search-go').click({ force: true });
+  await expect(page.getByText('没有找到相关主题或装扮，换个关键词试试')).toBeVisible();
+  await page.getByText('返回列表').click({ force: true });
+  await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
+
+  await page.getByText('装扮获取').click();
+  await expect(page.getByText('开通会员即可解锁全部会员全局主题、会员局部装扮。')).toBeVisible();
+  await expect(page.getByText('去装一罐').first()).toBeVisible();
+  await page.goBack();
+
+  await page.locator('.theme-card', { hasText: '松风会员' }).click();
+  await expect(page.getByText('该装扮为会员专属，开通会员即可解锁全部会员主题与装扮').first()).toBeVisible();
+  await page.locator('.sheet-actions .base-button').first().click({ force: true });
+
+  await page.locator('.theme-card', { hasText: '开春乡音' }).click();
+  await expect(page.getByText('已绝版').first()).toBeVisible();
+  await page.locator('.sheet-actions .base-button').first().click({ force: true });
+
+  await page.locator('.theme-card', { hasText: '川渝烟火' }).click();
+  await expect(page.getByText('H5网页版：该主题全部样式完整生效')).toBeVisible();
+  await expect(page.locator('.sheet').getByText('实时预览')).toBeVisible();
+  await expect(page.getByText('预览仅为模拟效果，不会修改你的界面')).toBeVisible();
+  await expect(page.getByText('首页罐头流').first()).toBeVisible();
+  await expect(page.getByText('微信小程序：原生导航栏、底部Tab栏受微信限制，部分样式无法生效')).toBeVisible();
+  await expect(page.getByText('会修改的元素')).toBeVisible();
+  await expect(page.getByText('该主题暂未开放，敬请期待')).toBeVisible();
+  await expect(page.locator('.sheet').getByText('取消')).toBeVisible();
+  await page.locator('.sheet').getByText('实时预览').click({ force: true });
+  await expect(page.getByText('立即应用')).toHaveCount(0);
+  await page.locator('.sheet-actions .base-button').first().click({ force: true });
+
+  await page.locator('.theme-card', { hasText: '默认方言主题' }).click();
+  await page.locator('.sheet').getByText('实时预览').click({ force: true });
+  await expect(page.locator('.preview-sheet').getByText('实时预览')).toBeVisible();
+  await expect(page.getByText('立即应用')).toBeVisible();
+  await expect(page.getByText('示例罐头占位').first()).toBeVisible();
+  await page.locator('.preview-close').click({ force: true });
+  await page.locator('.sheet-actions .base-button').first().click({ force: true });
+
+  await page.getByText('局部装扮', { exact: true }).click();
+  await expect(page.getByText('局部装扮可单独修改界面组件，不会强制替换整套全局主题')).toBeVisible();
+  await expect(page.getByText('小程序部分原生组件暂不支持自定义装扮。')).toBeVisible();
+  await expect(page.getByText('导航栏底色与图标')).toBeVisible();
+  await expect(page.getByText('罐头卡片').first()).toBeVisible();
+  await expect(page.getByText('江南吴语头像框')).toBeVisible();
+  await expect(page.getByText('装扮素材即将上线').first()).toBeVisible();
+  await expect(page.getByText('去设置').first()).toBeVisible();
+
+  await page.locator('.tab', { hasText: '我的装扮' }).click();
+  await expect(page.getByText('当前正在使用：默认方言主题')).toBeVisible();
+  await expect(page.getByText('暂未设置局部装扮，快去搭配你的专属界面')).toBeVisible();
+  await expect(page.getByText('保存当前搭配')).toBeVisible();
+  await expect(page.getByText('还没有保存任何搭配方案，可将当前装扮保存为专属搭配')).toBeVisible();
+  await expect(page.getByText('全局主题覆盖局部装扮')).toBeVisible();
+  await expect(page.getByText('重置全部装扮')).toBeVisible();
+  await expect(page.getByText('预览装扮效果')).toBeVisible();
+  await expect(page.getByText('未登录状态，装扮仅保存在本地，登录后可同步到云端')).toBeVisible();
+
+  await page.locator('.tab', { hasText: '局部装扮' }).click();
+  await page.locator('.dress-card', { hasText: '导航栏底色与图标' }).locator('.theme-name').click();
+  await expect(page.getByText('系统默认顶栏')).toBeVisible();
+  await expect(page.getByText('该分类装扮素材即将上线，敬请期待')).toBeVisible();
+  await page.getByText('系统默认顶栏').click();
+  await expect(page.getByText('H5网页版：完整生效')).toBeVisible();
+  await page.locator('.sheet-actions .base-button').last().click({ force: true });
+  await expect(page.getByText('已应用').first()).toBeVisible();
+  await page.goBack();
+  await page.locator('.tab', { hasText: '我的装扮' }).click();
+  await expect(page.getByText('系统默认顶栏')).toBeVisible();
+  await expect(page.getByText('修改').first()).toBeVisible();
+  await page.locator('.action-stack .base-button').last().click({ force: true });
+  await expect(page.getByText('装扮效果预览')).toBeVisible();
+  await expect(page.getByText('预览仅为模拟效果，不会修改你的界面')).toBeVisible();
+  await expect(page.getByText('评论区').first()).toBeVisible();
+  await expect(page.locator('.preview-sheet').getByText('关闭').first()).toBeVisible();
+  await expect(page.getByText('立即应用')).toBeVisible();
+  await page.locator('.preview-close').click({ force: true });
+  await page.locator('.current-card .base-button').click({ force: true });
+  await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
 });
 
 test('account settings stay behind login and use PageShell titles', async ({ page }) => {
@@ -128,6 +256,7 @@ test('H5 mine account menu hides WeChat bind and keeps email', async ({ page }) 
   await page.goto('/pages/users/me');
 
   await expect(page.getByText('账号与安全')).toBeVisible();
+  await expect(page.getByText('主题中心')).toBeVisible();
   await expect(page.getByText('邮箱')).toBeVisible();
   await expect(page.getByText('修改密码')).toBeVisible();
   await expect(page.getByText('绑定微信')).toHaveCount(0);

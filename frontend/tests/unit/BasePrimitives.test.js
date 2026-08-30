@@ -11,6 +11,15 @@ import EmptyState from '@/components/EmptyState.vue';
 import confirmDialog from '@/components/ConfirmDialog';
 
 describe('BaseButton', () => {
+  beforeEach(() => {
+    global.uni = {
+      $emit: vi.fn(),
+      $on: vi.fn(),
+      $off: vi.fn(),
+      getStorageSync: vi.fn(() => ''),
+    };
+  });
+
   it('renders the primary variant with slot text by default', () => {
     const wrapper = mount(BaseButton, {
       slots: { default: '提交铭牌' },
@@ -67,6 +76,52 @@ describe('BaseButton', () => {
     loading.getComponent({ name: 'TDesignStub' }).vm.$emit('click');
     await loading.vm.$nextTick();
     expect(loading.emitted('click')).toBeUndefined();
+  });
+
+  it('applies user-selected looks and effects to primary and ghost only', async () => {
+    const wrapper = mount(BaseButton, { slots: { default: '装一罐' } });
+    wrapper.vm.handleThemeChange({
+      primaryLook: 'outline',
+      ghostLook: 'soft',
+      effect: 'glow',
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.getComponent({ name: 'TDesignStub' }).props('variant')).toBe('outline');
+    expect(wrapper.vm.rootClass).toEqual(expect.arrayContaining([
+      'base-button--primary',
+      'base-button--look-outline',
+      'base-button--effect-glow',
+    ]));
+
+    const ghost = mount(BaseButton, { props: { variant: 'ghost' } });
+    ghost.vm.handleThemeChange({
+      primaryLook: 'classic',
+      ghostLook: 'filled',
+      effect: 'lift',
+    });
+    await ghost.vm.$nextTick();
+    expect(ghost.getComponent({ name: 'TDesignStub' }).props('variant')).toBe('base');
+    expect(ghost.vm.rootClass).toEqual(expect.arrayContaining([
+      'base-button--ghost',
+      'base-button--look-filled',
+      'base-button--effect-lift',
+    ]));
+
+    const danger = mount(BaseButton, { props: { variant: 'danger', text: '退出' } });
+    danger.vm.handleThemeChange({
+      buttonStyle: 'outline',
+      primaryLook: 'outline',
+      effect: 'glow',
+    });
+    await danger.vm.$nextTick();
+    expect(danger.getComponent({ name: 'TDesignStub' }).props()).toMatchObject({
+      theme: 'danger',
+      variant: 'base',
+    });
+    expect(danger.vm.rootClass).not.toEqual(expect.arrayContaining([
+      'base-button--look-outline',
+      'base-button--effect-glow',
+    ]));
   });
 });
 

@@ -100,7 +100,7 @@ DRF 默认配置在 `config/settings.py`：
 
 匿名游客由 `audit.AnonymousVisitor` 追踪。后端读取或生成 `X-Visitor-ID`，挂到 `request.visitor`，并在响应头回写同名 header。游客只用于访问/审计归因，不创建 Django `User`，也不能绕过写接口登录要求。
 
-对象审计由 `audit.ObjectChangeLog` 自动记录 `guantou` 核心模型的 create/update/delete。访问行为由 `audit.VisitorEvent` 记录；`Can.views` 这类读取计数更新不会写入对象变更审计。
+对象审计由 `audit.ObjectChangeLog` 自动记录 `guantou` 核心模型的 create/update/delete。访问行为由 `audit.VisitorEvent` 记录；`Can.views` 这类读取计数更新不会写入对象变更审计。主题装扮运营后台的操作日志、staff 角色与 `/manage/` 路径见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)（三期）。主题中心启用/收藏/搭配的服务端校验、限流与越权日志见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。
 
 ## 全局异常行为
 

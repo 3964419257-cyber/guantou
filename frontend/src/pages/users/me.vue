@@ -234,6 +234,21 @@
 
           <view class="menu">
             <view class="section-kicker menu-kicker">
+              主题
+            </view>
+            <view
+              class="menu-item pressable"
+              @tap="toThemeCenter"
+            >
+              <view>主题中心</view>
+              <view class="menu-value">
+                {{ themeLabel }}
+              </view>
+            </view>
+          </view>
+
+          <view class="menu">
+            <view class="section-kicker menu-kicker">
               账号与安全
             </view>
             <view
@@ -270,47 +285,58 @@
             </view>
           </view>
         </template>
-        <ThemeSwitcher />
       </template>
 
-      <view
-        v-else
-        class="guest-profile"
-      >
-        <view class="guest-mark">
-          乡
+      <template v-else>
+        <view class="guest-profile">
+          <view class="guest-mark">
+            乡
+          </view>
+          <view class="guest-title">
+            还没有登录
+          </view>
+          <view class="guest-copy">
+            登录后可以装罐、看草稿和自己的贡献。公开乡音不用登录，先听也可以。
+          </view>
+          <BaseButton
+            class="guest-action login-button"
+            block
+            @click="openLoginFromMine"
+          >
+            登录 / 注册
+          </BaseButton>
+          <BaseButton
+            class="guest-action"
+            variant="ghost"
+            block
+            @click="toHome"
+          >
+            先去听罐头
+          </BaseButton>
+          <BaseButton
+            class="guest-action"
+            variant="ghost"
+            block
+            @click="toSearch"
+          >
+            先去查词
+          </BaseButton>
         </view>
-        <view class="guest-title">
-          还没有登录
+        <view class="menu guest-theme">
+          <view class="section-kicker menu-kicker">
+            主题
+          </view>
+          <view
+            class="menu-item pressable"
+            @tap="toThemeCenter"
+          >
+            <view>主题中心</view>
+            <view class="menu-value">
+              {{ themeLabel }}
+            </view>
+          </view>
         </view>
-        <view class="guest-copy">
-          登录后可以装罐、看草稿和自己的贡献。公开乡音不用登录，先听也可以。
-        </view>
-        <BaseButton
-          class="guest-action login-button"
-          block
-          @click="openLoginFromMine"
-        >
-          登录 / 注册
-        </BaseButton>
-        <BaseButton
-          class="guest-action"
-          variant="ghost"
-          block
-          @click="toHome"
-        >
-          先去听罐头
-        </BaseButton>
-        <BaseButton
-          class="guest-action"
-          variant="ghost"
-          block
-          @click="toSearch"
-        >
-          先去查词
-        </BaseButton>
-        <ThemeSwitcher />
-      </view>
+      </template>
     </view>
   </AppShell>
 </template>
@@ -319,7 +345,6 @@
 import AppShell from '@/components/AppShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import confirmDialog from '@/components/ConfirmDialog';
-import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import { openLoginFromMine } from '@/services/authJourney';
 import { listCanDrafts } from '@/services/canDrafts';
@@ -329,21 +354,23 @@ import {
   goHome,
   goMails,
   goSearch,
+  goThemeCenter,
   goUserEmail,
   goUserInformation,
   goUserPassword,
 } from '@/services/navigation';
 import canUseWechatMiniProgramAuth from '@/services/platform';
+import { resolveSessionUserId } from '@/services/session';
+import { getActiveTheme } from '@/services/themeCenter';
 import {
   bindingWechat as bindingWechatService,
   cancelBindingWechat as cancelBindingWechatService,
   clearUserInfo,
   getUserInfo,
 } from '@/services/user';
-import { resolveSessionUserId } from '@/services/session';
 
 export default {
-  components: { AppShell, BaseButton, ThemeSwitcher },
+  components: { AppShell, BaseButton },
   data() {
     return {
       id: '',
@@ -417,6 +444,9 @@ export default {
       if (this.wechatBound) return '已绑定 · 点此解绑';
       return '未绑定 · 点此授权';
     },
+    themeLabel() {
+      return getActiveTheme().name;
+    },
   },
   beforeMount() {
     this.getInfo();
@@ -435,6 +465,9 @@ export default {
     },
     toEmailPage() {
       goUserEmail();
+    },
+    toThemeCenter() {
+      goThemeCenter();
     },
     toUserInfoPage() {
       goUserInformation();
@@ -655,6 +688,10 @@ export default {
 
 .guest-action {
   margin-top: var(--space-3);
+}
+
+.guest-theme {
+  text-align: left;
 }
 
 .hero {

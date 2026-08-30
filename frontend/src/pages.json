@@ -138,6 +138,26 @@
       "style": {}
     },
     {
+      "path": "pages/users/theme-center",
+      "style": {}
+    },
+    {
+      "path": "pages/users/theme-dress",
+      "style": {}
+    },
+    {
+      "path": "pages/users/theme-acquire",
+      "style": {}
+    },
+    {
+      "path": "pages/users/theme-member",
+      "style": {}
+    },
+    {
+      "path": "pages/users/theme-event",
+      "style": {}
+    },
+    {
       "path": "pages/mails/index",
       "style": {}
     },

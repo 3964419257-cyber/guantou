@@ -63,11 +63,34 @@ describe('PageShell', () => {
       },
     });
 
-    wrapper.vm.handleThemeChange({ preference: 'dark', resolved: 'dark' });
+    wrapper.vm.handleThemeChange({ preference: 'dark', resolved: 'dark', accent: 'tea' });
     await wrapper.vm.$nextTick();
 
     expect(wrapper.classes()).toContain('theme-dark');
+    expect(wrapper.classes()).toContain('accent-tea');
     wrapper.unmount();
     expect(uni.$off).toHaveBeenCalled();
+  });
+
+  it('skips stack back when interceptBack is set', async () => {
+    global.getCurrentPages = () => [
+      { route: 'pages/users/me' },
+      { route: 'pages/users/theme-center' },
+    ];
+    uni.reLaunch = vi.fn();
+    const wrapper = mount(PageShell, {
+      props: {
+        title: '主题中心',
+        interceptBack: true,
+      },
+      global: {
+        stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
+      },
+    });
+    await wrapper.find('.shell-back').trigger('tap');
+    expect(wrapper.emitted('back')).toHaveLength(1);
+    expect(uni.navigateBack).not.toHaveBeenCalled();
+    expect(uni.reLaunch).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 });

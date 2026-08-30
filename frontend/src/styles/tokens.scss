@@ -5,13 +5,14 @@
  * - 浅色为默认主题，定义在 page（小程序）与 :root/page（H5）上；
  * - 暗色通过 html[data-theme='dark']（H5，由 services/theme.js 写入）
  *   与 .theme-dark（PageShell/页面根元素）覆盖，两者均只覆盖颜色类 Token；
+ * - 配色通过 html[data-accent] 与 .accent-* 覆盖强调色和相衬底色，松绿为默认；
  * - 间距/圆角/字号与主题无关，只定义一次。
  *
  * 命名约定：
  * - 颜色：--page-color（页面底色）/--surface-color（卡片等浮层）/--text-color（正文）
  *   /--muted-color（次要文字）/--border-color（描边）/--accent-color（品牌强调）
  *   /--danger-color / --warning-color / --success-color（语义色）
- *   /--on-accent-color（强调色背景上的文字/图标）
+ *   /--on-accent-color（强调色背景上的文字/图标）/--gilt-color（金线/金边）
  * - 派生色：--text-secondary-color（正文与次要文字之间）/--surface-subtle-color（弱底色，
  *   如按钮/禁用态背景）/--accent-subtle-color（强调色浅底，如徽章）
  *   /--danger-subtle-color（危险色浅底）/--on-danger-color（危险色实心背景上的文字）
@@ -36,6 +37,7 @@
   --on-danger-color: #ffffff;
   --warning-color: #ed7b2f;
   --success-color: #2ba471;
+  --gilt-color: #c4a35a;
 }
 
 @mixin dark-color-tokens {
@@ -54,6 +56,7 @@
   --on-danger-color: #2b1010;
   --warning-color: #f5a56c;
   --success-color: #5fce9f;
+  --gilt-color: #e0c56a;
 }
 
 @mixin static-tokens {
@@ -76,6 +79,15 @@
   --radius-md: 14rpx;
   --radius-lg: 20rpx;
   --radius-pill: 999rpx;
+
+  /* 配色预览：个人中心色点，不随明暗翻转 */
+  --accent-preview-pine: #1f5c43;
+  --accent-preview-tea: #8b5a2b;
+  --accent-preview-ink: #2c4a6e;
+  --accent-preview-clay: #b85c38;
+  --accent-preview-mist: #4a6b6c;
+  --accent-preview-osmanthus: #b8860b;
+  --gilt-color: #c4a35a;
 }
 
 /* 小程序与 App 端：page 是页面根元素 */
@@ -176,6 +188,149 @@ page {
 /* #ifdef H5 */
 :root {
   @include tdesign-brand-overrides;
+}
+/* #endif */
+
+/*
+ * 用户可选配色（个人中心 ThemeSwitcher）。只覆盖强调色与相衬的底/边，
+ * 正文与危险/警告/成功语义色保持不变。松绿是默认品牌，无需额外规则。
+ * H5 写在 html[data-accent]；小程序写在 PageShell/AppShell 的 .accent-*。
+ */
+$accent-palettes: (
+  tea: (
+    light: (
+      page-color: #f7f3ee,
+      surface-subtle-color: #f3ebe3,
+      border-color: #e6d9cc,
+      accent-color: #8b5a2b,
+      accent-subtle-color: #f4ebe1,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #8b5a2b,
+    ),
+    dark: (
+      page-color: #191410,
+      surface-color: #262019,
+      surface-subtle-color: #2f2820,
+      border-color: #3f352c,
+      accent-color: #d4a574,
+      accent-subtle-color: #3a2c20,
+      on-accent-color: #1a120c,
+      td-brand-color-6: #d4a574,
+    ),
+  ),
+  ink: (
+    light: (
+      page-color: #f3f5f8,
+      surface-subtle-color: #e8edf3,
+      border-color: #d7dee7,
+      accent-color: #2c4a6e,
+      accent-subtle-color: #e6eef6,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #2c4a6e,
+    ),
+    dark: (
+      page-color: #12161c,
+      surface-color: #1c232c,
+      surface-subtle-color: #252d38,
+      border-color: #344050,
+      accent-color: #8fb0d4,
+      accent-subtle-color: #243044,
+      on-accent-color: #10151c,
+      td-brand-color-6: #8fb0d4,
+    ),
+  ),
+  clay: (
+    light: (
+      page-color: #f8f2ed,
+      surface-subtle-color: #f3e8e1,
+      border-color: #ead9ce,
+      accent-color: #b85c38,
+      accent-subtle-color: #f6e6dc,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #b85c38,
+    ),
+    dark: (
+      page-color: #1a1411,
+      surface-color: #271e1a,
+      surface-subtle-color: #322621,
+      border-color: #45342d,
+      accent-color: #e8a07a,
+      accent-subtle-color: #3d2a22,
+      on-accent-color: #1a100c,
+      td-brand-color-6: #e8a07a,
+    ),
+  ),
+  mist: (
+    light: (
+      page-color: #f3f6f6,
+      surface-subtle-color: #e7eeee,
+      border-color: #d4e0e0,
+      accent-color: #4a6b6c,
+      accent-subtle-color: #e4efef,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #4a6b6c,
+    ),
+    dark: (
+      page-color: #121918,
+      surface-color: #1c2727,
+      surface-subtle-color: #253333,
+      border-color: #334242,
+      accent-color: #8fbfc0,
+      accent-subtle-color: #243636,
+      on-accent-color: #0e1616,
+      td-brand-color-6: #8fbfc0,
+    ),
+  ),
+  osmanthus: (
+    light: (
+      page-color: #f8f5ea,
+      surface-subtle-color: #f3edd8,
+      border-color: #e8dfc4,
+      accent-color: #b8860b,
+      accent-subtle-color: #f6edd0,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #b8860b,
+    ),
+    dark: (
+      page-color: #18160f,
+      surface-color: #252318,
+      surface-subtle-color: #302c1e,
+      border-color: #433c28,
+      accent-color: #e0c56a,
+      accent-subtle-color: #3a341c,
+      on-accent-color: #1a1608,
+      td-brand-color-6: #e0c56a,
+    ),
+  ),
+);
+
+@mixin apply-token-map($tokens) {
+  @each $key, $value in $tokens {
+    --#{$key}: #{$value};
+  }
+}
+
+@each $name, $modes in $accent-palettes {
+  .accent-#{$name} {
+    @include apply-token-map(map-get($modes, light));
+  }
+
+  .theme-dark.accent-#{$name} {
+    @include apply-token-map(map-get($modes, dark));
+  }
+}
+
+/* #ifdef H5 */
+@each $name, $modes in $accent-palettes {
+  html[data-accent='#{$name}'],
+  html[data-accent='#{$name}'] page {
+    @include apply-token-map(map-get($modes, light));
+  }
+
+  html[data-theme='dark'][data-accent='#{$name}'],
+  html[data-theme='dark'][data-accent='#{$name}'] page {
+    @include apply-token-map(map-get($modes, dark));
+  }
 }
 /* #endif */
 

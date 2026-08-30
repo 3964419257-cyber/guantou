@@ -7,6 +7,7 @@ import {
   ONBOARDING_REASONS,
 } from '@/services/dialectOnboarding';
 import { applyTheme } from '@/services/theme';
+import { hydrateOutfitStyle } from '@/services/themeCenter';
 import pagesJson from '@/pages.json';
 
 export default {
@@ -15,6 +16,7 @@ export default {
   },
   async onLaunch() {
     applyTheme();
+    hydrateOutfitStyle();
     if (!this.globalData.id) {
       const token = uni.getStorageSync('token');
       const storedId = uni.getStorageSync('id');

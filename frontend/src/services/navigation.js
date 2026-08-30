@@ -39,6 +39,11 @@ export const ROUTES = Object.freeze({
   userEmail: '/pages/users/settings/email',
   userPhone: '/pages/users/settings/telephone',
   userPassword: '/pages/users/settings/password',
+  themeCenter: '/pages/users/theme-center',
+  themeDress: '/pages/users/theme-dress',
+  themeAcquire: '/pages/users/theme-acquire',
+  themeMember: '/pages/users/theme-member',
+  themeEvent: '/pages/users/theme-event',
 });
 
 function queryString(params = {}) {
@@ -132,9 +137,12 @@ export const goLoginForget = (params = {}) => openPage(ROUTES.loginForget, param
 export const goNotFound = () => openPage(ROUTES.notFound);
 export const goMails = () => openPage(ROUTES.mails);
 export const goMailDetail = (id) => openPage(ROUTES.mailDetail, { id });
-export const goMailSend = (recipientId, options = {}) => openPage(
+export const goMailSend = (recipientId, query = {}, options = {}) => openPage(
   ROUTES.mailSend,
-  recipientId ? { id: recipientId } : {},
+  {
+    ...(recipientId ? { id: recipientId } : {}),
+    ...query,
+  },
   options,
 );
 export const goUserInformation = () => openPage(ROUTES.userInformation);
@@ -143,6 +151,21 @@ export const goUserUsername = () => openPage(ROUTES.userUsername);
 export const goUserEmail = () => openPage(ROUTES.userEmail);
 export const goUserPhone = () => openPage(ROUTES.userPhone);
 export const goUserPassword = () => openPage(ROUTES.userPassword);
+export const goThemeCenter = (params = {}) => openPage(ROUTES.themeCenter, params);
+export const goThemeDress = (group, params = {}) => openPage(ROUTES.themeDress, {
+  group,
+  ...params,
+});
+/** 我的装扮汇总：规划独立子页；当前入主题中心 ?tab=mine。 */
+export const goThemeOutfit = () => openPage(ROUTES.themeCenter, { tab: 'mine' });
+/** 搜索结果：规划独立子页；当前入主题中心搜索态。 */
+export const goThemeSearch = (keyword = '') => openPage(ROUTES.themeCenter, {
+  searching: 1,
+  q: keyword,
+});
+export const goThemeAcquire = (params = {}) => openPage(ROUTES.themeAcquire, params);
+export const goThemeMember = (params = {}) => openPage(ROUTES.themeMember, params);
+export const goThemeEvent = (params = {}) => openPage(ROUTES.themeEvent, params);
 export const goNameplateDetail = (id, params = {}, options = {}) => openPage(
   ROUTES.nameplateDetail,
   { id, ...params },
@@ -199,6 +222,13 @@ export default {
   goUserPassword,
   goUserPhone,
   goUserUsername,
+  goThemeAcquire,
+  goThemeCenter,
+  goThemeDress,
+  goThemeEvent,
+  goThemeMember,
+  goThemeOutfit,
+  goThemeSearch,
   openPage,
   pageUrl,
   routeDestination,

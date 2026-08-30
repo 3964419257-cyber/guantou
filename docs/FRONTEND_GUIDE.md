@@ -129,6 +129,10 @@ pages/*.vue
 
 `src/colorui/` 为历史遗留样式库，新页面不要新增 `cu-*` 类名引用，待存量页面迁移后移除。
 
+## 主题中心
+
+产品总览、模块、风险与分阶段验收见 [`THEME_CENTER.md`](THEME_CENTER.md)。行为上报见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)（`themeAnalytics.js`，无 PII）。容错见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)（`themeFault.js`）。字段与存储见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。跳转见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。后台见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。性能见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。安全见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。权限 `free|member|activity|creator`，终端 `h5|miniprogram`；样式只注入 JSON，不写死配色；完整 `style_json` 不要进本地存储；预览只用沙盒。
+
 ## 组件沉淀规则
 
 不要一开始就为了一个页面抽很多组件。满足下面任意一条时，再放进 `frontend/src/components/`：

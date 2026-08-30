@@ -102,7 +102,7 @@ request.headers["token"]
 - duration_ms
 - created_at
 
-不会记录 admin、static、media、OPTIONS 请求。
+不会记录 admin、static、media、OPTIONS 请求。主题中心写接口的越权、非法 id、429 等风控约定见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。
 
 ## 对象审计
 

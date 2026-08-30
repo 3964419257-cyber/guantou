@@ -19,6 +19,7 @@ import {
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
 import { openPage, ROUTES } from '@/services/navigation';
+import { handleThemeAccountLogin } from '@/services/themeFault';
 import rawRequest from '../utils/rawRequest';
 
 export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
@@ -92,6 +93,11 @@ export async function afterLogin(res, options = {}) {
   const previousOwnerScope = getCanDraftOwnerScope();
   uni.setStorageSync('token', res.token);
   uni.setStorageSync('id', res.id);
+  try {
+    await handleThemeAccountLogin(res.id);
+  } catch {
+    // Theme merge is handled on theme-center; login must not fail.
+  }
   if (previousOwnerScope.startsWith('anonymous:')) {
     await claimAnonymousCanDrafts(res.id, previousOwnerScope);
   }

@@ -1,7 +1,7 @@
 <template>
   <view
     class="page-shell"
-    :class="`theme-${resolvedTheme}`"
+    :class="[`theme-${resolvedTheme}`, `accent-${accent}`]"
   >
     <view class="shell-topbar">
       <text
@@ -52,7 +52,7 @@
 </template>
 
 <script>
-import { applyTheme, getThemePreference } from '@/services/theme';
+import { applyTheme, getAccentPreference, getThemePreference } from '@/services/theme';
 import { goBack, ROUTES } from '@/services/navigation';
 import BaseButton from '@/components/BaseButton.vue';
 import FeedbackHost from '@/components/FeedbackHost.vue';
@@ -85,11 +85,16 @@ export default {
       type: String,
       default: ROUTES.home,
     },
+    interceptBack: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['action', 'back', 'scrolltolower'],
   data() {
     return {
       resolvedTheme: 'light',
+      accent: getAccentPreference(),
     };
   },
   mounted() {
@@ -102,9 +107,11 @@ export default {
   methods: {
     handleThemeChange(theme) {
       this.resolvedTheme = theme?.resolved || 'light';
+      this.accent = theme?.accent || getAccentPreference();
     },
     handleBack() {
       this.$emit('back');
+      if (this.interceptBack) return;
       goBack(this.backFallback);
     },
   },

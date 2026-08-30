@@ -86,10 +86,24 @@ vi.mock('@/services/feedback', () => ({
   notifySuccess: vi.fn(),
 }));
 
-vi.mock('@/services/theme', () => ({
-  applyTheme: vi.fn(() => ({ preference: 'light', resolved: 'light' })),
-  getThemePreference: vi.fn(() => 'light'),
-}));
+vi.mock('@/services/theme', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    applyTheme: vi.fn(() => ({
+      preference: 'light',
+      resolved: 'light',
+      accent: 'pine',
+      buttonStyle: 'fill',
+      primaryLook: 'fill',
+      ghostLook: 'line',
+      effect: 'none',
+      pack: 'pine',
+    })),
+    getThemePreference: vi.fn(() => 'light'),
+    getAccentPreference: vi.fn(() => 'pine'),
+  };
+});
 
 vi.mock('@/components/ConfirmDialog', () => ({
   default: vi.fn(async () => true),
@@ -123,6 +137,13 @@ const accountPages = [
   'src/pages/users/settings/email.vue',
   'src/pages/users/settings/password.vue',
   'src/pages/users/settings/telephone.vue',
+  'src/pages/users/theme-center.vue',
+  'src/pages/users/theme-dress.vue',
+  'src/pages/users/theme-acquire.vue',
+  'src/pages/users/theme-member.vue',
+  'src/pages/users/theme-event.vue',
+  'src/components/ThemeShareSheet.vue',
+  'src/components/ThemeLivePreview.vue',
 ];
 
 const { default: NicknamePage } = await import('@/pages/users/settings/nickname.vue');
@@ -184,6 +205,7 @@ describe('account UI tokens', () => {
     expect(mine).toContain('草稿箱');
     expect(mine).toContain('关注的方言');
     expect(mine).toContain('账号与安全');
+    expect(mine).toContain('主题中心');
     expect(mine).toContain('邮箱');
     expect(mine).not.toContain('网页演示绑定微信');
     expect(details).toContain('私信');

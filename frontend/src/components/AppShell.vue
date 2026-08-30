@@ -1,5 +1,8 @@
 <template>
-  <view class="app-shell immersive-shell">
+  <view
+    class="app-shell immersive-shell"
+    :class="[`theme-${resolvedTheme}`, `accent-${accent}`]"
+  >
     <view class="app-shell__header">
       <view>
         <view class="app-shell__brand">
@@ -45,6 +48,7 @@
 import BaseButton from '@/components/BaseButton.vue';
 import FeedbackHost from '@/components/FeedbackHost.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
+import { applyTheme, getAccentPreference, getThemePreference } from '@/services/theme';
 
 export default {
   name: 'AppShell',
@@ -58,6 +62,25 @@ export default {
     scroll: { type: Boolean, default: true },
   },
   emits: ['action', 'scrolltolower'],
+  data() {
+    return {
+      resolvedTheme: 'light',
+      accent: getAccentPreference(),
+    };
+  },
+  mounted() {
+    this.handleThemeChange(applyTheme(getThemePreference(), this.accent));
+    uni.$on('theme-change', this.handleThemeChange);
+  },
+  beforeUnmount() {
+    uni.$off('theme-change', this.handleThemeChange);
+  },
+  methods: {
+    handleThemeChange(theme) {
+      this.resolvedTheme = theme?.resolved || 'light';
+      this.accent = theme?.accent || getAccentPreference();
+    },
+  },
 };
 </script>
 
