@@ -133,6 +133,7 @@ export const THEME_API_PATHS = {
   config: '/users/theme/config/',
   apply: '/users/theme/apply/',
   events: '/users/theme/events/',
+  entitlement: '/users/theme/entitlement/',
 };
 
 export const THEME_DATA_KEYS = {
@@ -372,6 +373,30 @@ export function toCurrentConfig({
       item_id: row.item_id || row.id,
       item_type: row.item_type || (row.kind === 'dress' ? ITEM_TYPE_DECORATION : ITEM_TYPE_THEME),
       use_time: row.use_time || row.usedAt || 0,
+    })),
+  };
+}
+
+export function fromCurrentConfig(dto, resolveDressGroup) {
+  if (!dto) return null;
+  const localDress = {};
+  Object.entries(dto.decoration_map || {}).forEach(([componentType, itemId]) => {
+    const group = typeof resolveDressGroup === 'function'
+      ? resolveDressGroup(String(itemId), componentType)
+      : '';
+    if (group && itemId) localDress[group] = String(itemId);
+  });
+  return {
+    themeId: dto.global_theme_id || dto.themeId || 'default',
+    localDress,
+    overlay: dto.is_cover_local_decoration !== false,
+    recent: (dto.recent_use_list || []).map((row) => ({
+      kind: row.item_type === ITEM_TYPE_DECORATION ? 'dress' : 'theme',
+      id: row.item_id || row.id,
+      group: typeof resolveDressGroup === 'function'
+        ? (resolveDressGroup(String(row.item_id || row.id), '') || '')
+        : '',
+      usedAt: row.use_time || row.usedAt || 0,
     })),
   };
 }

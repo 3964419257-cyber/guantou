@@ -1627,6 +1627,7 @@ import {
   listOwnedUnused,
   listRecentUses,
   listThemesByCategory,
+  mergeRemoteCatalog,
   persistActiveTheme,
   persistCurrentOutfit,
   persistLocalDress,
@@ -1920,6 +1921,9 @@ export default {
       const catalog = await loadThemeCatalog();
       this.catalogStale = Boolean(catalog.stale);
       this.catalogFail = !catalog.ok && !catalog.stale;
+      if (catalog.ok && catalog.data) {
+        mergeRemoteCatalog(catalog.data);
+      }
       if (this.catalogStale) {
         notify({ title: THEME_FAULT_TOAST.catalogCache });
       }
@@ -1933,6 +1937,14 @@ export default {
         if (login.merge && !this.mergeSheet) {
           this.mergeSnapshot = login.merge;
           this.mergeSheet = true;
+        } else if (login.switched) {
+          try {
+            const { pullThemeCloudState } = await import('@/services/themeApi');
+            await pullThemeCloudState();
+            this.refreshOutfit();
+          } catch {
+            // Keep the local default pack until the next successful pull.
+          }
         }
         return;
       }

@@ -155,8 +155,8 @@ request.headers["token"]
 cd backend/guantou
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py test guantou announcements user siteconfig files inbox audit
-black --check announcements guantou user siteconfig files inbox audit utils config
+python manage.py test guantou announcements user siteconfig files inbox audit themes
+black --check announcements guantou user siteconfig files inbox audit utils config themes
 
 cd ../../frontend
 yarn lint

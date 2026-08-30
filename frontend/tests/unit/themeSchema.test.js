@@ -6,6 +6,7 @@ import {
   COMPONENT_NAV_BAR,
   defaultSupportTerminal,
   flattenStyleJson,
+  fromCurrentConfig,
   fromPrivilegeType,
   isNativeComponent,
   PRIVILEGE_ACTIVITY,
@@ -43,6 +44,7 @@ describe('themeSchema contract', () => {
     expect(defaultSupportTerminal(false)).toEqual(['h5', 'miniprogram']);
     expect(isNativeComponent(COMPONENT_NAV_BAR)).toBe(true);
     expect(THEME_API_PATHS.config).toBe('/users/theme/config/');
+    expect(THEME_API_PATHS.entitlement).toBe('/users/theme/entitlement/');
     expect(THEME_DATA_KEYS.local_current_config).toBe('local_current_config');
   });
 
@@ -124,6 +126,15 @@ describe('themeSchema contract', () => {
       recent_use_list: [
         { item_id: 'default', item_type: 'theme', use_time: 1 },
       ],
+    });
+    expect(fromCurrentConfig({
+      global_theme_id: 'default',
+      decoration_map: { card: 'cards-plain' },
+      is_cover_local_decoration: false,
+    }, (itemId) => (itemId === 'cards-plain' ? 'cards' : ''))).toMatchObject({
+      themeId: 'default',
+      overlay: false,
+      localDress: { cards: 'cards-plain' },
     });
   });
 

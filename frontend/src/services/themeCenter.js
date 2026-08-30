@@ -17,6 +17,7 @@ import {
   resolveOutfitStyle,
   supportsTerminal,
   THEME_DATA_KEYS,
+  fromCurrentConfig,
   toCollectList,
   toCurrentConfig,
   toSavedMix,
@@ -956,6 +957,8 @@ const sessionState = {
   localDress: null,
 };
 
+let hydratingCloud = false;
+
 function readStorage(key) {
   if (typeof uni === 'undefined' || typeof uni.getStorageSync !== 'function') {
     return '';
@@ -1787,11 +1790,56 @@ export function hydrateOutfitStyle() {
   }));
 }
 
+export function mergeRemoteCatalog({ themes = [], dresses = [] } = {}) {
+  themes.forEach((remote) => {
+    const current = GLOBAL_THEMES.find((item) => item.id === remote.id);
+    if (!current) return;
+    current.available = remote.available;
+    current.removed = Boolean(remote.removed);
+    current.eventStatus = remote.eventStatus;
+    current.blurb = remote.blurb || current.blurb;
+    current.description = remote.description || current.description;
+    if (remote.style_json && Object.keys(remote.style_json).length) {
+      current.style_json = remote.style_json;
+    }
+  });
+  dresses.forEach((remote) => {
+    const current = LOCAL_DRESS_ITEMS.find((item) => item.id === remote.id);
+    if (!current) return;
+    current.available = remote.available;
+    current.removed = Boolean(remote.removed);
+    current.eventStatus = remote.eventStatus;
+    if (remote.group) current.group = remote.group;
+    if (remote.style_json && Object.keys(remote.style_json).length) {
+      current.style_json = remote.style_json;
+    }
+  });
+}
+
+export function hydrateFromCloudConfig(dto) {
+  if (!dto) return { ok: false, reason: 'empty' };
+  hydratingCloud = true;
+  try {
+    const mapped = fromCurrentConfig(dto, (itemId) => getDressItem(itemId)?.group);
+    writeStorage(THEME_PACK_STORAGE_KEY, mapped.themeId || DEFAULT_THEME_ID);
+    writeStorage(LOCAL_DRESS_STORAGE_KEY, mapped.localDress || {});
+    writeStorage(THEME_OVERLAY_STORAGE_KEY, mapped.overlay ? '1' : '0');
+    if (mapped.recent?.length) {
+      writeStorage(THEME_RECENT_STORAGE_KEY, mapped.recent);
+    }
+    writeContractSnapshots();
+    hydrateOutfitStyle();
+    return { ok: true, ...mapped };
+  } finally {
+    hydratingCloud = false;
+  }
+}
+
 function queueCloudSync({ social = false } = {}) {
   rememberGuestSnapshot();
   writeContractSnapshots();
   hydrateOutfitStyle();
-  if (!isLoggedIn()) return false;
+  if (hydratingCloud || !isLoggedIn()) return false;
   writeStorage(THEME_CLOUD_QUEUE_KEY, {
     themeId: getActiveThemeId(),
     overlay: getOverlayLocalDress(),

@@ -6,8 +6,8 @@
 cd backend/guantou
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py test config guantou announcements user siteconfig files inbox audit
-black --check announcements guantou user siteconfig files inbox audit utils config
+python manage.py test config guantou announcements user siteconfig files inbox audit themes
+black --check announcements guantou user siteconfig files inbox audit utils config themes
 ```
 
 当前主测试范围包括核心 `guantou` DRF API，以及公告、用户、站点配置、文件和通知边界。旧 Apifox JSON 集合不再作为新仓库验收入口。

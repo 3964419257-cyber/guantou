@@ -5,7 +5,7 @@
 
 乡声集盒主题中心在浏览器 H5 与微信小程序使用同一套容错：页面不崩溃、不白屏；云端同步失败时降级本地存储；异常按 **用户操作 / 网络 / 服务端数据 / 环境限制** 分类，并给出对应友好提示。
 
-装扮目录默认使用内置清单。可通过 `setThemeCatalogFetcher` / `setThemeCloudFlusher` / `setThemeMemberFetcher` 注入远端接口；未注入时不会对不存在的目录接口发起请求。总览见 [`THEME_CENTER.md`](THEME_CENTER.md)。字段与接口见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。分期与小程序降级见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。跳转链路见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。运营后台见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。列表卡顿、样式注入与缓存见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。越权启用与非法 id 见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。
+装扮目录默认使用内置清单。App 启动通过 `bindThemeAdapters` 注入 `setThemeCatalogFetcher` / `setThemeCloudFlusher` / `setThemeMemberFetcher`；未注入时不会对目录接口发起请求。总览见 [`THEME_CENTER.md`](THEME_CENTER.md)。字段与接口见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。分期与小程序降级见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。跳转链路见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。运营后台见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。列表卡顿、样式注入与缓存见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。越权启用与非法 id 见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。
 
 ## 异常分类
 

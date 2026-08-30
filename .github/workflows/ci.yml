@@ -56,10 +56,10 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 
       - name: Run Django tests
-        run: python manage.py test config guantou announcements user siteconfig files inbox audit
+        run: python manage.py test config guantou announcements user siteconfig files inbox audit themes
 
       - name: Check backend formatting
-        run: black --check announcements guantou user siteconfig files inbox audit utils config
+        run: black --check announcements guantou user siteconfig files inbox audit utils config themes
 
       - name: Run material tool tests
         working-directory: .

@@ -30,7 +30,7 @@
   └─ 操作日志
 ```
 
-现网目录仍以内置清单为主。管理端接口未注入前，C 端不请求尚不存在的 `/manage/themes/`。落地时走 Django `is_staff` 鉴权，对象变更复用 `audit.ObjectChangeLog`。
+C 端目录走 Django `themes`：`GET /themes/`、`GET /decorations/`，运营可在 Django Admin 改主题/装扮（会 bump `catalog_version`）。`/manage/themes/` 批量运营接口仍属三期，C 端不要调用。对象变更可复用 `audit.ObjectChangeLog`。
 
 ---
 

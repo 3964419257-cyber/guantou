@@ -19,7 +19,7 @@ import {
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
 import { openPage, ROUTES } from '@/services/navigation';
-import { handleThemeAccountLogin } from '@/services/themeFault';
+import { afterThemeLogin } from '@/services/themeApi';
 import rawRequest from '../utils/rawRequest';
 
 export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
@@ -94,7 +94,7 @@ export async function afterLogin(res, options = {}) {
   uni.setStorageSync('token', res.token);
   uni.setStorageSync('id', res.id);
   try {
-    await handleThemeAccountLogin(res.id);
+    await afterThemeLogin(res.id);
   } catch {
     // Theme merge is handled on theme-center; login must not fail.
   }

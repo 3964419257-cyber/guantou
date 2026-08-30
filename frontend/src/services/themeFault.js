@@ -377,6 +377,12 @@ export async function applyThemeMergeChoice(choice, snapshot) {
   } = await import('@/services/themeCenter');
   if (choice === 'cloud') {
     writeThemeStorage(THEME_GUEST_SNAP_KEY, '');
+    try {
+      const { pullThemeCloudState } = await import('@/services/themeApi');
+      await pullThemeCloudState();
+    } catch {
+      // Keep defaults if cloud config cannot be loaded.
+    }
     return { ok: true, choice };
   }
   if (choice === 'local' || choice === 'merge') {

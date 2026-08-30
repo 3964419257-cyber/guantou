@@ -238,7 +238,7 @@ H5 `localStorage` 与小程序 storage 字段名相同。
 
 ## 十一、接口清单
 
-无 `/api` 前缀，与现有资源路径一致。未注入 fetcher 时前端不请求尚不存在的目录接口。
+无 `/api` 前缀，与现有资源路径一致。App 启动时注入 `themeApi.js` 的 catalog / config / member fetcher；单测未注入时仍走内置清单，不会对目录接口发请求。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -256,6 +256,7 @@ H5 `localStorage` 与小程序 storage 字段名相同。
 | GET | `/users/theme/config/` | `user_current_config` |
 | PUT | `/users/theme/config/` | 全量更新当前配置。只接受 id 与覆盖开关；忽略客户端 `style_json` 与计数。服务端按权益重算，见安全文档 |
 | POST | `/users/theme/apply/` | `{ item_type, item_id }` 应用单件 |
+| GET | `/users/theme/entitlement/` | 当前账号会员 / 创作者 / 活动领取。需登录 |
 | POST | `/users/theme/events/` | 埋点，字段见分析文档，无 PII |
 
 列表响应建议：`{ results, next, count, catalog_version }`。列表项可不带 `style_json`（详情接口再给），避免一次下发上千份样式。错误：网络由客户端重试；4xx 用产品 Toast，不白屏。

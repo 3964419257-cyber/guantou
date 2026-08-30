@@ -15,6 +15,7 @@ backend/guantou/
   siteconfig/      站点配置。
   files/           文件上传和公开文件访问。
   inbox/           通知/站内信。
+  themes/          主题装扮目录、当前配置、收藏、搭配与权益。
   utils/           跨 app 工具，包含全局异常类型和中间件。
 ```
 
@@ -30,6 +31,7 @@ backend/guantou/
 - 通知：`inbox`
 - 公告：`announcements`
 - 站点配置：`siteconfig`
+- 主题装扮：`themes`
 - 材料处理和迁移脚本：`tools/materials/`
 
 方言点统一使用 `guantou.Dialect` 的按需关系树。用户资料的默认方言也通过 `primary_dialect_id` 引用这棵树；迁移前县镇文本只保存在不可编辑的 `legacy_location` 中用于追溯，不再作为业务分类依据。
@@ -180,8 +182,8 @@ python manage.py makemigrations --check --dry-run
 cd backend/guantou
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py test guantou announcements user siteconfig files inbox audit
-black --check announcements guantou user siteconfig files inbox audit utils config
+python manage.py test guantou announcements user siteconfig files inbox audit themes
+black --check announcements guantou user siteconfig files inbox audit utils config themes
 ```
 
 ## 什么时候先写方案

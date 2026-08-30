@@ -247,6 +247,9 @@ export function reportThemeEvent(event, payload = {}) {
   } else {
     reportWeb(event, params);
   }
+  import('@/services/themeApi').then(({ postThemeEvent }) => {
+    postThemeEvent(event, params.item_id || payload.item_id || '');
+  }).catch(() => {});
   return record;
 }
 
