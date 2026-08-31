@@ -1,5 +1,8 @@
 <template>
-  <view class="immersive-shell home-page">
+  <view
+    class="immersive-shell home-page"
+    :class="[`accent-${accent}`]"
+  >
     <!-- 氛围光与肌理（沉浸壳自绘背景） -->
     <view
       class="home-page__glow home-page__glow--top"
@@ -69,6 +72,12 @@ import { ROUTES } from '@/services/navigation';
 import { SHARE_TITLE } from '@/const/branding';
 import { canSharePayload } from '@/utils/shareCan';
 import { stopAudio } from '@/utils/audio';
+import {
+  getAccentPreference,
+  paintNativeChrome,
+  resolveTheme,
+} from '@/services/theme';
+import { hydrateOutfitStyle } from '@/services/themeCenter';
 
 export default {
   components: {
@@ -83,11 +92,19 @@ export default {
       userSelectedTab: false,
       pendingShareCan: null,
       feedRevision: 0,
+      accent: getAccentPreference(),
     };
   },
   created() {
     /* 记录首次可见时的登录态指纹（非响应式），供 onShow 比对 */
     this.lastFeedFingerprint = this.feedFingerprint();
+  },
+  mounted() {
+    uni.$on('theme-change', this.handleThemeChange);
+    this.syncChrome();
+  },
+  beforeUnmount() {
+    uni.$off('theme-change', this.handleThemeChange);
   },
   onShareAppMessage() {
     if (this.pendingShareCan) return canSharePayload(this.pendingShareCan);
@@ -97,6 +114,7 @@ export default {
     };
   },
   onShow() {
+    this.syncChrome();
     /*
      * 刷新触发条件（且仅限以下两种，普通从详情页等浏览返回不重建
      * feed，保留滚动位置与已加载数据）：
@@ -115,9 +133,26 @@ export default {
     stopAudio();
   },
   onUnload() {
+    uni.$off('theme-change', this.handleThemeChange);
     stopAudio();
   },
   methods: {
+    handleThemeChange(theme) {
+      this.accent = theme?.accent || getAccentPreference();
+      this.paintImmersiveWindow();
+    },
+    syncChrome() {
+      hydrateOutfitStyle();
+      this.accent = getAccentPreference();
+      this.paintImmersiveWindow();
+    },
+    paintImmersiveWindow() {
+      paintNativeChrome({
+        resolved: resolveTheme(),
+        accent: this.accent,
+        immersive: true,
+      });
+    },
     /*
      * feed 重建指纹：登录态（token 有无）+ 主方言。
      * 依赖的 storage / globalData 均非响应式，故用方法而非 computed，
@@ -152,7 +187,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* 固定深色渐变，不随明暗主题翻转 */
+  /* 深色渐变跟随当前配色色相，不随明暗主题翻转 */
   background: linear-gradient(
     165deg,
     var(--immersive-bg-strong-color) 0%,

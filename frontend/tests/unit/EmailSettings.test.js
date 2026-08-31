@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { flushPromises, mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach, beforeEach, describe, expect, it, vi,
+} from 'vitest';
+import { goBack, goLogin } from '@/services/navigation';
+import { notify, notifySuccess } from '@/services/feedback';
+import request from '@/utils/request';
 
 vi.mock('@/services/navigation', async (importOriginal) => {
   const actual = await importOriginal();
@@ -33,10 +38,6 @@ vi.mock('@/services/theme', async (importOriginal) => {
     getThemePreference: vi.fn(() => 'light'),
   };
 });
-
-import { goBack, goLogin } from '@/services/navigation';
-import { notify, notifySuccess } from '@/services/feedback';
-import request from '@/utils/request';
 
 const app = {
   globalData: {

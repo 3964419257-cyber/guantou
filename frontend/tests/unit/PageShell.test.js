@@ -1,4 +1,6 @@
 import { mount } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -71,6 +73,12 @@ describe('PageShell', () => {
     expect(wrapper.classes()).toContain('accent-tea');
     wrapper.unmount();
     expect(uni.$off).toHaveBeenCalled();
+  });
+
+  it('tints the top bar with the active accent tokens', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/PageShell.vue'), 'utf8');
+    expect(source).toContain('background: var(--accent-subtle-color)');
+    expect(source).toContain('border-bottom: 1px solid var(--accent-color)');
   });
 
   it('skips stack back when interceptBack is set', async () => {

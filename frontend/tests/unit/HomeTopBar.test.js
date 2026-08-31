@@ -1,5 +1,10 @@
 import { mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
+import HomeTopBar from '@/components/home/HomeTopBar.vue';
 
 vi.mock('@/services/homeFeed', () => ({
   HOME_FEED_TABS: [
@@ -9,8 +14,6 @@ vi.mock('@/services/homeFeed', () => ({
     { key: 'recommended', label: '推荐' },
   ],
 }));
-
-import HomeTopBar from '@/components/home/HomeTopBar.vue';
 
 function setupUni() {
   globalThis.uni = {
@@ -88,5 +91,13 @@ describe('HomeTopBar', () => {
     await wrapper.setProps({ activeTab: 'following' });
 
     expect(indicator.attributes('style')).toContain('translateX(200%)');
+  });
+
+  it('lets the home shell restyle top and bottom chrome with the active accent', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/index.vue'), 'utf8');
+    expect(source).toMatch(/accent-\$\{accent\}/);
+    expect(source).toContain('paintNativeChrome');
+    expect(source).toContain('hydrateOutfitStyle');
+    expect(source).toContain('immersive: true');
   });
 });

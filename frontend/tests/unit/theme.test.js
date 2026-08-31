@@ -14,6 +14,7 @@ import {
   getGhostLookPreference,
   getMatchingStylePack,
   GHOST_LOOKS,
+  paintNativeChrome,
   PRIMARY_LOOKS,
   setAccentPreference,
   setButtonStylePreference,
@@ -121,6 +122,34 @@ describe('theme preference', () => {
     expect(uni.setStorageSync).toHaveBeenCalledWith(ACCENT_STORAGE_KEY, 'tea');
     expect(document.documentElement.dataset.accent).toBe('tea');
     expect(document.documentElement.dataset.theme).toBe('light');
+  });
+
+  it('paints native nav and page chrome for the selected accent', () => {
+    uni.setNavigationBarColor = vi.fn();
+    uni.setBackgroundColor = vi.fn();
+    uni.getStorageSync.mockImplementation((key) => {
+      if (key === THEME_STORAGE_KEY) return 'light';
+      if (key === ACCENT_STORAGE_KEY) return 'tea';
+      return '';
+    });
+    setAccentPreference('tea');
+    expect(uni.setNavigationBarColor).toHaveBeenCalledWith(expect.objectContaining({
+      frontColor: '#000000',
+      backgroundColor: '#8b5a2b',
+    }));
+    expect(uni.setBackgroundColor).toHaveBeenCalledWith(expect.objectContaining({
+      backgroundColor: '#f7f3ee',
+      backgroundColorTop: '#f7f3ee',
+    }));
+
+    paintNativeChrome({ accent: 'ink', immersive: true });
+    expect(uni.setNavigationBarColor).toHaveBeenLastCalledWith(expect.objectContaining({
+      frontColor: '#ffffff',
+      backgroundColor: '#0c1016',
+    }));
+    expect(uni.setBackgroundColor).toHaveBeenLastCalledWith(expect.objectContaining({
+      backgroundColor: '#0c1016',
+    }));
   });
 
   it('persists a selected button style without changing the palette', () => {

@@ -142,8 +142,9 @@ export default {
   align-items: center;
   gap: 16rpx;
   padding: 0 28rpx;
-  background: var(--surface-color);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--accent-subtle-color);
+  border-bottom: 1px solid var(--accent-color);
+  color: var(--text-color);
   box-sizing: border-box;
 }
 

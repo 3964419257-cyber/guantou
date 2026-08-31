@@ -467,10 +467,19 @@ describe('themeCenter catalog', () => {
 
   it('paints the enabled pack and dress after leaving the catalog', async () => {
     memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
+    uni.setNavigationBarColor = vi.fn();
+    uni.setBackgroundColor = vi.fn();
+    uni.$emit = vi.fn();
     await persistActiveTheme('nightferry');
     expect(getAccentPreference()).toBe('ink');
     expect(getPrimaryLookPreference()).toBe('contrast');
     expect(getEffectPreference()).toBe('glow');
+    expect(uni.setNavigationBarColor).toHaveBeenCalledWith(expect.objectContaining({
+      backgroundColor: '#2c4a6e',
+    }));
+    expect(uni.setBackgroundColor).toHaveBeenCalledWith(expect.objectContaining({
+      backgroundColor: '#f3f5f8',
+    }));
     await persistLocalDress('cards', 'cards-paper');
     hydrateOutfitStyle();
     expect(getAppliedOutfitVars()).toMatchObject({

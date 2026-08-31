@@ -261,6 +261,80 @@ export function resolveTheme(preference = getThemePreference()) {
   }
 }
 
+export const ACCENT_CHROME = {
+  pine: {
+    page: '#f6f7f3',
+    pageDark: '#121915',
+    nav: '#1f5c43',
+    immersive: '#0a1410',
+  },
+  tea: {
+    page: '#f7f3ee',
+    pageDark: '#191410',
+    nav: '#8b5a2b',
+    immersive: '#140f0c',
+  },
+  ink: {
+    page: '#f3f5f8',
+    pageDark: '#12161c',
+    nav: '#2c4a6e',
+    immersive: '#0c1016',
+  },
+  clay: {
+    page: '#f8f2ed',
+    pageDark: '#1a1411',
+    nav: '#b85c38',
+    immersive: '#140e0c',
+  },
+  mist: {
+    page: '#f3f6f6',
+    pageDark: '#121918',
+    nav: '#4a6b6c',
+    immersive: '#0c1414',
+  },
+  osmanthus: {
+    page: '#f8f5ea',
+    pageDark: '#18160f',
+    nav: '#b8860b',
+    immersive: '#14120a',
+  },
+};
+
+export function getAccentChrome(accent = getAccentPreference()) {
+  return ACCENT_CHROME[accent] || ACCENT_CHROME.pine;
+}
+
+function callUni(name, payload) {
+  if (typeof uni === 'undefined' || typeof uni[name] !== 'function') return;
+  try {
+    uni[name](payload);
+  } catch {
+    // Some runtimes polyfill these as no-ops.
+  }
+}
+
+export function paintNativeChrome({
+  resolved = 'light',
+  accent = 'pine',
+  immersive = false,
+} = {}) {
+  const chrome = getAccentChrome(accent);
+  let backgroundColor = chrome.page;
+  if (immersive) backgroundColor = chrome.immersive;
+  else if (resolved === 'dark') backgroundColor = chrome.pageDark;
+  const frontColor = immersive || resolved === 'dark' ? '#ffffff' : '#000000';
+  callUni('setNavigationBarColor', {
+    frontColor,
+    backgroundColor: immersive ? chrome.immersive : chrome.nav,
+    animation: { duration: 0 },
+  });
+  callUni('setBackgroundColor', {
+    backgroundColor,
+    backgroundColorTop: backgroundColor,
+    backgroundColorBottom: backgroundColor,
+  });
+}
+
 function writeDocumentTheme(resolved, appearance) {
   // #ifdef H5
   if (typeof document !== 'undefined') {
@@ -273,6 +347,11 @@ function writeDocumentTheme(resolved, appearance) {
     document.documentElement.style.colorScheme = resolved;
   }
   // #endif
+  paintNativeChrome({
+    resolved,
+    accent: appearance.accent,
+    immersive: false,
+  });
 }
 
 function emitTheme(next) {
