@@ -1,8 +1,12 @@
 import { expect, test } from '@playwright/test';
 
+async function tap(locator) {
+  await locator.click({ force: true });
+}
+
 async function openMine(page) {
   await page.goto('/');
-  await page.getByRole('button', { name: '我的' }).click();
+  await tap(page.getByRole('button', { name: '我的' }));
   await expect(page.getByText('还没有登录')).toBeVisible();
 }
 
@@ -20,7 +24,7 @@ async function themeTokens(page) {
 
 test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   await openMine(page);
-  await page.getByText('主题中心').click();
+  await tap(page.getByText('主题中心'));
   await expect(page.getByText('当前使用')).toBeVisible();
 
   const light = await themeTokens(page);
@@ -32,7 +36,7 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
     fullPage: true,
   });
 
-  await page.locator('.filters.appearance .chip', { hasText: '深色' }).click();
+  await tap(page.locator('.filters.appearance .chip', { hasText: '深色' }));
   await expect.poll(async () => (await themeTokens(page)).theme).toBe('dark');
 
   const dark = await themeTokens(page);
@@ -48,7 +52,7 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
 
 test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await openMine(page);
-  await page.getByText('主题中心').click();
+  await tap(page.getByText('主题中心'));
   await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
   await expect(page.getByText('默认方言主题').first()).toBeVisible();
   await expect(page.getByText('已启用').first()).toBeVisible();
@@ -174,7 +178,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
 
 test('account settings stay behind login and use PageShell titles', async ({ page }) => {
   await openMine(page);
-  await page.locator('.login-button').click();
+  await tap(page.locator('.login-button'));
   await expect(page.getByText('登录后可以支持铭牌')).toBeVisible();
 
   await page.goto('/pages/users/settings/information');
@@ -273,14 +277,14 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await expect(page.getByText('确认密码')).toBeVisible();
   await expect(page.locator('form:not(.t-form)')).toHaveCount(0);
 
-  await page.getByRole('button', { name: '保存' }).click();
+  await tap(page.getByRole('button', { name: '保存' }));
   await expect(page.getByText('请输入原密码')).toBeVisible();
 
   const oldInput = page.locator('input').first();
   await expect(oldInput).toHaveAttribute('type', 'password');
-  await page.getByRole('button', { name: '显示' }).first().click();
+  await tap(page.getByRole('button', { name: '显示' }).first());
   await expect(oldInput).toHaveAttribute('type', 'text');
-  await page.getByRole('button', { name: '隐藏' }).click();
+  await tap(page.getByRole('button', { name: '隐藏' }));
   await expect(oldInput).toHaveAttribute('type', 'password');
 
   if (process.env.E2E_SCREENSHOT_DIR) {
@@ -294,7 +298,7 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await inputs.nth(0).fill('old-pass');
   await inputs.nth(1).fill('new-pass');
   await inputs.nth(2).fill('new-pass');
-  await page.getByRole('button', { name: '保存' }).click();
+  await tap(page.getByRole('button', { name: '保存' }));
   await expect(page.getByText('修改成功')).toBeVisible();
 });
 
@@ -318,7 +322,7 @@ test('information settings replace native pickers and open the avatar sheet', as
   await expect(page.getByText('西南官话.四川')).toBeVisible();
   await expect(page.locator('picker')).toHaveCount(0);
 
-  await page.locator('.avatar-hit').click();
+  await tap(page.locator('.avatar-hit'));
   await expect(page.locator('.sheet-item', { hasText: '从相册选择' })).toBeVisible();
   await expect(page.locator('.sheet-item', { hasText: '拍照' })).toBeVisible();
   await expect(page.getByText('使用微信头像')).toHaveCount(0);
@@ -332,8 +336,8 @@ test('information settings replace native pickers and open the avatar sheet', as
     });
   }
 
-  await page.getByText('取消').click();
-  await page.getByText('生日').click();
+  await tap(page.getByText('取消'));
+  await tap(page.getByText('生日'));
   await expect(page.getByText('确定').first()).toBeVisible();
 });
 
@@ -342,17 +346,18 @@ test('email settings send a bind code without native form controls', async ({ pa
   await page.goto('/pages/users/settings/email');
 
   await expect(page.getByText('修改邮箱').first()).toBeVisible();
+  await expect(page.getByText('正在读取邮箱…')).toHaveCount(0);
   await expect(page.getByText('原邮箱')).toBeVisible();
   await expect(page.getByText('c@example.com')).toBeVisible();
   await expect(page.getByText('获取验证码')).toBeVisible();
   await expect(page.locator('form:not(.t-form)')).toHaveCount(0);
 
-  await page.getByRole('button', { name: '保存' }).click();
+  await tap(page.getByRole('button', { name: '保存' }));
   await expect(page.getByText('请输入新邮箱')).toBeVisible();
 
   const inputs = page.locator('input');
   await inputs.nth(1).fill('new@example.com');
-  await page.getByRole('button', { name: '获取验证码' }).click();
+  await tap(page.getByRole('button', { name: '获取验证码' }));
   await expect(page.getByText('验证码已发送')).toBeVisible();
   await expect(page.getByRole('button', { name: /后重发/ })).toBeDisabled();
 

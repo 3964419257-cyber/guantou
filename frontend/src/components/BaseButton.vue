@@ -139,6 +139,10 @@ export default {
   --td-button-border-radius: var(--radius-pill);
 }
 
+.base-button :deep(.t-button__content) {
+  pointer-events: none;
+}
+
 .base-button--look-soft {
   --td-brand-color: var(--accent-subtle-color);
   --td-brand-color-active: var(--accent-subtle-color);

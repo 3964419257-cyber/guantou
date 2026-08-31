@@ -124,7 +124,7 @@ export default {
       this.saving = true;
       try {
         const userInfo = { ...app.globalData.userInfo, nickname };
-        await changeUserInfo(app.globalData.id, userInfo);
+        await changeUserInfo(resolveSessionUserId(), userInfo);
         app.globalData.userInfo = userInfo;
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);

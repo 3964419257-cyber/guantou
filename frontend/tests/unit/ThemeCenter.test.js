@@ -1153,6 +1153,18 @@ describe('Theme center page', () => {
     expect(cleanThemeShareQuery('default"><img src=x>')).toBe('defaultimgsrcx');
   });
 
+  it('rolls back a local favorite when the server rejects coming collect', async () => {
+    memoryStore({ token: 'token' });
+    vi.spyOn(themeApi, 'collectThemeRemote').mockRejectedValueOnce({
+      statusCode: 409,
+      data: { reason: 'coming' },
+    });
+    const live = GLOBAL_THEMES.find((item) => item.id === 'default');
+    const result = await toggleFavorite('theme', live);
+    expect(result).toEqual({ ok: false, reason: 'upcoming', favorited: false });
+    expect(isFavorited('theme', 'default')).toBe(false);
+  });
+
   it('keeps missing catalog ids in the favorite list as retired rows', () => {
     memoryStore();
     hydrateFavoriteMap([

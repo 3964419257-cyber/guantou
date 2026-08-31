@@ -25,10 +25,14 @@ vi.mock('@/services/feedback', () => ({
   notifySuccess: vi.fn(),
 }));
 
-vi.mock('@/services/theme', () => ({
-  applyTheme: vi.fn(() => ({ preference: 'light', resolved: 'light' })),
-  getThemePreference: vi.fn(() => 'light'),
-}));
+vi.mock('@/services/theme', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    applyTheme: vi.fn(() => ({ preference: 'light', resolved: 'light' })),
+    getThemePreference: vi.fn(() => 'light'),
+  };
+});
 
 import { goBack, goLogin } from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';
@@ -242,5 +246,18 @@ describe('email settings form', () => {
     await wrapper.vm.$options.onShow.call(wrapper.vm);
     expect(goLogin).toHaveBeenCalled();
     expect(request.get).not.toHaveBeenCalled();
+  });
+
+  it('loads email from stored session when App has not hydrated id', async () => {
+    app.globalData.id = '';
+    globalThis.uni.getStorageSync = vi.fn((key) => {
+      if (key === 'token') return 'token';
+      if (key === 'id') return 7;
+      return '';
+    });
+    const wrapper = await showPage();
+    expect(goLogin).not.toHaveBeenCalled();
+    expect(request.get).toHaveBeenCalledWith('/users/7', null, true);
+    expect(wrapper.vm.oldEmail).toBe('old@example.com');
   });
 });

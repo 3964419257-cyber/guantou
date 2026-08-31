@@ -4,7 +4,15 @@
  */
 import { isLoggedIn } from '@/services/authGuard';
 import { isWechatMiniProgram } from '@/services/platform';
-import { applyThemeRemote, claimThemeRemote, collectThemeRemote, createMixRemote, deleteMixRemote, renameMixRemote, uncollectThemeRemote } from '@/services/themeApi';
+import {
+  applyThemeRemote,
+  claimThemeRemote,
+  collectThemeRemote,
+  createMixRemote,
+  deleteMixRemote,
+  renameMixRemote,
+  uncollectThemeRemote,
+} from '@/services/themeApi';
 import {
   captureGuestThemeSnapshot,
   scheduleThemeCloudFlush,
@@ -2151,6 +2159,26 @@ export function applyRemoteEntitlement(dto = {}) {
   };
 }
 
+function isRemoteApplyRejected(error) {
+  const reason = error?.data?.reason || '';
+  return ['coming', 'deprecated', 'privilege', 'terminal'].includes(reason)
+    || error?.statusCode === 403
+    || error?.statusCode === 409;
+}
+
+function isRemoteRateLimited(error) {
+  return error?.data?.reason === 'rate' || error?.statusCode === 429;
+}
+
+function remoteApplyFail(error) {
+  const reason = error?.data?.reason || '';
+  return {
+    ok: false,
+    reason: reason || (error?.statusCode === 409 ? 'upcoming' : 'privilege'),
+    queued: false,
+  };
+}
+
 export function claimSkin(kind, id) {
   const item = kind === 'theme' ? getThemeById(id) : getDressItem(id);
   if (!item) return { ok: false, reason: 'missing' };
@@ -2347,15 +2375,27 @@ export function deleteSavedOutfit(id) {
   return { ok: true, outfits: next };
 }
 
-export function applySavedOutfit(outfit, { isMiniProgram = false } = {}) {
+export function applySavedOutfit(outfit, {
+  isMiniProgram = false,
+} = {}) {
   if (!outfit || typeof outfit !== 'object' || Array.isArray(outfit)) {
-    return { ok: false, reason: 'broken', skipped: false, empty: false };
+    return {
+      ok: false,
+      reason: 'broken',
+      skipped: false,
+      empty: false,
+    };
   }
   const dressMap = outfit.localDress && typeof outfit.localDress === 'object' && !Array.isArray(outfit.localDress)
     ? outfit.localDress
     : {};
   if (!outfit.themeId && !Object.keys(dressMap).length) {
-    return { ok: false, reason: 'broken', skipped: false, empty: false };
+    return {
+      ok: false,
+      reason: 'broken',
+      skipped: false,
+      empty: false,
+    };
   }
   let skipped = false;
   const theme = getThemeById(outfit.themeId);
@@ -2445,7 +2485,17 @@ export function toggleFavorite(kind, item) {
       queueCloudSync({ social: true });
       return { ok: true, favorited };
     })
-    .catch(() => {
+    .catch((error) => {
+      const coming = error?.data?.reason === 'coming';
+      const rate = error?.data?.reason === 'rate' || error?.statusCode === 429;
+      if (coming || rate) {
+        togglePair(THEME_FAVORITE_STORAGE_KEY, kind, item.id);
+        return {
+          ok: false,
+          reason: coming ? 'upcoming' : 'rate',
+          favorited: already,
+        };
+      }
       queueCloudSync({ social: true });
       return { ok: true, favorited, queued: true };
     });
@@ -2486,26 +2536,6 @@ export function listFavorites(filter = 'all') {
   if (filter === 'theme') return themes;
   if (filter === 'dress') return dresses;
   return [...themes, ...dresses];
-}
-
-function isRemoteApplyRejected(error) {
-  const reason = error?.data?.reason || '';
-  return ['coming', 'deprecated', 'privilege', 'terminal'].includes(reason)
-    || error?.statusCode === 403
-    || error?.statusCode === 409;
-}
-
-function isRemoteRateLimited(error) {
-  return error?.data?.reason === 'rate' || error?.statusCode === 429;
-}
-
-function remoteApplyFail(error) {
-  const reason = error?.data?.reason || '';
-  return {
-    ok: false,
-    reason: reason || (error?.statusCode === 409 ? 'upcoming' : 'privilege'),
-    queued: false,
-  };
 }
 
 /**

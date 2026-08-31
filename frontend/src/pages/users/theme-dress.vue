@@ -582,11 +582,17 @@ export default {
       if (!result?.ok) {
         if (result?.reason === 'upcoming') {
           notify({ title: '待上线装扮暂不支持收藏' });
+        } else if (result?.reason === 'rate') {
+          notify({ title: THEME_FAULT_TOAST.rate });
         }
         return;
       }
       this.refresh();
       trackThemeCollect('dress', item, result.favorited);
+      if (result.queued) {
+        notify({ title: THEME_FAULT_TOAST.socialSyncFail });
+        return;
+      }
       notifySuccess(result.favorited ? '已收藏该装扮' : '已取消收藏');
     },
     onToggleLike(item) {

@@ -188,6 +188,7 @@
       </SectionBlock>
 
       <t-date-time-picker
+        v-if="birthdayPickerOpen"
         :visible="birthdayPickerOpen"
         title="生日"
         mode="date"
@@ -202,6 +203,7 @@
         @close="closeBirthdayPicker"
       />
       <t-picker
+        v-if="dialectPickerOpen"
         :visible="dialectPickerOpen"
         title="发音默认地点"
         cancel-btn="取消"
@@ -473,7 +475,7 @@ export default {
       this.loadError = '';
       try {
         this.dialectOptions = await listAllDialects();
-        const userInfo = await getUserInfo(app.globalData.id, true);
+        const userInfo = await getUserInfo(resolveSessionUserId(), true);
         this.user = { ...userInfo.user };
         this.date = userInfo.user.birthday || '未知';
         this.dialectIndex = userInfo.user.primary_dialect
@@ -492,7 +494,7 @@ export default {
       this.saving = true;
       this.saveError = '';
       try {
-        const res = await changeUserInfo(app.globalData.id, nextUser);
+        const res = await changeUserInfo(resolveSessionUserId(), nextUser);
         this.user = { ...(res.user || nextUser) };
         app.globalData.userInfo = this.user;
         notifySuccess('修改成功');

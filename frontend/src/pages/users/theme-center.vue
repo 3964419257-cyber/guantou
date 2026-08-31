@@ -2271,11 +2271,17 @@ export default {
       if (!result?.ok) {
         if (result?.reason === 'upcoming') {
           notify({ title: '待上线装扮暂不支持收藏' });
+        } else if (result?.reason === 'rate') {
+          notify({ title: THEME_FAULT_TOAST.rate });
         }
         return;
       }
       this.refreshOutfit();
       trackThemeCollect(kind, item, result.favorited);
+      if (result.queued) {
+        notify({ title: THEME_FAULT_TOAST.socialSyncFail });
+        return;
+      }
       let title = '已取消收藏';
       if (result.favorited) {
         title = kind === 'theme' ? '已收藏该主题' : '已收藏该装扮';
