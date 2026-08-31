@@ -173,9 +173,11 @@ describe('themeCenter catalog', () => {
       name: '默认方言主题',
       tag: '免费',
     });
-    expect(listThemesByCategory('cyber').filter((item) => (
+    const freeCyber = listThemesByCategory('cyber').filter((item) => (
       item.available && (item.access || ACCESS_FREE) === ACCESS_FREE
-    )).map((item) => item.id).sort()).toEqual(['gridlamp', 'nightferry', 'signalbooth']);
+    )).map((item) => item.id);
+    expect(freeCyber).toEqual(expect.arrayContaining(['gridlamp', 'nightferry', 'signalbooth']));
+    expect(freeCyber.length).toBeGreaterThanOrEqual(9);
     expect(LOCAL_DRESS_GROUPS.length).toBeGreaterThanOrEqual(20);
     expect(P1_DRESS_GROUP_IDS).toEqual(['cards', 'profile', 'avatar', 'comment-bubble']);
     expect(getDressItem('cards-plain').style_json).toEqual({ borderRadius: '12px' });
@@ -285,14 +287,18 @@ describe('themeCenter catalog', () => {
     expect(getActiveTheme().name).toBe('默认方言主题');
   });
 
-  it('offers three distinctive free live packs in each style category', () => {
+  it('offers at least nine distinctive free live packs in each style category', () => {
+    const allFree = GLOBAL_THEMES.filter((item) => (
+      item.available && (item.access || ACCESS_FREE) === ACCESS_FREE
+    ));
+    expect(allFree.length).toBeGreaterThanOrEqual(20);
     THEME_CATEGORIES.filter((row) => row.value !== 'all').forEach((row) => {
       const freeLive = GLOBAL_THEMES.filter((item) => (
         item.category === row.value
         && item.available
         && (item.access || ACCESS_FREE) === ACCESS_FREE
       ));
-      expect(freeLive.length).toBeGreaterThanOrEqual(3);
+      expect(freeLive.length).toBeGreaterThanOrEqual(9);
       const looks = freeLive.map((item) => JSON.stringify(item.style_json));
       expect(new Set(looks).size).toBe(looks.length);
     });
@@ -303,7 +309,7 @@ describe('themeCenter catalog', () => {
         && (item.access || ACCESS_FREE) === ACCESS_FREE
         && !String(item.id).endsWith('-plain')
       ));
-      expect(freeLive.length).toBeGreaterThanOrEqual(3);
+      expect(freeLive.length).toBeGreaterThanOrEqual(9);
       const looks = freeLive.map((item) => JSON.stringify(item.style_json));
       expect(new Set(looks).size).toBe(looks.length);
     });

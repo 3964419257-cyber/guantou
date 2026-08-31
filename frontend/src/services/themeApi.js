@@ -28,13 +28,24 @@ const silent = {
 };
 
 async function fetchPaged(path) {
-  const data = await request('GET', path, { page: 1, page_size: 50 }, {
-    ...silent,
-    auth: false,
-  });
+  const pageSize = 100;
+  const collected = [];
+  let catalogVersion = 1;
+  let page = 1;
+  while (page <= 30) {
+    const data = await request('GET', path, { page, page_size: pageSize }, {
+      ...silent,
+      auth: false,
+    });
+    catalogVersion = data?.catalog_version || catalogVersion;
+    const rows = data?.results || [];
+    collected.push(...rows);
+    if (!data?.next || rows.length === 0) break;
+    page += 1;
+  }
   return {
-    results: data?.results || [],
-    catalog_version: data?.catalog_version || 1,
+    results: collected,
+    catalog_version: catalogVersion,
   };
 }
 

@@ -38,7 +38,7 @@ class ThemeApiTests(TestCase):
         return {"HTTP_AUTHORIZATION": bearer(self.user)}
 
     def test_guest_can_read_catalog_with_version_and_without_list_style(self):
-        response = self.client.get("/themes/", {"page_size": 50})
+        response = self.client.get("/themes/", {"page_size": 200})
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIn("catalog_version", payload)
@@ -652,7 +652,7 @@ class ThemeApiTests(TestCase):
         )
         self.assertTrue(all(value == "free" for value in privileges[:paid_index]))
 
-    def test_each_style_has_three_distinct_free_skins(self):
+    def test_each_style_has_nine_distinct_free_skins(self):
         tags = [
             "简约",
             "地域方言风",
@@ -672,22 +672,64 @@ class ThemeApiTests(TestCase):
             matched = [
                 item for item in available_free if tag in (item.style_tags or [])
             ]
-            self.assertGreaterEqual(len(matched), 3, tag)
+            self.assertGreaterEqual(len(matched), 9, tag)
             looks = [
                 json.dumps(item.style_json, sort_keys=True, ensure_ascii=True)
                 for item in matched
             ]
             self.assertEqual(len(set(looks)), len(looks), tag)
 
+        self.assertGreaterEqual(available_free.count(), 20)
+
         dress_groups = {
-            "cards": ["cards-paper", "cards-brick", "cards-round"],
-            "profile": ["profile-mist", "profile-night", "profile-grain"],
-            "avatar": ["avatar-frame", "avatar-glyph", "avatar-ink"],
-            "comment-bubble": ["comment-paper", "comment-round", "comment-ink"],
+            "cards": [
+                "cards-paper",
+                "cards-brick",
+                "cards-round",
+                "cards-sharp",
+                "cards-wide",
+                "cards-thin",
+                "cards-accent",
+                "cards-soft",
+                "cards-ridge",
+            ],
+            "profile": [
+                "profile-mist",
+                "profile-night",
+                "profile-grain",
+                "profile-wash",
+                "profile-line",
+                "profile-deep",
+                "profile-glow",
+                "profile-fog",
+                "profile-tile",
+            ],
+            "avatar": [
+                "avatar-frame",
+                "avatar-glyph",
+                "avatar-ink",
+                "avatar-thin",
+                "avatar-soft",
+                "avatar-ridge",
+                "avatar-mist",
+                "avatar-seal",
+                "avatar-wide",
+            ],
+            "comment-bubble": [
+                "comment-paper",
+                "comment-round",
+                "comment-ink",
+                "comment-pill",
+                "comment-soft",
+                "comment-line",
+                "comment-accent",
+                "comment-square",
+                "comment-fog",
+            ],
         }
         for group, ids in dress_groups.items():
             items = list(DecorationItem.objects.filter(decoration_id__in=ids))
-            self.assertEqual(len(items), 3, group)
+            self.assertEqual(len(items), 9, group)
             looks = []
             for item in items:
                 self.assertEqual(item.status, ItemStatus.AVAILABLE)
@@ -695,7 +737,7 @@ class ThemeApiTests(TestCase):
                 looks.append(
                     json.dumps(item.style_json, sort_keys=True, ensure_ascii=True)
                 )
-            self.assertEqual(len(set(looks)), 3, group)
+            self.assertEqual(len(set(looks)), 9, group)
 
     def test_guest_cannot_claim_entitlement(self):
         response = self.client.post(

@@ -79,6 +79,64 @@ describe('themeApi', () => {
     });
   });
 
+  it('follows catalog next links until the storefront has the full list', async () => {
+    request.mockImplementation((method, url, params) => {
+      if (url === THEME_API_PATHS.themes) {
+        if (params.page === 1) {
+          return Promise.resolve({
+            catalog_version: 5,
+            next: 'http://localhost:8000/themes/?page=2&page_size=100',
+            results: [{
+              theme_id: 'default',
+              name: '默认方言主题',
+              privilege_type: 'free',
+              status: 'available',
+            }],
+          });
+        }
+        return Promise.resolve({
+          catalog_version: 5,
+          next: null,
+          results: [{
+            theme_id: 'inkline',
+            name: '青墨细栏',
+            privilege_type: 'free',
+            status: 'available',
+          }],
+        });
+      }
+      if (url === THEME_API_PATHS.decorations) {
+        return Promise.resolve({
+          catalog_version: 5,
+          next: null,
+          results: [{
+            decoration_id: 'cards-plain',
+            name: '系统默认罐头卡',
+            component_type: 'card',
+            group: 'cards',
+            privilege_type: 'free',
+            status: 'available',
+          }],
+        });
+      }
+      return Promise.resolve({});
+    });
+    const catalog = await fetchThemeCatalog();
+    expect(catalog.themes.map((item) => item.id)).toEqual(['default', 'inkline']);
+    expect(request).toHaveBeenCalledWith(
+      'GET',
+      THEME_API_PATHS.themes,
+      { page: 1, page_size: 100 },
+      expect.objectContaining({ silent: true, auth: false }),
+    );
+    expect(request).toHaveBeenCalledWith(
+      'GET',
+      THEME_API_PATHS.themes,
+      { page: 2, page_size: 100 },
+      expect.objectContaining({ silent: true, auth: false }),
+    );
+  });
+
   it('keeps decoration results when the theme list request fails', async () => {
     request.mockImplementation((method, url) => {
       if (url === THEME_API_PATHS.themes) {
