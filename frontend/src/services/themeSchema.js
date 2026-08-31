@@ -12,6 +12,7 @@ import {
   getGhostLookPreference,
   getPrimaryLookPreference,
   getThemePreference,
+  writeAppearancePreference,
 } from '@/services/theme';
 
 export const TERMINAL_H5 = 'h5';
@@ -171,6 +172,11 @@ const TOKEN_KEY = /^--[a-z0-9-]+$/;
 const APPEARANCE_KEYS = new Set(['accent', 'primaryLook', 'ghostLook', 'effect']);
 
 let appliedVarKeys = [];
+let lastAppliedVars = {};
+
+export function getAppliedOutfitVars() {
+  return { ...lastAppliedVars };
+}
 
 export function currentTerminal() {
   return isWechatMiniProgram() ? TERMINAL_MP : TERMINAL_H5;
@@ -606,12 +612,15 @@ function writeDocumentVars(vars) {
 
 export function applyOutfitStyle(resolved) {
   if (!resolved?.ok) {
+    lastAppliedVars = {};
     writeDocumentVars({});
     applyTheme();
     return { ok: false, fallback: 'default', skipped: resolved?.skipped || [] };
   }
-  writeDocumentVars(resolved.vars);
+  lastAppliedVars = resolved.vars || {};
+  writeDocumentVars(lastAppliedVars);
   if (resolved.appearance && Object.keys(resolved.appearance).length) {
+    writeAppearancePreference(resolved.appearance);
     applyTheme(
       getThemePreference(),
       resolved.appearance.accent || getAccentPreference(),
@@ -624,6 +633,7 @@ export function applyOutfitStyle(resolved) {
 }
 
 export function clearOutfitStyleVars() {
+  lastAppliedVars = {};
   writeDocumentVars({});
   appliedVarKeys = [];
 }

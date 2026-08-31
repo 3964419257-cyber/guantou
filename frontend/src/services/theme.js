@@ -213,6 +213,21 @@ export function getEffectPreference() {
   return EFFECT_VALUES.has(saved) ? saved : 'none';
 }
 
+export function writeAppearancePreference(appearance = {}) {
+  if (appearance.accent && ACCENT_VALUES.has(appearance.accent)) {
+    writeStorage(ACCENT_STORAGE_KEY, appearance.accent);
+  }
+  if (appearance.primaryLook && PRIMARY_LOOK_VALUES.has(appearance.primaryLook)) {
+    writeStorage(BUTTON_STYLE_STORAGE_KEY, appearance.primaryLook);
+  }
+  if (appearance.ghostLook && GHOST_LOOK_VALUES.has(appearance.ghostLook)) {
+    writeStorage(GHOST_LOOK_STORAGE_KEY, appearance.ghostLook);
+  }
+  if (appearance.effect && EFFECT_VALUES.has(appearance.effect)) {
+    writeStorage(EFFECT_STORAGE_KEY, appearance.effect);
+  }
+}
+
 export function getMatchingStylePack() {
   const accent = getAccentPreference();
   const primaryLook = getPrimaryLookPreference();

@@ -14,6 +14,7 @@ describe('PageShell', () => {
       $off: vi.fn(),
       $on: vi.fn(),
       getStorageSync: vi.fn(() => 'light'),
+      setStorageSync: vi.fn(),
       getSystemInfoSync: vi.fn(() => ({ theme: 'light' })),
       navigateBack: vi.fn(),
     };

@@ -23,6 +23,7 @@ import {
   setThemePreference,
   STYLE_PACKS,
   THEME_STORAGE_KEY,
+  writeAppearancePreference,
 } from '@/services/theme';
 
 function appearance(overrides = {}) {
@@ -198,5 +199,18 @@ describe('theme preference', () => {
     const glow = setEffectPreference('glow');
     expect(glow.effect).toBe('glow');
     expect(document.documentElement.dataset.effect).toBe('glow');
+  });
+
+  it('writes appearance tokens so later pages keep the enabled pack', () => {
+    writeAppearancePreference({
+      accent: 'ink',
+      primaryLook: 'contrast',
+      ghostLook: 'gilt',
+      effect: 'glow',
+    });
+    expect(uni.setStorageSync).toHaveBeenCalledWith(ACCENT_STORAGE_KEY, 'ink');
+    expect(uni.setStorageSync).toHaveBeenCalledWith(BUTTON_STYLE_STORAGE_KEY, 'contrast');
+    expect(uni.setStorageSync).toHaveBeenCalledWith(GHOST_LOOK_STORAGE_KEY, 'gilt');
+    expect(uni.setStorageSync).toHaveBeenCalledWith(EFFECT_STORAGE_KEY, 'glow');
   });
 });

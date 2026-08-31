@@ -2,6 +2,7 @@
   <view
     class="page-shell"
     :class="[`theme-${resolvedTheme}`, `accent-${accent}`]"
+    :style="outfitVars"
   >
     <view class="shell-topbar">
       <text
@@ -52,7 +53,9 @@
 </template>
 
 <script>
-import { applyTheme, getAccentPreference, getThemePreference } from '@/services/theme';
+import { getAccentPreference } from '@/services/theme';
+import { hydrateOutfitStyle } from '@/services/themeCenter';
+import { getAppliedOutfitVars } from '@/services/themeSchema';
 import { goBack, ROUTES } from '@/services/navigation';
 import BaseButton from '@/components/BaseButton.vue';
 import FeedbackHost from '@/components/FeedbackHost.vue';
@@ -95,19 +98,25 @@ export default {
     return {
       resolvedTheme: 'light',
       accent: getAccentPreference(),
+      outfitVars: {},
     };
   },
   mounted() {
-    this.handleThemeChange(applyTheme(getThemePreference()));
     uni.$on('theme-change', this.handleThemeChange);
+    hydrateOutfitStyle();
+    this.syncOutfitVars();
   },
   beforeUnmount() {
     uni.$off('theme-change', this.handleThemeChange);
   },
   methods: {
+    syncOutfitVars() {
+      this.outfitVars = getAppliedOutfitVars();
+    },
     handleThemeChange(theme) {
       this.resolvedTheme = theme?.resolved || 'light';
       this.accent = theme?.accent || getAccentPreference();
+      this.syncOutfitVars();
     },
     handleBack() {
       this.$emit('back');

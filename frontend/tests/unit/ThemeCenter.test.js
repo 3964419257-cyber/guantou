@@ -16,6 +16,7 @@ import {
 } from '@/services/themeAnalytics';
 import * as themeApi from '@/services/themeApi';
 import {
+  ACCESS_FREE,
   applySavedOutfit,
   canLivePreview,
   claimSkin,
@@ -37,6 +38,7 @@ import {
   hasPermission,
   hydrateFavoriteMap,
   hydrateFromCloudConfig,
+  hydrateOutfitStyle,
   hydrateSavedOutfits,
   isFavorited,
   isRemotePreviewSrc,
@@ -47,6 +49,7 @@ import {
   listRecentUses,
   listThemesByCategory,
   LOCAL_DRESS_GROUPS,
+  LOCAL_DRESS_ITEMS,
   persistActiveTheme,
   persistLocalDress,
   P1_DRESS_GROUP_IDS,
@@ -64,6 +67,7 @@ import {
   setOverlayLocalDress,
   socialStats,
   themeDisplayTags,
+  THEME_CATEGORIES,
   THEME_CLOUD_QUEUE_KEY,
   THEME_FAVORITE_STORAGE_KEY,
   THEME_OUTFIT_LIMIT,
@@ -83,6 +87,12 @@ import {
 } from '@/services/themeFault';
 import ThemeCenterPage from '@/pages/users/theme-center.vue';
 import { cleanThemeShareQuery, themeShareCopy } from '@/utils/themeShare';
+import {
+  getAccentPreference,
+  getEffectPreference,
+  getPrimaryLookPreference,
+} from '@/services/theme';
+import { getAppliedOutfitVars } from '@/services/themeSchema';
 
 vi.mock('@/services/feedback', () => ({
   notify: vi.fn(),
@@ -127,17 +137,45 @@ describe('themeCenter catalog', () => {
     const live = GLOBAL_THEMES.filter((item) => item.available);
     expect(live.map((item) => item.id)).toEqual(expect.arrayContaining([
       'default',
+      'paper',
+      'mistpad',
       'member-pine',
       'event-lantern',
       'event-spring',
       'creator-tile',
+      'wuyu',
+      'yue',
+      'minnan',
+      'mimeograph',
+      'teaslip',
+      'ledger',
+      'nightferry',
+      'signalbooth',
+      'gridlamp',
+      'qingshan',
+      'sealpaper',
+      'inkscroll',
+      'teahouse',
+      'nightstall',
+      'lanternalley',
+      'midautumn',
+      'duanwu',
+      'lanternyear',
+      'pixelbooth',
+      'starglyph',
+      'comicstrip',
+      'inknight',
+      'voidgrid',
+      'coalnook',
     ]));
     expect(GLOBAL_THEMES[0]).toMatchObject({
       id: 'default',
       name: '默认方言主题',
       tag: '免费',
     });
-    expect(listThemesByCategory('cyber').every((item) => !item.available)).toBe(true);
+    expect(listThemesByCategory('cyber').filter((item) => (
+      item.available && (item.access || ACCESS_FREE) === ACCESS_FREE
+    )).map((item) => item.id).sort()).toEqual(['gridlamp', 'nightferry', 'signalbooth']);
     expect(LOCAL_DRESS_GROUPS.length).toBeGreaterThanOrEqual(20);
     expect(P1_DRESS_GROUP_IDS).toEqual(['cards', 'profile', 'avatar', 'comment-bubble']);
     expect(getDressItem('cards-plain').style_json).toEqual({ borderRadius: '12px' });
@@ -227,8 +265,15 @@ describe('themeCenter catalog', () => {
     expect(listAppliedDress().find((row) => row.item.id === 'avatar-creator')?.effective).toBe(false);
   });
 
-  it('enables the default pack and rejects placeholders', () => {
-    expect(setActiveThemeId('nightferry')).toEqual({ ok: false, reason: 'upcoming' });
+  it('enables free live packs and rejects upcoming placeholders', () => {
+    expect(setActiveThemeId('nightferry')).toEqual({
+      ok: true,
+      theme: expect.objectContaining({ id: 'nightferry' }),
+      overlayCleared: false,
+      overlaySuppressed: true,
+      persisted: true,
+    });
+    expect(setActiveThemeId('chuankiang')).toEqual({ ok: false, reason: 'upcoming' });
     expect(setActiveThemeId('default')).toEqual({
       ok: true,
       theme: expect.objectContaining({ id: 'default' }),
@@ -238,6 +283,43 @@ describe('themeCenter catalog', () => {
     });
     expect(uni.setStorageSync).toHaveBeenCalledWith(THEME_PACK_STORAGE_KEY, 'default');
     expect(getActiveTheme().name).toBe('默认方言主题');
+  });
+
+  it('offers three distinctive free live packs in each style category', () => {
+    THEME_CATEGORIES.filter((row) => row.value !== 'all').forEach((row) => {
+      const freeLive = GLOBAL_THEMES.filter((item) => (
+        item.category === row.value
+        && item.available
+        && (item.access || ACCESS_FREE) === ACCESS_FREE
+      ));
+      expect(freeLive.length).toBeGreaterThanOrEqual(3);
+      const looks = freeLive.map((item) => JSON.stringify(item.style_json));
+      expect(new Set(looks).size).toBe(looks.length);
+    });
+    P1_DRESS_GROUP_IDS.forEach((groupId) => {
+      const freeLive = LOCAL_DRESS_ITEMS.filter((item) => (
+        item.group === groupId
+        && item.available
+        && (item.access || ACCESS_FREE) === ACCESS_FREE
+        && !String(item.id).endsWith('-plain')
+      ));
+      expect(freeLive.length).toBeGreaterThanOrEqual(3);
+      const looks = freeLive.map((item) => JSON.stringify(item.style_json));
+      expect(new Set(looks).size).toBe(looks.length);
+    });
+    expect(getDressItem('cards-paper').available).toBe(true);
+    expect(getDressItem('cards-brick').available).toBe(true);
+    expect(getDressItem('cards-round').available).toBe(true);
+    expect(getDressItem('profile-mist').available).toBe(true);
+    expect(getDressItem('profile-night').available).toBe(true);
+    expect(getDressItem('profile-grain').available).toBe(true);
+    expect(getDressItem('avatar-frame').available).toBe(true);
+    expect(getDressItem('avatar-glyph').available).toBe(true);
+    expect(getDressItem('avatar-ink').available).toBe(true);
+    expect(getDressItem('comment-paper').available).toBe(true);
+    expect(getDressItem('comment-round').available).toBe(true);
+    expect(getDressItem('comment-ink').available).toBe(true);
+    expect(getDressItem('navbar-glyph').available).toBe(false);
   });
 
   it('keeps local dress when overlay is on, including after enabling a global pack', async () => {
@@ -375,6 +457,20 @@ describe('themeCenter catalog', () => {
     expect(themeDisplayTags(paper, { applied: true }).map((row) => row.label)).toEqual(
       expect.arrayContaining(['简约', '免费', '已启用']),
     );
+  });
+
+  it('paints the enabled pack and dress after leaving the catalog', async () => {
+    memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
+    await persistActiveTheme('nightferry');
+    expect(getAccentPreference()).toBe('ink');
+    expect(getPrimaryLookPreference()).toBe('contrast');
+    expect(getEffectPreference()).toBe('glow');
+    await persistLocalDress('cards', 'cards-paper');
+    hydrateOutfitStyle();
+    expect(getAppliedOutfitVars()).toMatchObject({
+      '--dress-card-border-radius': '4px',
+      '--dress-card-background': 'var(--surface-color)',
+    });
   });
 
   it('posts decoration apply when signed in and rolls back on 403', async () => {

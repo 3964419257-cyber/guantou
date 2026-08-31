@@ -2,6 +2,7 @@
   <view
     class="app-shell immersive-shell"
     :class="[`theme-${resolvedTheme}`, `accent-${accent}`]"
+    :style="outfitVars"
   >
     <view class="app-shell__header">
       <view>
@@ -48,7 +49,9 @@
 import BaseButton from '@/components/BaseButton.vue';
 import FeedbackHost from '@/components/FeedbackHost.vue';
 import HomeTabBar from '@/components/home/HomeTabBar.vue';
-import { applyTheme, getAccentPreference, getThemePreference } from '@/services/theme';
+import { getAccentPreference } from '@/services/theme';
+import { hydrateOutfitStyle } from '@/services/themeCenter';
+import { getAppliedOutfitVars } from '@/services/themeSchema';
 
 export default {
   name: 'AppShell',
@@ -66,19 +69,25 @@ export default {
     return {
       resolvedTheme: 'light',
       accent: getAccentPreference(),
+      outfitVars: {},
     };
   },
   mounted() {
-    this.handleThemeChange(applyTheme(getThemePreference(), this.accent));
     uni.$on('theme-change', this.handleThemeChange);
+    hydrateOutfitStyle();
+    this.syncOutfitVars();
   },
   beforeUnmount() {
     uni.$off('theme-change', this.handleThemeChange);
   },
   methods: {
+    syncOutfitVars() {
+      this.outfitVars = getAppliedOutfitVars();
+    },
     handleThemeChange(theme) {
       this.resolvedTheme = theme?.resolved || 'light';
       this.accent = theme?.accent || getAccentPreference();
+      this.syncOutfitVars();
     },
   },
 };

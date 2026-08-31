@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -36,7 +38,7 @@ class ThemeApiTests(TestCase):
         return {"HTTP_AUTHORIZATION": bearer(self.user)}
 
     def test_guest_can_read_catalog_with_version_and_without_list_style(self):
-        response = self.client.get("/themes/")
+        response = self.client.get("/themes/", {"page_size": 50})
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIn("catalog_version", payload)
@@ -234,6 +236,16 @@ class ThemeApiTests(TestCase):
         )
         self.assertEqual(paper.status_code, 200)
         self.assertEqual(paper.json()["global_theme_id"], "paper")
+
+        cache.clear()
+        ferry = self.client.post(
+            "/users/theme/apply/",
+            data={"item_type": "theme", "item_id": "nightferry", "platform": "h5"},
+            content_type="application/json",
+            **self.auth(),
+        )
+        self.assertEqual(ferry.status_code, 200)
+        self.assertEqual(ferry.json()["global_theme_id"], "nightferry")
 
         cache.clear()
         put = self.client.put(
@@ -639,6 +651,51 @@ class ThemeApiTests(TestCase):
             len(privileges),
         )
         self.assertTrue(all(value == "free" for value in privileges[:paid_index]))
+
+    def test_each_style_has_three_distinct_free_skins(self):
+        tags = [
+            "简约",
+            "地域方言风",
+            "复古",
+            "赛博",
+            "国风",
+            "市井烟火",
+            "节日限定",
+            "二次元",
+            "极简暗色",
+        ]
+        available_free = ThemeItem.objects.filter(
+            privilege_type="free",
+            status=ItemStatus.AVAILABLE,
+        )
+        for tag in tags:
+            matched = [
+                item for item in available_free if tag in (item.style_tags or [])
+            ]
+            self.assertGreaterEqual(len(matched), 3, tag)
+            looks = [
+                json.dumps(item.style_json, sort_keys=True, ensure_ascii=True)
+                for item in matched
+            ]
+            self.assertEqual(len(set(looks)), len(looks), tag)
+
+        dress_groups = {
+            "cards": ["cards-paper", "cards-brick", "cards-round"],
+            "profile": ["profile-mist", "profile-night", "profile-grain"],
+            "avatar": ["avatar-frame", "avatar-glyph", "avatar-ink"],
+            "comment-bubble": ["comment-paper", "comment-round", "comment-ink"],
+        }
+        for group, ids in dress_groups.items():
+            items = list(DecorationItem.objects.filter(decoration_id__in=ids))
+            self.assertEqual(len(items), 3, group)
+            looks = []
+            for item in items:
+                self.assertEqual(item.status, ItemStatus.AVAILABLE)
+                self.assertEqual(item.privilege_type, "free")
+                looks.append(
+                    json.dumps(item.style_json, sort_keys=True, ensure_ascii=True)
+                )
+            self.assertEqual(len(set(looks)), 3, group)
 
     def test_guest_cannot_claim_entitlement(self):
         response = self.client.post(

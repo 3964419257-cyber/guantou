@@ -498,6 +498,9 @@ export default {
   height: 58rpx;
   border-radius: 50%;
   background: var(--surface-subtle-color);
+  color: var(--dress-avatar-frame-color, inherit);
+  border: var(--dress-avatar-frame-border-width, 0px) solid var(--dress-avatar-frame-border-color, transparent);
+  box-sizing: border-box;
 }
 
 .comment-row__body {
@@ -526,10 +529,15 @@ export default {
 
 .comment-row__content {
   margin-top: 10rpx;
+  padding: 12rpx 16rpx;
   color: var(--text-color);
   font-size: 27rpx;
   line-height: 1.6;
   white-space: pre-wrap;
+  background: var(--dress-comment-bubble-background, transparent);
+  border-radius: var(--dress-comment-bubble-border-radius, 0px);
+  border: 1px solid var(--dress-comment-bubble-border-color, transparent);
+  box-sizing: border-box;
 }
 
 .comment-row__actions {

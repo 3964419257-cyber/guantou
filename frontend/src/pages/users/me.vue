@@ -635,7 +635,8 @@ export default {
 
 <style scoped>
 .page {
-  color: var(--text-color);
+  color: var(--dress-home-bg-color, var(--text-color));
+  background: var(--dress-home-bg-background, transparent);
 }
 
 .state-card,
@@ -705,6 +706,9 @@ export default {
   height: 168rpx;
   border-radius: var(--radius-pill);
   background: var(--surface-subtle-color);
+  color: var(--dress-avatar-frame-color, inherit);
+  border: var(--dress-avatar-frame-border-width, 0px) solid var(--dress-avatar-frame-border-color, transparent);
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 

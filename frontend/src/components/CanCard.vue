@@ -188,9 +188,10 @@ export default {
 
 <style scoped>
 .can-card {
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  background: var(--dress-card-background, var(--surface-color));
+  border: var(--dress-card-border-width, 1px) solid var(--dress-card-border-color, var(--border-color));
+  border-radius: var(--dress-card-border-radius, var(--radius-md));
+  box-shadow: var(--dress-card-shadow, none);
   padding: var(--space-3);
   margin-bottom: 18rpx;
 }

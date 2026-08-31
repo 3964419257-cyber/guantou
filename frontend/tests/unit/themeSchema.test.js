@@ -12,6 +12,7 @@ import {
   fromPrivilegeType,
   fromSavedMix,
   fromThemeItem,
+  getAppliedOutfitVars,
   isNativeComponent,
   PRIVILEGE_ACTIVITY,
   resolveOutfitStyle,
@@ -253,6 +254,13 @@ describe('themeSchema contract', () => {
     });
     expect(Object.keys(covered.vars)).toHaveLength(0);
     expect(covered.appearance.accent).toBe('ink');
+
+    applyOutfitStyle(resolveOutfitStyle({
+      theme: { style_json: { accent: 'tea', primaryLook: 'ardent' } },
+    }));
+    expect(getAppliedOutfitVars()).toEqual({});
+    expect(uni.setStorageSync).toHaveBeenCalledWith('ui_accent', 'tea');
+    expect(uni.setStorageSync).toHaveBeenCalledWith('ui_button_style', 'ardent');
   });
 
   it('falls back to default when style_json is corrupt', () => {
