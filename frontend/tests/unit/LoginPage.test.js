@@ -1,5 +1,11 @@
 import { mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach, describe, expect, it, vi,
+} from 'vitest';
+import { peekInterceptIntent } from '@/services/authGuard';
+import { cancelLoginToSearch } from '@/services/authJourney';
+import { notifySuccess } from '@/services/feedback';
+import { requestPhoneCode } from '@/services/phoneAuth';
 
 vi.mock('@/services/authGuard', () => ({
   actionLabel: vi.fn((action) => ({ record_can: '录一罐' }[action] || action)),
@@ -20,8 +26,10 @@ vi.mock('@/services/phoneAuth', () => ({
   requestPhoneCode: vi.fn(),
 }));
 
-import { cancelLoginToSearch } from '@/services/authJourney';
-import { peekInterceptIntent } from '@/services/authGuard';
+vi.mock('@/services/feedback', () => ({
+  notify: vi.fn(),
+  notifySuccess: vi.fn(),
+}));
 
 globalThis.getApp = vi.fn(() => ({
   globalData: {
@@ -91,5 +99,16 @@ describe('login page intent', () => {
 
     expect(wrapper.find('.phone-form').exists()).toBe(false);
     expect(wrapper.find('.password-form').exists()).toBe(true);
+  });
+
+  it('auto-fills the demo verification code', async () => {
+    peekInterceptIntent.mockReturnValue(null);
+    requestPhoneCode.mockResolvedValue({ demo_code: '654321', retry_after: 60 });
+    const wrapper = mountLogin();
+    wrapper.vm.phone = '13800138000';
+    await wrapper.vm.sendPhoneCode();
+    expect(wrapper.vm.code).toBe('654321');
+    expect(wrapper.vm.demoCode).toBe('654321');
+    expect(notifySuccess).toHaveBeenCalledWith('验证码 654321');
   });
 });

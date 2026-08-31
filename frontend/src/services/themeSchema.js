@@ -67,6 +67,11 @@ export const COMPONENT_TYPES = [
 
 export const MP_NATIVE_COMPONENTS = [COMPONENT_NAV_BAR, COMPONENT_TAB_BAR];
 
+export const THEME_STYLE_CACHE_LIMIT = 32;
+
+const styleObjectCache = new WeakMap();
+const styleStringCache = new Map();
+
 export const DIALECT_TAG_VALUES = {
   chuankiang: '川渝',
   wuyu: '江南吴语',
@@ -193,6 +198,22 @@ export function componentTypeOf(groupId) {
   return GROUP_COMPONENT_TYPE[groupId] || COMPONENT_CARD;
 }
 
+export const COMPONENT_DEFAULT_GROUP = {
+  [COMPONENT_NAV_BAR]: 'navbar',
+  [COMPONENT_TAB_BAR]: 'tabbar',
+  [COMPONENT_BUTTON]: 'actions',
+  [COMPONENT_CARD]: 'cards',
+  [COMPONENT_HOME_BG]: 'profile',
+  [COMPONENT_AVATAR_FRAME]: 'avatar',
+  [COMPONENT_COMMENT_BUBBLE]: 'comment-bubble',
+  [COMPONENT_TOPIC_CARD]: 'topic-card',
+  [COMPONENT_INPUT_BOX]: 'input-compose',
+};
+
+export function groupOfComponentType(componentType) {
+  return COMPONENT_DEFAULT_GROUP[componentType] || '';
+}
+
 export function isNativeComponent(componentType) {
   return MP_NATIVE_COMPONENTS.includes(componentType);
 }
@@ -216,6 +237,18 @@ export function dialectTagsOf(item) {
   return label ? [label] : [];
 }
 
+export function categoryFromStyleTags(tags = []) {
+  const labels = Array.isArray(tags) ? tags : [];
+  const found = Object.entries(STYLE_TAG_VALUES).find(([, label]) => labels.includes(label));
+  return found ? found[0] : '';
+}
+
+export function regionFromDialectTags(tags = []) {
+  const labels = Array.isArray(tags) ? tags : [];
+  const found = Object.entries(DIALECT_TAG_VALUES).find(([, label]) => labels.includes(label));
+  return found ? found[0] : '';
+}
+
 export function styleTagsOf(item, group) {
   if (Array.isArray(item?.style_tags) && item.style_tags.length) {
     return item.style_tags;
@@ -233,11 +266,15 @@ export function toThemeItem(item) {
     name: item.name,
     desc: item.desc || item.description || '',
     cover_img: item.cover_img || item.preview || 'default',
+    detail_img: item.detail_img || '',
+    poster_img: item.poster_img || '',
     style_json: item.style_json && typeof item.style_json === 'object' ? item.style_json : {},
     style_tags: styleTagsOf(item),
     dialect_tags: dialectTagsOf(item),
     privilege_type: toPrivilegeType(item.privilege_type || item.access),
     get_condition: item.get_condition || item.blurb || '',
+    activity_start_at: item.activity_start_at ?? null,
+    activity_end_at: item.activity_end_at ?? null,
     status: item.status || toItemStatus(item),
     support_terminal: item.support_terminal || defaultSupportTerminal(false),
     create_time: item.create_time || 0,
@@ -255,12 +292,17 @@ export function toDecorationItem(item, group) {
     name: item.name,
     desc: item.desc || item.description || '',
     cover_img: item.cover_img || item.preview || 'default',
+    detail_img: item.detail_img || '',
+    poster_img: item.poster_img || '',
     style_json: item.style_json && typeof item.style_json === 'object' ? item.style_json : {},
     component_type: item.component_type || componentTypeOf(item.group || group?.id),
+    group: item.group || group?.id || '',
     style_tags: styleTagsOf(item, group),
     dialect_tags: dialectTagsOf(item),
     privilege_type: toPrivilegeType(item.privilege_type || item.access),
     get_condition: item.get_condition || item.blurb || '',
+    activity_start_at: item.activity_start_at ?? null,
+    activity_end_at: item.activity_end_at ?? null,
     status: item.status || toItemStatus(item),
     support_terminal: item.support_terminal || defaultSupportTerminal(mpBlocked),
     create_time: item.create_time || 0,
@@ -272,30 +314,48 @@ export function toDecorationItem(item, group) {
 
 export function fromThemeItem(dto) {
   if (!dto) return null;
+  const id = dto.theme_id || dto.id;
+  if (!id) return null;
+  const styleTags = dto.style_tags || [];
+  const dialectTags = dto.dialect_tags || [];
+  const status = dto.status || ITEM_STATUS_AVAILABLE;
   return {
-    id: dto.theme_id || dto.id,
-    name: dto.name,
+    id,
+    name: String(dto.name || '').trim() || '装扮',
     description: dto.desc || dto.description || '',
     blurb: dto.get_condition || dto.blurb || '',
     preview: dto.cover_img || dto.preview || 'default',
     style_json: dto.style_json || {},
-    style_tags: dto.style_tags || [],
-    dialect_tags: dto.dialect_tags || [],
+    style_tags: styleTags,
+    dialect_tags: dialectTags,
+    category: dto.category || categoryFromStyleTags(styleTags),
+    region: dto.region || regionFromDialectTags(dialectTags),
     access: fromPrivilegeType(dto.privilege_type),
-    available: (dto.status || ITEM_STATUS_AVAILABLE) === ITEM_STATUS_AVAILABLE,
-    removed: dto.status === ITEM_STATUS_DEPRECATED,
-    eventStatus: dto.status === ITEM_STATUS_DEPRECATED ? 'ended' : undefined,
+    available: status !== ITEM_STATUS_COMING,
+    removed: status === ITEM_STATUS_DEPRECATED,
+    eventStatus: status === ITEM_STATUS_DEPRECATED ? 'ended' : undefined,
     support_terminal: dto.support_terminal || [...THEME_TERMINALS],
     create_time: dto.create_time || 0,
+    poster_img: dto.poster_img || '',
+    detail_img: dto.detail_img || '',
+    cover_img: dto.cover_img || dto.preview || '',
+    activity_start_at: dto.activity_start_at ?? null,
+    activity_end_at: dto.activity_end_at ?? null,
+    like_count: 'like_count' in (dto || {}) ? Number(dto.like_count || 0) : undefined,
+    collect_count: 'collect_count' in (dto || {}) ? Number(dto.collect_count || 0) : undefined,
+    share_count: 'share_count' in (dto || {}) ? Number(dto.share_count || 0) : undefined,
   };
 }
 
 export function fromDecorationItem(dto) {
   if (!dto) return null;
-  const themeLike = fromThemeItem({ ...dto, theme_id: dto.decoration_id });
+  const id = dto.decoration_id || dto.id;
+  if (!id) return null;
+  const themeLike = fromThemeItem({ ...dto, theme_id: id });
+  if (!themeLike) return null;
   return {
     ...themeLike,
-    id: dto.decoration_id || dto.id,
+    id,
     group: dto.group,
     component_type: dto.component_type,
   };
@@ -322,7 +382,7 @@ export function toCollectList(favorites = { themes: [], dresses: [] }) {
 
 export function toSavedMix(outfit) {
   if (!outfit) return null;
-  return {
+  const mix = {
     mix_id: outfit.mix_id || outfit.id,
     mix_name: outfit.mix_name || outfit.name,
     global_theme_id: outfit.global_theme_id || outfit.themeId,
@@ -335,24 +395,34 @@ export function toSavedMix(outfit) {
     ),
     create_time: outfit.create_time || outfit.savedAt || 0,
   };
+  if (typeof outfit.overlay === 'boolean') {
+    mix.is_cover_local_decoration = outfit.overlay;
+  } else if (typeof outfit.is_cover_local_decoration === 'boolean') {
+    mix.is_cover_local_decoration = outfit.is_cover_local_decoration;
+  }
+  return mix;
 }
 
 export function fromSavedMix(mix) {
   if (!mix) return null;
-  const decorationIds = mix.decoration_ids || [];
   const localDress = { ...(mix.localDress || {}) };
-  if (!Object.keys(localDress).length) {
-    decorationIds.forEach((id) => {
-      localDress[id] = id;
-    });
-  }
-  return {
+  Object.entries(mix.decoration_map || {}).forEach(([component, itemId]) => {
+    const group = groupOfComponentType(component);
+    if (group && itemId) localDress[group] = String(itemId);
+  });
+  const mapped = {
     id: mix.mix_id || mix.id,
     name: mix.mix_name || mix.name,
     themeId: mix.global_theme_id || mix.themeId,
     localDress,
     savedAt: mix.create_time || mix.savedAt || 0,
   };
+  if (typeof mix.is_cover_local_decoration === 'boolean') {
+    mapped.overlay = mix.is_cover_local_decoration;
+  } else if (typeof mix.overlay === 'boolean') {
+    mapped.overlay = mix.overlay;
+  }
+  return mapped;
 }
 
 export function toCurrentConfig({
@@ -390,18 +460,53 @@ export function fromCurrentConfig(dto, resolveDressGroup) {
     themeId: dto.global_theme_id || dto.themeId || 'default',
     localDress,
     overlay: dto.is_cover_local_decoration !== false,
-    recent: (dto.recent_use_list || []).map((row) => ({
-      kind: row.item_type === ITEM_TYPE_DECORATION ? 'dress' : 'theme',
-      id: row.item_id || row.id,
-      group: typeof resolveDressGroup === 'function'
-        ? (resolveDressGroup(String(row.item_id || row.id), '') || '')
-        : '',
-      usedAt: row.use_time || row.usedAt || 0,
-    })),
+    recent: (dto.recent_use_list || [])
+      .filter((row) => row && (row.item_id || row.id) && (row.item_type || row.kind))
+      .slice(0, 8)
+      .map((row) => ({
+        kind: row.item_type === ITEM_TYPE_DECORATION || row.kind === 'dress' ? 'dress' : 'theme',
+        id: row.item_id || row.id,
+        group: typeof resolveDressGroup === 'function'
+          ? (resolveDressGroup(String(row.item_id || row.id), '') || '')
+          : '',
+        usedAt: row.use_time || row.usedAt || 0,
+      })),
   };
 }
 
 export function flattenStyleJson(style, componentType = '') {
+  if (style && typeof style === 'object' && !Array.isArray(style)) {
+    let byType = styleObjectCache.get(style);
+    if (!byType) {
+      byType = new Map();
+      styleObjectCache.set(style, byType);
+    }
+    if (byType.has(componentType)) return byType.get(componentType);
+    const computed = computeFlattenStyleJson(style, componentType);
+    byType.set(componentType, computed);
+    return computed;
+  }
+  const key = `${componentType}:${typeof style === 'string' ? style : ''}`;
+  if (styleStringCache.has(key)) {
+    const hit = styleStringCache.get(key);
+    styleStringCache.delete(key);
+    styleStringCache.set(key, hit);
+    return hit;
+  }
+  const computed = computeFlattenStyleJson(style, componentType);
+  styleStringCache.set(key, computed);
+  if (styleStringCache.size > THEME_STYLE_CACHE_LIMIT) {
+    const oldest = styleStringCache.keys().next().value;
+    styleStringCache.delete(oldest);
+  }
+  return computed;
+}
+
+export function clearThemeStyleCache() {
+  styleStringCache.clear();
+}
+
+function computeFlattenStyleJson(style, componentType = '') {
   const parsed = parseThemeStyle(style);
   if (!parsed.ok) {
     return {

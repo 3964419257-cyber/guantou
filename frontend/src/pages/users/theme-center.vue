@@ -18,6 +18,9 @@
             name="keyword"
             placeholder="搜索主题、装扮名称、方言风格"
             clearable
+            :maxlength="64"
+            confirm-type="search"
+            @confirm="submitThemeSearch"
           />
         </BaseForm>
         <BaseButton
@@ -41,19 +44,24 @@
       >
         当前展示为缓存数据，部分内容可能不是最新
       </view>
+      <BaseLoading
+        v-if="catalogLoading && !catalogFail"
+        :delay="200"
+        text="装扮目录加载中…"
+        layout="horizontal"
+      />
       <view
         v-if="catalogFail"
         class="empty-wrap"
       >
-        <EmptyState
-          title="装扮列表加载失败，请检查网络后重试"
-          action-text="重试"
+        <ThemeStatusPane
+          scene="catalog_fail"
           @action="retryCatalog"
         />
       </view>
 
       <scroll-view
-        v-if="!catalogFail && !searching"
+        v-if="!catalogFail && !searching && hotKeywords.length"
         scroll-x
         class="filter-scroll hot-scroll"
         :show-scrollbar="false"
@@ -104,9 +112,10 @@
             {{ item.label }}
           </view>
         </view>
-        <EmptyState
+        <ThemeStatusPane
           v-if="!searchRows.length"
-          title="没有找到相关主题或装扮，换个关键词试试"
+          scene="search"
+          @action="exitSearch"
         />
         <view
           v-for="entry in searchRows"
@@ -242,9 +251,9 @@
         <view class="note-title">
           最近使用
         </view>
-        <EmptyState
+        <ThemeStatusPane
           v-if="!recentRows.length"
-          title="暂无最近使用记录，快去挑选装扮吧"
+          scene="recent"
         />
         <scroll-view
           v-else
@@ -260,8 +269,16 @@
               :class="{ disabled: row.disabled }"
               @tap="onRecentTap(row)"
             >
+              <image
+                v-if="row.kind === 'theme' && themeCoverSrc(row.item)"
+                class="shot shot-xs shot-photo"
+                :src="themeCoverSrc(row.item)"
+                mode="aspectFill"
+                lazy-load
+                @error="onPreviewImgError(row.id)"
+              />
               <view
-                v-if="row.kind === 'theme'"
+                v-else-if="row.kind === 'theme'"
                 class="shot shot-xs"
                 :class="`shot-${row.preview}`"
               >
@@ -271,6 +288,14 @@
                   <view class="shot-tab" />
                 </view>
               </view>
+              <image
+                v-else-if="themeCoverSrc(row.item)"
+                class="thumb thumb-xs shot-photo"
+                :src="themeCoverSrc(row.item)"
+                mode="aspectFill"
+                lazy-load
+                @error="onPreviewImgError(row.id)"
+              />
               <view
                 v-else
                 class="thumb thumb-xs"
@@ -284,7 +309,7 @@
               </view>
               <view
                 class="tag"
-                :class="recentTagClass(row.status)"
+                :class="recentTagClass(row)"
               >
                 {{ row.label }}
               </view>
@@ -417,7 +442,10 @@
           v-if="!visibleThemes.length"
           class="empty-wrap"
         >
-          <EmptyState :title="themeListEmptyTitle" />
+          <ThemeStatusPane
+            :scene="themeListEmptyScene"
+            @action="onThemeListEmptyAction"
+          />
         </view>
         <view
           v-else
@@ -434,7 +462,17 @@
             @tap="openDetail(theme)"
           >
             <view class="shot-wrap">
+              <image
+                v-if="themeCoverSrc(theme)"
+                class="shot shot-photo"
+                :class="{ blurred: !theme.available }"
+                :src="themeCoverSrc(theme)"
+                mode="aspectFill"
+                lazy-load
+                @error="onPreviewImgError(theme.id)"
+              />
               <view
+                v-else
                 class="shot"
                 :class="[`shot-${theme.preview}`, { blurred: !theme.available }]"
               >
@@ -464,11 +502,15 @@
               {{ theme.description }}
             </view>
             <view class="theme-foot">
-              <view
-                class="tag"
-                :class="tagClass(theme)"
-              >
-                {{ theme.tag }}
+              <view class="tag-row">
+                <view
+                  v-for="tag in themeTags(theme)"
+                  :key="`${theme.id}-${tag.kind}-${tag.label}`"
+                  class="tag"
+                  :class="tag.className"
+                >
+                  {{ tag.label }}
+                </view>
               </view>
               <view
                 class="theme-action-wrap"
@@ -554,9 +596,10 @@
           <view class="note-title">
             匹配的局部装扮
           </view>
-          <EmptyState
+          <ThemeStatusPane
             v-if="!visibleDressItems.length"
-            title="当前筛选条件下暂无可用装扮"
+            scene="filter"
+            @action="onClearAppliedFilters"
           />
           <view
             v-for="entry in visibleDressItems"
@@ -613,7 +656,7 @@
           v-if="!dressGroups.length"
           class="empty-wrap"
         >
-          <EmptyState title="该分类装扮素材即将上线，敬请期待" />
+          <ThemeStatusPane scene="dress_coming" />
         </view>
         <view
           v-for="group in dressGroups"
@@ -640,7 +683,7 @@
               class="status-line"
               :class="group.blocked ? 'status-blocked' : 'status-ready'"
             >
-              {{ group.blocked ? '小程序暂不支持该装扮' : 'H5可用' }}
+              {{ group.blocked ? '小程序暂不支持该组件装扮' : (group.mpBlocked ? '仅H5可用' : '可用') }}
             </view>
             <view class="soon-line">
               装扮素材即将上线
@@ -697,11 +740,10 @@
             </view>
           </view>
         </scroll-view>
-        <EmptyState
+        <ThemeStatusPane
           v-if="!favoriteEntries.length"
-          title="你还没有收藏任何主题装扮，快去挑选喜欢的吧"
-          action-text="去挑选"
-          @action="onTabSwitch('global')"
+          scene="favorites"
+          @action="onFavoriteEmptyAction"
         />
         <view
           v-for="entry in favoriteEntries"
@@ -783,6 +825,16 @@
             <view class="muted">
               全局主题会统一修改整套界面风格
             </view>
+            <view class="tag-row">
+              <view
+                v-for="tag in themeTags(activeTheme)"
+                :key="`mine-theme-${tag.kind}-${tag.label}`"
+                class="tag"
+                :class="tag.className"
+              >
+                {{ tag.label }}
+              </view>
+            </view>
             <view
               class="theme-action-wrap"
               @tap.stop
@@ -816,78 +868,22 @@
 
         <view class="outfit">
           <view class="note-title">
-            历史搭配
-          </view>
-          <view class="theme-action-wrap">
-            <BaseButton
-              class="theme-action"
-              size="small"
-              @click="onOpenSaveOutfit"
-            >
-              保存当前搭配
-            </BaseButton>
-          </view>
-          <EmptyState
-            v-if="!savedOutfits.length"
-            title="还没有保存任何搭配方案，可将当前装扮保存为专属搭配"
-          />
-          <view
-            v-for="outfit in savedOutfits"
-            :key="outfit.id"
-            class="dress-card pressable"
-            @tap="onApplyOutfit(outfit)"
-          >
-            <view class="dress-body">
-              <view class="theme-name">
-                {{ outfit.name }}
-              </view>
-              <view class="muted">
-                {{ outfitSummary(outfit) }}
-              </view>
-              <view
-                class="theme-action-wrap"
-                @tap.stop
-              >
-                <BaseButton
-                  class="theme-action"
-                  size="extra-small"
-                  variant="ghost"
-                  @click="onOpenRenameOutfit(outfit)"
-                >
-                  重命名
-                </BaseButton>
-                <BaseButton
-                  class="theme-action"
-                  size="extra-small"
-                  variant="ghost"
-                  @click="onDeleteOutfit(outfit)"
-                >
-                  删除
-                </BaseButton>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <view class="outfit">
-          <view class="note-title">
             已启用局部装扮
           </view>
-          <EmptyState
-            v-if="!appliedDress.length"
-            title="暂未设置局部装扮，快去搭配你的专属界面"
-            action-text="去搭配"
-            @action="onTabSwitch('local')"
+          <ThemeStatusPane
+            v-if="!hasAppliedDress"
+            scene="dress_applied"
+            @action="onDressAppliedEmptyAction"
           />
           <view
             v-for="entry in appliedDress"
             :key="entry.group.id"
             class="dress-card"
-            :class="{ disabled: entry.blocked }"
+            :class="{ disabled: entry.blocked, empty: entry.empty }"
           >
             <view
               class="thumb"
-              :class="`thumb-${entry.item.preview}`"
+              :class="entry.item ? `thumb-${entry.item.preview}` : 'thumb-empty'"
             >
               <view class="thumb-bar" />
               <view class="thumb-card" />
@@ -897,7 +893,17 @@
                 {{ entry.group.name }}
               </view>
               <view class="muted">
-                {{ entry.item.name }}
+                {{ entry.item ? entry.item.name : '暂未设置该组件装扮' }}
+              </view>
+              <view class="tag-row">
+                <view
+                  v-for="tag in dressTags(entry)"
+                  :key="`${entry.group.id}-${tag.kind}-${tag.label}`"
+                  class="tag"
+                  :class="tag.className"
+                >
+                  {{ tag.label }}
+                </view>
               </view>
               <view
                 class="status-line"
@@ -913,9 +919,127 @@
                   class="theme-action"
                   size="small"
                   variant="ghost"
-                  @click="onEditDress(entry.group)"
+                  :disabled="entry.blocked"
+                  @click="onEditDress(entry.group, entry)"
                 >
                   修改
+                </BaseButton>
+                <BaseButton
+                  v-if="entry.item"
+                  class="theme-action"
+                  size="small"
+                  variant="ghost"
+                  @click="onClearDress(entry)"
+                >
+                  关闭
+                </BaseButton>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="outfit">
+          <view class="note-title">
+            装扮冲突设置
+          </view>
+          <view class="overlay-row">
+            <view class="overlay-copy">
+              <view>全局主题覆盖局部装扮</view>
+              <view class="muted">
+                开启后全站只用当前全局主题；已启用的局部装扮暂时失效，但不会被删除。关闭后，单独设置过的组件优先生效。
+              </view>
+            </view>
+            <t-switch
+              :value="overlay"
+              @change="onOverlayChange"
+            />
+          </view>
+        </view>
+
+        <view class="action-stack">
+          <BaseButton
+            @click="onOpenSaveOutfit"
+          >
+            保存当前搭配
+          </BaseButton>
+          <BaseButton
+            @click="openPreview"
+          >
+            预览装扮效果
+          </BaseButton>
+          <BaseButton
+            variant="ghost"
+            @click="onResetDress"
+          >
+            重置全部装扮
+          </BaseButton>
+        </view>
+
+        <view class="outfit">
+          <view class="note-title">
+            历史搭配
+          </view>
+          <ThemeStatusPane
+            v-if="!savedOutfits.length"
+            scene="mix"
+            @action="onOpenSaveOutfit"
+          />
+          <view
+            v-for="outfit in savedOutfits"
+            :key="outfit.id"
+            class="dress-card"
+          >
+            <view
+              class="shot shot-xs"
+              :class="`shot-${outfitThemePreview(outfit)}`"
+            >
+              <view class="shot-home">
+                <view class="shot-nav" />
+                <view class="shot-feed" />
+                <view class="shot-tab" />
+              </view>
+            </view>
+            <view class="dress-body">
+              <view class="theme-name">
+                {{ outfit.name }}
+              </view>
+              <view class="muted">
+                {{ outfitSummary(outfit) }}
+              </view>
+              <view
+                class="theme-action-wrap"
+                @tap.stop
+              >
+                <BaseButton
+                  class="theme-action"
+                  size="extra-small"
+                  @click="onApplyOutfit(outfit)"
+                >
+                  一键应用
+                </BaseButton>
+                <BaseButton
+                  class="theme-action"
+                  size="extra-small"
+                  variant="ghost"
+                  @click="onPreviewOutfit(outfit)"
+                >
+                  预览
+                </BaseButton>
+                <BaseButton
+                  class="theme-action"
+                  size="extra-small"
+                  variant="ghost"
+                  @click="onOpenRenameOutfit(outfit)"
+                >
+                  重命名
+                </BaseButton>
+                <BaseButton
+                  class="theme-action"
+                  size="extra-small"
+                  variant="ghost"
+                  @click="onDeleteOutfit(outfit)"
+                >
+                  删除
                 </BaseButton>
               </view>
             </view>
@@ -1077,38 +1201,6 @@
           </view>
         </view>
 
-        <view class="outfit">
-          <view class="note-title">
-            装扮冲突设置
-          </view>
-          <view class="overlay-row">
-            <view class="overlay-copy">
-              <view>全局主题覆盖局部装扮</view>
-              <view class="muted">
-                开启后，全局主题会压制自定义局部装扮；关闭后，你单独设置的按钮、卡片、背景等装扮将优先生效。
-              </view>
-            </view>
-            <t-switch
-              :value="overlay"
-              @change="onOverlayChange"
-            />
-          </view>
-        </view>
-
-        <view class="action-stack">
-          <BaseButton
-            variant="ghost"
-            @click="onResetDress"
-          >
-            重置全部装扮
-          </BaseButton>
-          <BaseButton
-            @click="openPreview"
-          >
-            预览装扮效果
-          </BaseButton>
-        </view>
-
         <view class="foot-note">
           提示：微信小程序部分原生组件不支持自定义装扮，该部分样式保持系统默认，不会受装扮影响。
         </view>
@@ -1191,27 +1283,39 @@
             首页罐头流
           </view>
           <view
-            class="shot shot-lg"
+            class="shot shot-lg pressable"
             :class="[`shot-${detailTheme.preview}`, { blurred: !detailTheme.available }]"
+            @tap="openZoom"
           >
-            <view class="shot-home">
-              <view class="shot-nav" />
-              <view class="shot-feed" />
-              <view class="shot-feed thin" />
-              <view class="shot-tab" />
-            </view>
-            <view class="shot-me preview-feed">
-              <view class="shot-feed" />
-              <view class="shot-feed thin" />
-              <view class="shot-tab" />
-            </view>
+            <image
+              v-if="themeDetailSrc(detailTheme)"
+              class="shot-photo"
+              :src="themeDetailSrc(detailTheme)"
+              mode="aspectFill"
+              lazy-load
+              @error="onPreviewImgError(`detail:${detailTheme.id}`)"
+            />
+            <template v-else>
+              <view class="shot-home">
+                <view class="shot-nav" />
+                <view class="shot-feed" />
+                <view class="shot-feed thin" />
+                <view class="shot-tab" />
+              </view>
+              <view class="shot-me preview-feed">
+                <view class="shot-feed" />
+                <view class="shot-feed thin" />
+                <view class="shot-tab" />
+              </view>
+            </template>
           </view>
           <view class="preview-label">
             个人中心
           </view>
           <view
-            class="shot shot-lg"
+            class="shot shot-lg pressable"
             :class="[`shot-${detailTheme.preview}`, { blurred: !detailTheme.available }]"
+            @tap="openZoom"
           >
             <view class="shot-me">
               <view class="shot-avatar" />
@@ -1247,11 +1351,15 @@
         <view class="muted">
           预览仅为模拟效果，不会修改你的界面
         </view>
-        <view
-          class="tag"
-          :class="tagClass(detailTheme)"
-        >
-          {{ detailTheme.tag }}
+        <view class="tag-row">
+          <view
+            v-for="tag in themeTags(detailTheme)"
+            :key="`detail-${tag.kind}-${tag.label}`"
+            class="tag"
+            :class="tag.className"
+          >
+            {{ tag.label }}
+          </view>
         </view>
         <view
           class="social-stats pressable"
@@ -1337,12 +1445,68 @@
     </view>
 
     <ThemeLivePreview
-      :open="previewOpen"
+      v-if="previewOpen"
+      :open="true"
       :title="previewTitle"
       :model="livePreviewModel"
       @cancel="closePreview"
       @apply="onConfirmPreview"
     />
+
+    <view
+      v-if="zoomOpen && detailTheme"
+      class="sheet-mask zoom-mask"
+      @tap="closeZoom"
+    >
+      <view class="sheet-mask-dim" />
+      <view
+        class="zoom-sheet"
+        @tap.stop
+      >
+        <view
+          class="preview-close pressable"
+          @tap="closeZoom"
+        >
+          关闭
+        </view>
+        <view class="muted">
+          {{ zoomHint }}
+        </view>
+        <movable-area class="zoom-area">
+          <movable-view
+            class="zoom-view"
+            direction="all"
+            :scale="true"
+            scale-min="1"
+            scale-max="3"
+          >
+            <image
+              v-if="themeDetailSrc(detailTheme)"
+              class="shot shot-xl shot-photo"
+              :src="themeDetailSrc(detailTheme)"
+              mode="aspectFit"
+            />
+            <view
+              v-else
+              class="shot shot-xl"
+              :class="`shot-${detailTheme.preview}`"
+            >
+              <view class="shot-home">
+                <view class="shot-nav" />
+                <view class="shot-feed" />
+                <view class="shot-feed thin" />
+                <view class="shot-tab" />
+              </view>
+              <view class="shot-me">
+                <view class="shot-avatar" />
+                <view class="shot-line" />
+                <view class="shot-line short" />
+              </view>
+            </view>
+          </movable-view>
+        </movable-area>
+      </view>
+    </view>
 
     <view
       v-if="outfitSheet"
@@ -1559,11 +1723,12 @@ import TSwitch from '@tdesign/uniapp/switch/switch.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
 import BaseForm from '@/components/BaseForm.vue';
+import BaseLoading from '@/components/BaseLoading.vue';
 import confirmDialog from '@/components/ConfirmDialog';
-import EmptyState from '@/components/EmptyState.vue';
 import PageShell from '@/components/PageShell.vue';
 import ThemeLivePreview from '@/components/ThemeLivePreview.vue';
 import ThemeShareSheet from '@/components/ThemeShareSheet.vue';
+import ThemeStatusPane from '@/components/ThemeStatusPane.vue';
 import { isLoggedIn } from '@/services/authGuard';
 import { notify, notifySuccess } from '@/services/feedback';
 import {
@@ -1584,12 +1749,15 @@ import {
   trackThemeApplyInvalid,
   trackThemeApplyMix,
   trackThemeCenterEnter,
+  trackThemeCenterLeave,
   trackThemeCollect,
+  trackThemeFault,
   trackThemeFilterClick,
   trackThemeGet,
   trackThemeHotSearch,
   trackThemeItemDetail,
   trackThemeListScroll,
+  trackThemeMixManage,
   trackThemePreview,
   trackThemeResetAll,
   trackThemeSaveMix,
@@ -1597,6 +1765,7 @@ import {
   trackThemeSwitchConflict,
   trackThemeTabSwitch,
   trackThemeUnsupportedEnv,
+  trackThemePerfListReady,
 } from '@/services/themeAnalytics';
 import {
   accessActionLabel,
@@ -1604,26 +1773,32 @@ import {
   applyRecent,
   applySavedOutfit,
   canLivePreview,
+  catalogStatus,
   claimSkin,
+  cleanSearchKeyword,
+  clearLocalDress,
   composePreviewOutfit,
   defaultThemeQuery,
   deleteSavedOutfit,
   describeAccess,
   DIALECT_REGIONS,
   DRESS_CATEGORIES,
+  dressDisplayTags,
   FAVORITE_FILTERS,
   getActiveTheme,
   getDressGroup,
+  getDressItem,
   getLocalDressMap,
   getOverlayLocalDress,
   getSavedOutfits,
   getThemeById,
   getThemeQuery,
   isFavorited,
+  isRemotePreviewSrc,
   listAcquireOffers,
-  listAppliedDress,
   listDressGroupsByCategory,
   listFavorites,
+  listOutfitHubDress,
   listOwnedUnused,
   listRecentUses,
   listThemesByCategory,
@@ -1632,6 +1807,8 @@ import {
   persistCurrentOutfit,
   persistLocalDress,
   persistThemeQuery,
+  previewCoverOf,
+  previewDetailOf,
   queryThemeCatalog,
   renameSavedOutfit,
   resetAllDress,
@@ -1639,6 +1816,7 @@ import {
   searchThemeCatalog,
   setOverlayLocalDress,
   socialStats,
+  themeDisplayTags,
   THEME_ACCESS_FILTERS,
   THEME_ACCESS_FOOTER,
   THEME_CATEGORIES,
@@ -1648,6 +1826,7 @@ import {
   THEME_HISTORY_FOOTER,
   THEME_HOT_KEYWORDS,
   THEME_PREVIEW_FOOTER,
+  THEME_PREVIEW_ZOOM_HINT,
   THEME_SEARCH_TABS,
   THEME_SOCIAL_FOOTER,
   THEME_SORTS,
@@ -1668,17 +1847,18 @@ import {
   refreshThemeMemberStatus,
   THEME_FAULT_TOAST,
 } from '@/services/themeFault';
-import { themeSharePayload } from '@/utils/themeShare';
+import { cleanThemeShareQuery, themeSharePayload } from '@/utils/themeShare';
 
 export default {
   components: {
     BaseButton,
     BaseField,
     BaseForm,
-    EmptyState,
+    BaseLoading,
     PageShell,
     ThemeLivePreview,
     ThemeShareSheet,
+    ThemeStatusPane,
     TSwitch,
   },
   data() {
@@ -1723,12 +1903,16 @@ export default {
       historyFooter: THEME_HISTORY_FOOTER,
       filterFooter: THEME_FILTER_FOOTER,
       previewFooter: THEME_PREVIEW_FOOTER,
+      zoomHint: THEME_PREVIEW_ZOOM_HINT,
       socialTick: 0,
       detailTheme: null,
       shareTarget: null,
       previewOpen: false,
+      zoomOpen: false,
+      coverFailed: {},
       previewMode: 'outfit',
       previewItem: null,
+      previewOutfit: null,
       previewModel: null,
       scrollTimer: 0,
       recentThemes: [],
@@ -1743,6 +1927,7 @@ export default {
         name: [{ required: true, message: '请输入搭配名称' }],
       },
       catalogFail: false,
+      catalogLoading: false,
       catalogStale: false,
       memberSyncing: false,
       sdkSupported: true,
@@ -1768,13 +1953,13 @@ export default {
     showDressItems() {
       return this.hasExtraFilters;
     },
+    themeListEmptyScene() {
+      return this.hasExtraFilters ? 'filter' : 'catalog';
+    },
     themeListEmptyTitle() {
-      if (this.hasExtraFilters || this.category !== 'all') {
-        if (!this.visibleThemes.length && this.hasExtraFilters) {
-          return '当前筛选条件下暂无可用装扮';
-        }
-      }
-      return '暂无可用主题，更多方言主题正在制作中';
+      return this.themeListEmptyScene === 'filter'
+        ? '当前筛选条件下暂无可用装扮'
+        : '暂无可用主题，更多方言主题正在制作中';
     },
     filterSummary() {
       const bits = [];
@@ -1823,16 +2008,21 @@ export default {
       return this.searchResult.all;
     },
     dressGroups() {
-      return listDressGroupsByCategory(this.dressCategory).map((group) => ({
+      return listDressGroupsByCategory(this.dressCategory, {
+        isMiniProgram: this.isMiniProgram,
+      }).map((group) => ({
         ...group,
         blocked: group.mpBlocked && this.isMiniProgram,
       }));
     },
     enableConfirmCopy() {
       if (this.overlay) {
-        return '确认后立即套用整套配色。已开启覆盖，会清空局部装扮。小程序里原生导航栏和底栏无法完全自定义。';
+        return '确认后立即套用整套配色。已开启覆盖，局部装扮暂时不会生效，配置仍保留。小程序里原生导航栏和底栏无法完全自定义。';
       }
       return '确认后立即套用整套配色，已装扮的部件会优先显示。小程序里原生导航栏和底栏无法完全自定义。';
+    },
+    hasAppliedDress() {
+      return this.appliedDress.some((entry) => Boolean(entry.item));
     },
     previewShotClass() {
       const classes = [`shot-${this.activeTheme.preview}`];
@@ -1842,7 +2032,9 @@ export default {
       return classes;
     },
     previewTitle() {
-      return this.previewMode === 'outfit' ? '装扮效果预览' : '实时预览';
+      return this.previewMode === 'outfit' || this.previewMode === 'mix'
+        ? '装扮效果预览'
+        : '实时预览';
     },
     livePreviewModel() {
       return this.previewModel || composePreviewOutfit({
@@ -1884,8 +2076,11 @@ export default {
       this.runSearch({ toast: false });
     }
     if (options?.kind === 'theme' && options?.id) {
-      const match = this.visibleThemes.find((item) => item.id === options.id)
-        || listThemesByCategory('all', 'all', 'newest').find((item) => item.id === options.id);
+      const shareId = cleanThemeShareQuery(options.id);
+      const match = shareId && (
+        this.visibleThemes.find((item) => item.id === shareId)
+        || listThemesByCategory('all', 'all', 'newest').find((item) => item.id === shareId)
+      );
       if (match) this.openDetail(match);
     }
   },
@@ -1893,6 +2088,9 @@ export default {
     await this.syncAccountAndMember();
     this.refreshOutfit();
     this.reportThemeCenterEnter();
+  },
+  onHide() {
+    trackThemeCenterLeave();
   },
   onPageScroll(event) {
     const top = event?.scrollTop || 0;
@@ -1918,14 +2116,25 @@ export default {
       await this.syncAccountAndMember();
     },
     async retryCatalog() {
-      const catalog = await loadThemeCatalog();
-      this.catalogStale = Boolean(catalog.stale);
-      this.catalogFail = !catalog.ok && !catalog.stale;
-      if (catalog.ok && catalog.data) {
-        mergeRemoteCatalog(catalog.data);
-      }
-      if (this.catalogStale) {
-        notify({ title: THEME_FAULT_TOAST.catalogCache });
+      this.catalogLoading = true;
+      const started = Date.now();
+      try {
+        const catalog = await loadThemeCatalog();
+        this.catalogStale = Boolean(catalog.stale);
+        this.catalogFail = !catalog.ok && !catalog.stale;
+        if (catalog.ok && catalog.data) {
+          mergeRemoteCatalog(catalog.data);
+        }
+        if (this.catalogStale) {
+          notify({ title: THEME_FAULT_TOAST.catalogCache });
+        }
+        trackThemePerfListReady({
+          readyMs: Date.now() - started,
+          fromCache: catalog.source === 'cache' || catalog.stale,
+          itemCount: (catalog.data?.themes?.length || 0) + (catalog.data?.dresses?.length || 0),
+        });
+      } finally {
+        this.catalogLoading = false;
       }
     },
     async syncAccountAndMember() {
@@ -1977,6 +2186,11 @@ export default {
     },
     notifyPersist(result, { social = false } = {}) {
       if (!result) return;
+      if (result.reason === 'rate') {
+        notify({ title: THEME_FAULT_TOAST.rate });
+        trackThemeFault('rate');
+        return;
+      }
       if (result.reason === 'quota' || result.persisted === false) {
         notify({ title: THEME_FAULT_TOAST.quota });
         return;
@@ -1995,7 +2209,7 @@ export default {
     refreshOutfit() {
       this.activeTheme = getActiveTheme();
       this.overlay = getOverlayLocalDress();
-      this.appliedDress = listAppliedDress({ isMiniProgram: this.isMiniProgram });
+      this.appliedDress = listOutfitHubDress({ isMiniProgram: this.isMiniProgram });
       this.ownedUnused = listOwnedUnused({ isMiniProgram: this.isMiniProgram });
       this.acquireOffers = listAcquireOffers();
       this.favoriteEntries = listFavorites(this.favoriteFilter);
@@ -2046,12 +2260,20 @@ export default {
     isItemFav(kind, id) {
       return this.socialTick >= 0 && isFavorited(kind, id);
     },
-    onToggleFavorite(kind, item) {
-      if (!item?.available) {
+    async onToggleFavorite(kind, item) {
+      if (!this.guardApply(`fav:${kind}:${item?.id}`)) return;
+      const already = isFavorited(kind, item?.id);
+      if (!item?.available && !already) {
         notify({ title: '待上线装扮暂不支持收藏' });
         return;
       }
-      const result = toggleFavorite(kind, item);
+      const result = await Promise.resolve(toggleFavorite(kind, item));
+      if (!result?.ok) {
+        if (result?.reason === 'upcoming') {
+          notify({ title: '待上线装扮暂不支持收藏' });
+        }
+        return;
+      }
       this.refreshOutfit();
       trackThemeCollect(kind, item, result.favorited);
       let title = '已取消收藏';
@@ -2066,6 +2288,7 @@ export default {
       this.refreshOutfit();
     },
     onShare(kind, item) {
+      if (!this.guardApply(`share:${kind}:${item?.id}`)) return;
       if (!item?.available) {
         notify({ title: '待上线装扮暂不支持分享' });
         return;
@@ -2109,6 +2332,11 @@ export default {
     },
     tagClass(item) {
       return accessTagClass(item);
+    },
+    themeTags(theme) {
+      return themeDisplayTags(theme, {
+        applied: theme?.id === this.activeTheme.id,
+      });
     },
     isGreyTheme(theme) {
       const info = this.themeAccess(theme);
@@ -2200,7 +2428,7 @@ export default {
       }
     },
     submitThemeSearch() {
-      const keyword = String(this.searchForm.keyword || '').trim();
+      const keyword = cleanSearchKeyword(this.searchForm.keyword);
       this.searchForm.keyword = keyword;
       if (!keyword) {
         this.searching = false;
@@ -2262,6 +2490,32 @@ export default {
         searching: this.searching,
         resultTab: this.resultTab,
       };
+    },
+    onClearAppliedFilters() {
+      const next = defaultThemeQuery();
+      this.accessFilter = next.access;
+      this.statusFilter = next.status;
+      this.category = next.category;
+      this.dressCategory = next.dressCategory;
+      this.themeSort = next.sort;
+      this.regions = [];
+      this.dialectRegion = 'all';
+      this.filterDraft = {
+        ...next,
+        keyword: this.searchForm.keyword,
+        searching: this.searching,
+        resultTab: this.resultTab,
+      };
+      this.persistBrowseQuery();
+    },
+    onThemeListEmptyAction() {
+      if (this.themeListEmptyScene === 'filter') this.onClearAppliedFilters();
+    },
+    onFavoriteEmptyAction() {
+      this.onTabSwitch('global');
+    },
+    onDressAppliedEmptyAction() {
+      this.onTabSwitch('local');
     },
     onConfirmFilter() {
       this.accessFilter = this.filterDraft.access;
@@ -2342,11 +2596,36 @@ export default {
     },
     openDetail(theme) {
       this.detailTheme = theme;
+      this.zoomOpen = false;
       trackThemeItemDetail('theme', theme);
       trackThemePreview('theme', theme, 'detail');
     },
     closeDetail() {
+      this.zoomOpen = false;
       this.detailTheme = null;
+    },
+    themeCoverSrc(item) {
+      const src = previewCoverOf(item);
+      if (!item?.id || !isRemotePreviewSrc(src) || this.coverFailed[item.id]) return '';
+      return src;
+    },
+    themeDetailSrc(item) {
+      const src = previewDetailOf(item);
+      const key = `detail:${item?.id}`;
+      if (!item?.id || !isRemotePreviewSrc(src) || this.coverFailed[key]) return '';
+      return src;
+    },
+    onPreviewImgError(key) {
+      this.coverFailed = { ...this.coverFailed, [key]: true };
+      notify({ title: THEME_FAULT_TOAST.resource });
+    },
+    openZoom() {
+      if (!this.detailTheme) return;
+      if (!this.guardApply('preview-zoom')) return;
+      this.zoomOpen = true;
+    },
+    closeZoom() {
+      this.zoomOpen = false;
     },
     async onCardEnable(theme) {
       const info = this.themeAccess(theme);
@@ -2406,7 +2685,11 @@ export default {
         return;
       }
       if (info.action === 'claim') {
-        claimSkin('theme', theme.id);
+        const claimed = await Promise.resolve(claimSkin('theme', theme.id));
+        if (!claimed?.ok) {
+          notify({ title: '暂无权限使用该装扮' });
+          return;
+        }
         trackThemeGet('theme', theme, theme.access);
         this.refreshOutfit();
         notifySuccess('恭喜，已获得该装扮，可前往我的装扮使用');
@@ -2429,6 +2712,11 @@ export default {
         return;
       }
       this.notifyPersist(result);
+      if (result.reason === 'rate') {
+        this.refreshOutfit();
+        this.closeDetail();
+        return;
+      }
       trackThemeApply({ kind: 'theme', item: theme, result: 'success' });
       this.refreshOutfit();
       this.closeDetail();
@@ -2440,6 +2728,9 @@ export default {
       if (reason === 'event') return '该限定装扮活动已结束，无法获取';
       if (reason === 'ended') return '该限定装扮活动已结束，无法获取';
       if (reason === 'creator') return '暂未满足解锁条件，请完成方言创作任务';
+      if (reason === 'privilege') return '暂无权限使用该装扮';
+      if (reason === 'terminal') return '当前环境暂不支持该装扮';
+      if (reason === 'rate') return THEME_FAULT_TOAST.rate;
       if (reason === 'quota') return THEME_FAULT_TOAST.quota;
       if (reason === 'style') return THEME_FAULT_TOAST.style;
       if (reason === 'resource' || reason === 'removed') return THEME_FAULT_TOAST.resource;
@@ -2507,7 +2798,11 @@ export default {
         return;
       }
       if (info.action === 'claim') {
-        claimSkin('dress', item.id);
+        const claimed = await Promise.resolve(claimSkin('dress', item.id));
+        if (!claimed?.ok) {
+          notify({ title: '暂无权限使用该装扮' });
+          return;
+        }
         trackThemeGet('dress', item, item.access);
         this.refreshOutfit();
         notifySuccess('恭喜，已获得该装扮，可前往我的装扮使用');
@@ -2527,13 +2822,17 @@ export default {
         return;
       }
       if (!this.guardApply(`dress:${entry.item.id}`)) return;
-      const result = persistLocalDress(entry.group.id, entry.item.id);
+      const result = await persistLocalDress(entry.group.id, entry.item.id);
       if (!result.ok) {
         this.notifyPersist(result);
         notify({ title: result.reason === 'upcoming' ? '装扮素材即将上线' : this.persistFailTitle(result.reason) });
         return;
       }
       this.notifyPersist(result);
+      if (result.reason === 'rate') {
+        this.refreshOutfit();
+        return;
+      }
       trackThemeApply({ kind: 'dress', item: entry.item, result: 'success' });
       this.refreshOutfit();
       notifySuccess('装扮已生效');
@@ -2546,27 +2845,51 @@ export default {
       }
       goThemeDress(group.id);
     },
-    onEditDress(group) {
+    onEditDress(group, entry) {
+      if (entry?.blocked) {
+        notify({ title: '当前小程序环境暂不支持该装扮' });
+        return;
+      }
       goThemeDress(group.id);
+    },
+    onClearDress(entry) {
+      if (!entry?.item) return;
+      const result = clearLocalDress(entry.group.id);
+      this.notifyPersist(result);
+      this.refreshOutfit();
+      notifySuccess('已恢复跟随全局主题');
     },
     onChangeTheme() {
       this.onTabSwitch('global');
     },
-    recentTagClass(status) {
-      if (status === 'ended') return 'tag-ended';
-      if (status === 'blocked') return 'tag-soon';
-      if (status === 'retired') return 'tag-soon';
+    recentTagClass(row) {
+      if (row?.status === 'ended') return 'tag-ended';
+      if (row?.status === 'blocked') return 'tag-soon';
+      if (row?.status === 'retired') return 'tag-soon';
+      if (row?.status === 'gated') return accessTagClass(row.item);
       return 'tag-free';
     },
     onRecentTap(row) {
-      if (row.disabled) {
-        if (row.status === 'ended') {
-          trackThemeApplyInvalid(row.kind, { id: row.id }, '已绝版');
-        } else if (row.status === 'blocked') {
-          trackThemeUnsupportedEnv(row.kind, { id: row.id });
-        }
-        notify({ title: row.hint });
+      if (row.status === 'blocked') {
+        trackThemeUnsupportedEnv(row.kind, { id: row.id });
+        notify({ title: row.hint || '当前环境暂不支持该装扮' });
+        return;
       }
+      if (row.kind === 'theme') {
+        const theme = getThemeById(row.id);
+        if (!theme) {
+          notify({ title: row.hint || '装扮已下架' });
+          return;
+        }
+        this.openDetail(theme);
+        return;
+      }
+      const item = getDressItem(row.id);
+      if (!item) {
+        notify({ title: row.hint || '装扮已下架' });
+        return;
+      }
+      goThemeDress(item.group, { id: item.id });
     },
     async onApplyRecent(row) {
       if (row.disabled) {
@@ -2574,8 +2897,21 @@ export default {
           trackThemeApplyInvalid(row.kind, { id: row.id }, '已绝版');
         } else if (row.status === 'blocked') {
           trackThemeUnsupportedEnv(row.kind, { id: row.id });
+        } else if (row.status === 'gated') {
+          trackThemeApply({
+            kind: row.kind,
+            item: {
+              id: row.id,
+              access: row.access,
+              region: row.region,
+              group: row.group,
+            },
+            fromHistory: true,
+            result: 'no_permission',
+            permission: row.access,
+          });
         }
-        notify({ title: row.hint });
+        notify({ title: row.hint || '当前暂无使用权限' });
         return;
       }
       if (!this.guardApply(`recent:${row.kind}:${row.id}`)) return;
@@ -2628,9 +2964,11 @@ export default {
         this.outfitError = '请输入搭配名称';
         return;
       }
+      if (!this.guardApply(`outfit-save:${this.outfitMode}`)) return;
       this.outfitError = '';
       if (this.outfitMode === 'rename') {
         renameSavedOutfit(this.outfitTargetId, name);
+        trackThemeMixManage('rename', this.outfitTargetId);
         this.closeOutfitSheet();
         this.refreshOutfit();
         notifySuccess('已保存这套装扮搭配');
@@ -2644,6 +2982,11 @@ export default {
           confirmText: '知道了',
           cancelText: '关闭',
         });
+        trackThemeFault('mix_cap');
+        return;
+      }
+      if (!result.ok && result.reason === 'duplicate') {
+        notify({ title: THEME_FAULT_TOAST.mixDuplicate });
         return;
       }
       if (!result.ok) {
@@ -2664,6 +3007,10 @@ export default {
       if (!confirmed) return;
       if (!this.guardApply(`outfit:${outfit.id || outfit.name || 'mix'}`)) return;
       const result = applySavedOutfit(outfit, { isMiniProgram: this.isMiniProgram });
+      if (!result.ok) {
+        notify({ title: THEME_FAULT_TOAST.mixBroken });
+        return;
+      }
       trackThemeApplyMix(outfit, { hasUnavailable: Boolean(result.skipped) });
       trackThemeApply({
         kind: 'theme',
@@ -2673,7 +3020,14 @@ export default {
         result: 'success',
       });
       this.refreshOutfit();
+      this.notifyApplyMix(result);
+    },
+    notifyApplyMix(result) {
       notifySuccess('已应用历史搭配方案');
+      if (result.empty) {
+        notify({ title: THEME_FAULT_TOAST.mixEmpty });
+        return;
+      }
       if (result.skipped) {
         notify({ title: THEME_FAULT_TOAST.skippedRemoved });
       }
@@ -2686,15 +3040,30 @@ export default {
         confirmText: '删除',
       });
       if (!confirmed) return;
+      if (!this.guardApply(`outfit-delete:${outfit.id || 'mix'}`)) return;
       deleteSavedOutfit(outfit.id);
+      trackThemeMixManage('delete', outfit.id);
       this.refreshOutfit();
     },
+    dressTags(entry) {
+      if (!entry?.item) return [];
+      return dressDisplayTags(entry.item, entry.group, { applied: true });
+    },
     dressStatus(entry) {
+      if (entry.empty || !entry.item) return '暂未设置该组件装扮';
       if (entry.blocked) return '当前环境不生效';
+      const status = catalogStatus(entry.item);
+      if (status === 'removed') return '已下架';
+      if (status === 'ended') return '已绝版';
       if (entry.suppressed) return '已被全局主题覆盖';
       return '当前生效';
     },
+    outfitThemePreview(outfit) {
+      return getThemeById(outfit?.themeId)?.preview || 'default';
+    },
     openPreview() {
+      if (this.previewOpen) return;
+      if (!this.guardApply('preview-open')) return;
       beginThemePreview();
       this.previewMode = 'outfit';
       this.previewItem = null;
@@ -2704,15 +3073,29 @@ export default {
       this.previewOpen = true;
       trackThemePreview('theme', this.activeTheme, 'live');
     },
+    onPreviewOutfit(outfit) {
+      if (this.previewOpen) return;
+      if (!this.guardApply('preview-open')) return;
+      beginThemePreview();
+      this.previewMode = 'mix';
+      this.previewItem = null;
+      this.previewOutfit = outfit;
+      this.previewModel = composePreviewOutfit({
+        themeId: outfit?.themeId,
+        localDress: outfit?.localDress,
+        overlay: outfit?.overlay,
+        isMiniProgram: this.isMiniProgram,
+      });
+      this.previewOpen = true;
+      trackThemePreview('theme', getThemeById(outfit?.themeId), 'live');
+    },
     openLivePreview(kind, item) {
       if (!canLivePreview(item)) {
-        notify({
-          title: item?.eventStatus === 'ended'
-            ? '该装扮已绝版，无法再次使用'
-            : '该主题暂未开放，敬请期待',
-        });
+        notify({ title: '该主题暂未开放，敬请期待' });
         return;
       }
+      if (this.previewOpen) return;
+      if (!this.guardApply('preview-open')) return;
       this.previewMode = kind;
       this.previewItem = item;
       beginThemePreview();
@@ -2731,6 +3114,7 @@ export default {
       abortThemePreview();
       this.previewOpen = false;
       this.previewItem = null;
+      this.previewOutfit = null;
       this.previewModel = null;
     },
     async onConfirmPreview() {
@@ -2744,13 +3128,19 @@ export default {
           return;
         }
         this.notifyPersist(result);
+        if (result.reason === 'rate') {
+          this.closePreview();
+          this.closeDetail();
+          this.refreshOutfit();
+          return;
+        }
         trackThemeApply({
           kind: 'theme',
           item: this.previewItem,
           result: 'success',
         });
       } else if (this.previewMode === 'dress' && this.previewItem) {
-        const result = persistLocalDress(this.previewItem.group, this.previewItem.id);
+        const result = await persistLocalDress(this.previewItem.group, this.previewItem.id);
         if (!result.ok) {
           this.notifyPersist(result);
           notify({
@@ -2761,11 +3151,28 @@ export default {
           return;
         }
         this.notifyPersist(result);
+        if (result.reason === 'rate') {
+          this.closePreview();
+          this.closeDetail();
+          this.refreshOutfit();
+          return;
+        }
         trackThemeApply({
           kind: 'dress',
           item: this.previewItem,
           result: 'success',
         });
+      } else if (this.previewMode === 'mix' && this.previewOutfit) {
+        const result = applySavedOutfit(this.previewOutfit, { isMiniProgram: this.isMiniProgram });
+        if (!result.ok) {
+          notify({ title: THEME_FAULT_TOAST.mixBroken });
+          return;
+        }
+        trackThemeApplyMix(this.previewOutfit, { hasUnavailable: Boolean(result.skipped) });
+        this.closePreview();
+        this.refreshOutfit();
+        this.notifyApplyMix(result);
+        return;
       } else {
         await persistCurrentOutfit();
         trackThemeApply({
@@ -2786,14 +3193,15 @@ export default {
     async onResetDress() {
       const confirmed = await confirmDialog({
         title: '重置全部装扮？',
-        content: '确定要清空所有全局主题与局部装扮，恢复到系统默认样式吗？',
+        content: '确定重置所有装扮？将恢复系统默认样式，已保存的搭配方案不会删除',
         confirmText: '确定重置',
         danger: true,
       });
       if (!confirmed) return;
+      if (!this.guardApply('reset-all')) return;
       trackThemeResetAll({
         themeId: this.activeTheme.id,
-        dressCount: this.appliedDress.length,
+        dressCount: this.appliedDress.filter((entry) => entry.item).length,
       });
       await resetAllDress();
       this.closePreview();
@@ -2807,7 +3215,7 @@ export default {
         const confirmed = await confirmDialog({
           title: '开启全局主题覆盖？',
           content: '开启全局主题覆盖局部装扮后，自定义局部装扮将不会生效，是否继续？',
-          confirmText: '确认',
+          confirmText: '确认开启',
           cancelText: '取消',
         });
         if (!confirmed) {
@@ -3021,6 +3429,7 @@ export default {
 
 .theme-foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
@@ -3099,6 +3508,23 @@ export default {
   color: var(--text-secondary-color);
 }
 
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.tag-style,
+.tag-dialect {
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+}
+
+.tag-active {
+  background: var(--accent-subtle-color);
+  color: var(--accent-color);
+}
+
 .acquire-bar {
   display: flex;
   align-items: center;
@@ -3151,6 +3577,7 @@ export default {
   border-radius: var(--radius-md);
   background: var(--page-color);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .shot-wrap {
@@ -3186,6 +3613,10 @@ export default {
   width: 120rpx;
   height: 88rpx;
   flex-shrink: 0;
+}
+
+.thumb-empty {
+  background: var(--surface-subtle-color);
 }
 
 .recent-scroll {
@@ -3229,6 +3660,51 @@ export default {
 
 .shot-lg {
   height: 280rpx;
+}
+
+.shot-xl {
+  width: 100%;
+  height: 520rpx;
+}
+
+.shot-photo {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.zoom-sheet {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-4) var(--space-3);
+  background: var(--page-color);
+  box-sizing: border-box;
+}
+
+.zoom-area {
+  width: 100%;
+  height: 0;
+  flex: 1;
+  margin-top: var(--space-3);
+}
+
+.zoom-view {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-close {
+  align-self: flex-end;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-xs);
 }
 
 .shot-home,

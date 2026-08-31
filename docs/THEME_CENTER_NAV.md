@@ -5,7 +5,7 @@
 
 本文只定 **主页面、子页面、模态弹窗** 怎么进、怎么关、怎么回。不定视觉稿。页面跳转一律走 `services/navigation.js`（H5 `navigateTo` 即路由，小程序同一 API）。模态 **不入页面栈**。
 
-相关：总览 [`THEME_CENTER.md`](THEME_CENTER.md)，分期 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)，数据 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)，容错 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)，后台 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)，性能 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)，安全 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。
+相关：总览 [`THEME_CENTER.md`](THEME_CENTER.md)，分期 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)，我的装扮汇总 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)，历史搭配 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)，三层预览 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)，最近使用 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)，搜索筛选 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)，四维权限 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)，收藏分享热度 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)，空态标识 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)，双端存储与同步 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)，标准化数据结构（独立拆分）[`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)，容错 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)，后台 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)，性能 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)，安全 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)，用户投稿（三期）[`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)，商业化生态（三期）[`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)。
 
 个人中心入口文案为 **主题中心**（需求里的「主题装扮」指同一入口）。界面不用「作品」「短视频」。
 
@@ -64,7 +64,7 @@ PageShell 返回：`back-fallback` = 个人中心。
 | 详情 · 立即启用 | 无跳转 | 启用后关详情，Toast |
 | 详情 · 去获取 | **子页面** | 会员 / 活动 / 创作任务 |
 | 详情 · 关闭 / 遮罩 | 关模态 | 仍在全局主题列表 |
-| 最近使用卡片 | 模态 | 对应主题详情 |
+| 最近使用卡片 | 模态 / 子页 | 主题 → 详情模态；局部装扮 → `theme-dress?group=&id=`（见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)） |
 | 搜索 | **子页面** | 搜索结果（规划独立页） |
 | 筛选 | 模态 | 筛选面板 |
 
@@ -82,8 +82,9 @@ PageShell 返回：`back-fallback` = 个人中心。
 
 ## 三、我的装扮汇总（子页面）
 
-规划路径：`/pages/users/theme-outfit`（现网：`theme-center?tab=mine`）。  
-返回：主题中心首页。
+规划路径：`/pages/users/theme-outfit`（**现网不要新建该页**；`theme-center?tab=mine`）。  
+返回：主题中心首页（未拆页时顶栏返回切回全局主题 Tab）。  
+模块约定见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。
 
 | 操作 | 类型 | 结果 |
 | --- | --- | --- |
@@ -91,6 +92,7 @@ PageShell 返回：`back-fallback` = 个人中心。
 | 修改某类局部装扮 | 子页面 | `theme-dress?group=` |
 | 保存当前搭配 | 模态 | 命名弹窗 |
 | 点一套历史搭配 | 模态 | 「是否一键应用」确认 |
+| 预览某套历史搭配 | 模态 | 沙盒预览，不入栈；点「立即应用」才写入 |
 | 预览装扮效果 | 模态 | 完整模拟预览全屏层 |
 | 重置全部装扮 | 模态 | 二次确认 |
 | 覆盖开关 | 无跳转 | 可能先出确认再改开关 |
@@ -99,7 +101,7 @@ PageShell 返回：`back-fallback` = 个人中心。
 
 ## 四、搜索结果（子页面）
 
-规划路径：`/pages/users/theme-search`（现网：首页 `searching=true`）。  
+规划路径：`/pages/users/theme-search`（现网：首页 `searching=1`）。  
 Tab：全部 ｜ 全局主题 ｜ 局部装扮（不入栈）。  
 卡片 → 详情模态。筛选 → 筛选模态。返回 → 主题中心首页（退出搜索态或 `navigateBack`）。
 
@@ -147,6 +149,8 @@ Tab：全部 ｜ 全局主题 ｜ 局部装扮（不入栈）。
 | 创作任务 / 装扮获取 | `/pages/users/theme-acquire` | 主题中心 |
 
 小程序用 `navigateTo` 打开上述页，**禁止** `window.open` 或跳 H5 浏览器。
+
+规划投稿管理 `/pages/users/theme-submit` 见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)，**三期才登记 `pages.json`**。现网不要新建该页，也不要从主题中心链过去。装扮社区 `/pages/users/theme-community`、碎片钱包 `/pages/users/theme-wallet` 见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)，同样现网不登记。
 
 ---
 

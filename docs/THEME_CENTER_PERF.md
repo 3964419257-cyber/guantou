@@ -1,13 +1,29 @@
 # 主题中心性能优化
 
-**文档状态：** 产品约定（稳定性优先；完整方案随目录量与三期一起收口）  
-**产品：** 乡声集盒 · 主题中心（H5 网页 + 微信小程序）
+**文档状态：** 独立拆分（一期稳、二期可提前分页/懒加载/版本缓存；虚拟列表按三期验收）  
+**产品：** 乡声集盒 · 主题中心 · 全链路性能  
+**对应实现：** `themeCenter.js` / `themeSchema.js` / `themeFault.js` / `themeAnalytics.js` 性能事件
 
 本文只定列表、图片、样式注入、缓存、小程序、弱网和监控怎么做，不定 UI 稿。不能为了指标关掉启用、预览、筛选、收藏等已承诺能力。低端机和弱网先保证能看、能换、不闪退，再追求帧率。
 
-相关：总览 [`THEME_CENTER.md`](THEME_CENTER.md)，数据 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)，容错 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)，埋点 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)，后台素材 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)，分期 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md) 三期「长列表虚拟滚动、封面懒加载、缓存策略」，安全 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。
+相关：总览 [`THEME_CENTER.md`](THEME_CENTER.md)，三层预览 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)，搜索筛选 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)，四维权限 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)，历史搭配 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)，空态标识 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)，双端存储与同步 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)，标准化数据结构（独立拆分）[`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)，容错 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)，埋点 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)，后台素材 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)，分期 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)，安全 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。
+
+需求原文若把「全部列表立刻虚拟列表」「增量 PUT」「首屏硬性 1s」写成当前闸门，规划仍以 ROADMAP 为准：虚拟滚动、WebP 转码、性能看板是 **三期**；分页、缩略图懒加载、`catalog_version`、style LRU、性能事件可提前。配置同步仍是全量 PUT，见 SYNC。不要另做智能预加载中台。
 
 对外文案不用「作品」「短视频」。下文「罐头卡片」对应需求里的作品卡片。
+
+## 分期范围
+
+| 现在做 | 不做（三期 / 已由别的分册钉死） |
+| --- | --- |
+| 列表图 `lazy-load`；详情才用 `detail_img` | 货架未过 50 条就上虚拟列表（一期内置清单全量渲染） |
+| 目录缓存不含 `style_json`；版本变化整表作废 + 清内存 LRU | 增量同步变更字段（SYNC：全量 PUT） |
+| `style_json` 内存 LRU（32）；hydrate 约 2s 节流打 `theme_perf_style` | 历史搭配虚拟列表（最多 10 套） |
+| 关预览 `abortThemePreview` + `v-if` 卸实例 | 前端现转 WebP；后台转码见 ADMIN 三期 |
+| 启用 800ms、云端 300ms、搜索提交而非按键打接口 | 首屏 ≤1s / 弱网 ≤2s 当验收闸门（先不白屏） |
+| 小程序不注入原生栏；滚动埋点已节流 | `theme_perf_scroll` fps 采样随虚拟列表一起做 |
+
+H5 少重排：只改 CSS 变量。小程序少 setData：配置变更才写 storage，预览关闭即卸。
 
 ## 原则
 
@@ -17,7 +33,7 @@
 4. **持久化只存 id 和轻量元数据**；完整 `style_json` 走接口和内存缓存。
 5. 实时预览只在沙盒模拟，关闭即销毁，不改真实页、不长期占图。
 
-一期目录是内置少量清单，不必上虚拟列表。分页、缩略图懒加载、缓存版本号可在二期货架变长时提前做。虚拟滚动、海报预生成、性能看板按三期验收。
+一期目录是内置少量清单，不必上虚拟列表。分页、缩略图懒加载、缓存版本号可在二期货架变长时提前做。虚拟滚动、海报预生成、滚动 fps 采样按三期验收。
 
 ```text
 列表：分页 20 → 可视区渲染（≥50 开虚拟列表）→ 缩略图懒加载
@@ -141,7 +157,7 @@ C 端用 `resolveOutfitStyle` → `applyOutfitStyle`（`hydrateOutfitStyle`）�
 
 ## 六、弱网
 
-1. 目录与详情请求超时（建议 8s）；失败提示重试，停留当前页。
+1. 目录与详情请求超时（装扮接口 15s，见 FAULT）；失败提示重试，停留当前页。
 2. 先渲染缓存列表，再静默更新；新数据到达后补页，尽量保持滚动位置。
 3. 图失败占位，不阻塞滚动和启用。
 4. 启用时若该 id 的 `style_json` 尚未取到：先按 id 记下配置（本地立刻「已启用」），样式待拉取成功再 hydrate；超时则默认皮 + 可重试，不回滚用户选中的 id。
@@ -181,23 +197,27 @@ C 端用 `resolveOutfitStyle` → `applyOutfitStyle`（`hydrateOutfitStyle`）�
 
 | 约定 | 现网 |
 | --- | --- |
-| 分页 20、虚拟列表 >50 | 内置全量清单，页内一次渲染 |
-| 缩略图 / 大图 / 海报分离 + WebP | 字段已规划；分享海报仍可前端拼 |
-| 样式变量 + 解析失败回退 | 已落地 `parseThemeStyle` / `hydrateOutfitStyle` |
-| 启用防抖、预览 abort | 已有 |
+| 分页 20、虚拟列表 >50 | 内置全量清单，页内一次渲染；目录未过 50 不上虚拟列表 |
+| 缩略图 / 大图 / 海报分离 + WebP | 列表 `lazy-load` + `cover_img`；WebP 转码属三期后台 |
+| 样式变量 + 解析失败回退 | 已落地；`flattenStyleJson` 内存 LRU 32 |
+| 启用防抖、预览 abort | 已有；`ThemeLivePreview` `v-if` |
 | 搭配/当前配置存 id | 已是 |
-| 目录缓存不含 style_json | `theme_cache` 仍可能整对象写入；`THEME_CATALOG_CACHE_KEY` 已只存 id |
-| `catalog_version` | 未接 |
-| 性能事件 | 未接 |
+| 目录缓存不含 style_json | `theme_cache` / `decoration_cache` 写入前剥掉 `style_json` |
+| `catalog_version` | 变化则丢目录缓存与 style LRU |
+| 性能事件 | `theme_perf_list_ready` / `theme_perf_style` / `theme_perf_error` 已接；`theme_perf_scroll` 随三期虚拟列表 |
 
 ---
 
 ## 验收
 
-- 目录 100+ 条时列表可滑，低端机不因一次铺全卡而明显卡死或闪退。
+- 目录 100+ 条时列表可滑，低端机不因一次铺全卡而明显卡死或闪退。（当前内置清单未到此量，三期闸门）
 - 列表只出缩略图；详情才出大图；失败有占位。
 - 连续点启用只看到最后一次皮；损坏 JSON 回退默认且页面仍可用。
 - 弱网能先看缓存列表；配置 id 不丢。
 - 后台改版本后，下次进入目录会换新数据，不长期展示已下架为「可用」。
 - 小程序关预览后无残留预览层；原生栏无样式注入。
 - 性能事件可在报表里看到首屏耗时与 `style_json` 错误，且无 PII。
+
+## 后续（不在本期）
+
+智能预加载、C 端自建 CDN、按机型千人千面、滚动 fps 与虚拟列表一起做。

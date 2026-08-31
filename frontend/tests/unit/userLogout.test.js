@@ -13,6 +13,9 @@ describe('user logout storage policy', () => {
       auth_intercept_intent: 'intent',
       'can_drafts:user:7': '[{"id":"draft-1"}]',
       search_history: '["moon"]',
+      ui_theme_pack: 'member-pine',
+      ui_theme_outfits: '[{"id":"mix-a"}]',
+      ui_theme_account: '7',
     };
     app = {
       globalData: {
@@ -37,6 +40,9 @@ describe('user logout storage policy', () => {
     expect(storage.auth_intercept_intent).toBeUndefined();
     expect(storage['can_drafts:user:7']).toBe('[{"id":"draft-1"}]');
     expect(storage.search_history).toBe('["moon"]');
+    expect(storage.ui_theme_pack).toBeUndefined();
+    expect(storage.ui_theme_outfits).toBeUndefined();
+    expect(storage.ui_theme_account).toBeUndefined();
     expect(app.globalData.id).toBeUndefined();
     expect(app.globalData.userInfo).toBeUndefined();
   });

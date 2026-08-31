@@ -163,6 +163,7 @@ import TTabs from '@tdesign/uniapp/tabs/tabs.vue';
 import PageShell from '@/components/PageShell.vue';
 import { actionLabel, peekInterceptIntent } from '@/services/authGuard';
 import { cancelLoginToSearch } from '@/services/authJourney';
+import { notify, notifySuccess } from '@/services/feedback';
 import { mpLogin, normalLogin } from '@/services/login';
 import { loginWithPhone, requestPhoneCode } from '@/services/phoneAuth';
 import { toForgetPage, toRegisterPage, toWechatRegisterPage } from '@/routers/login';
@@ -232,10 +233,11 @@ export default {
       try {
         const response = await requestPhoneCode(this.phone);
         this.demoCode = response.demo_code || '';
+        if (this.demoCode) this.code = this.demoCode;
         this.startCountdown(response.retry_after);
-        uni.showToast({ title: '验证码已生成', icon: 'success' });
+        notifySuccess(this.demoCode ? `验证码 ${this.demoCode}` : '验证码已发送');
       } catch (error) {
-        uni.showToast({ title: error.message || '验证码发送失败', icon: 'none' });
+        notify({ title: error.message || '连不上后端，验证码发不出去' });
       } finally {
         this.sendingCode = false;
       }
@@ -244,7 +246,7 @@ export default {
       try {
         await loginWithPhone(this.phone, this.code);
       } catch (error) {
-        uni.showToast({ title: error.message || '登录失败', icon: 'none' });
+        notify({ title: error.message || '登录失败' });
       }
     },
     passwordLogin() {

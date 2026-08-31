@@ -2,7 +2,40 @@ import { APP_NAME } from '@/const/branding';
 import { isWechatMiniProgram } from '@/services/platform';
 import { setClipboardQuiet } from '@/utils/clipboard';
 
+const SHARE_QUERY_SAFE = /[^a-zA-Z0-9_-]/g;
+
+const REGION_SHARE_COPY = {
+  chuankiang: '巴适得很，这个川渝乡音主题来看哈！',
+  wuyu: '这个江南吴语主题蛮灵的，一起来搭配吧',
+  yue: '呢个岭南粤韵主题好靓，一齐来搭配啦',
+  minnan: '这个闽台闽南主题真有味，一起来搭配',
+  jinshan: '这个北方晋陕主题带劲，一起来搭配吧',
+  xiangchu: '这个湘楚潇湘主题有味道，一起来搭配吧',
+  yungui: '这个云贵滇黔主题好在，一起来搭配吧',
+};
+
+export function cleanThemeShareQuery(raw) {
+  return String(raw || '').replace(SHARE_QUERY_SAFE, '').slice(0, 64);
+}
+
+function regionOf(item) {
+  if (item?.region && REGION_SHARE_COPY[item.region]) return item.region;
+  const tag = Array.isArray(item?.dialect_tags) ? item.dialect_tags[0] : '';
+  const mapped = {
+    川渝: 'chuankiang',
+    江南吴语: 'wuyu',
+    岭南粤韵: 'yue',
+    闽台闽南: 'minnan',
+    北方晋陕: 'jinshan',
+    湘楚潇湘: 'xiangchu',
+    云贵滇黔: 'yungui',
+  };
+  return mapped[tag] || '';
+}
+
 export function themeShareCopy(item, kind) {
+  const regional = REGION_SHARE_COPY[regionOf(item)];
+  if (regional) return regional;
   if (kind === 'dress') {
     if (item?.group === 'avatar') return '这个方言头像框好好看，一起来搭配吧';
     return `这个方言装扮「${item?.name || '乡音装扮'}」好好看，一起来搭配吧`;
@@ -11,10 +44,12 @@ export function themeShareCopy(item, kind) {
 }
 
 export function themeSharePath(kind, item) {
+  const id = cleanThemeShareQuery(item?.id);
   if (kind === 'dress') {
-    return `/pages/users/theme-dress?group=${item.group}&id=${item.id}`;
+    const group = cleanThemeShareQuery(item?.group);
+    return `/pages/users/theme-dress?group=${group}&id=${id}`;
   }
-  return `/pages/users/theme-center?kind=theme&id=${item.id}`;
+  return `/pages/users/theme-center?kind=theme&id=${id}`;
 }
 
 export function themeShareUrl(kind, item) {
@@ -131,9 +166,25 @@ export async function saveThemePoster(kind, item) {
   if (typeof uni.saveImageToPhotosAlbum !== 'function') {
     return { ok: false, reason: 'album' };
   }
+  const src = item?.poster_img || item?.detail_img || item?.cover_img || '';
+  if (!/^https?:\/\//.test(String(src))) {
+    return { ok: false, reason: 'resource' };
+  }
+  const filePath = await new Promise((resolve) => {
+    if (typeof uni.downloadFile !== 'function') {
+      resolve('');
+      return;
+    }
+    uni.downloadFile({
+      url: src,
+      success: (res) => resolve(res?.tempFilePath || ''),
+      fail: () => resolve(''),
+    });
+  });
+  if (!filePath) return { ok: false, reason: 'resource' };
   return new Promise((resolve) => {
     uni.saveImageToPhotosAlbum({
-      filePath: themeSharePath(kind, item),
+      filePath,
       success: () => resolve({ ok: true }),
       fail: () => resolve({ ok: false, reason: 'album' }),
     });
@@ -147,4 +198,5 @@ export default {
   themeSharePath,
   themeSharePayload,
   themeShareUrl,
+  cleanThemeShareQuery,
 };

@@ -11,9 +11,14 @@ import {
   THEME_CATEGORIES,
   THEME_SORTS,
 } from '@/services/themeCenter';
+import {
+  THEME_EMPTY_ACTION_LABELS,
+  THEME_EMPTY_SCENE_LABELS,
+} from '@/services/themeStatus';
 
 export const THEME_ANALYTICS_EVENTS = {
   ENTER: 'theme_center_enter',
+  LEAVE: 'theme_center_leave',
   TAB_SWITCH: 'theme_tab_switch',
   ITEM_DETAIL: 'theme_item_enter_detail',
   LIST_SCROLL: 'theme_list_scroll',
@@ -26,11 +31,19 @@ export const THEME_ANALYTICS_EVENTS = {
   APPLY: 'theme_apply_click',
   GET: 'theme_get_click',
   SAVE_MIX: 'theme_save_mix',
+  MIX_MANAGE: 'theme_mix_manage',
   APPLY_MIX: 'theme_apply_mix',
   RESET_ALL: 'theme_reset_all',
   SWITCH_CONFLICT: 'theme_switch_conflict',
   UNSUPPORTED_ENV: 'theme_unsupported_env',
   APPLY_INVALID: 'theme_apply_invalid_item',
+  EMPTY_SHOW: 'theme_empty_show',
+  EMPTY_CLICK: 'theme_empty_click',
+  FAULT: 'theme_fault',
+  PERF_LIST_READY: 'theme_perf_list_ready',
+  PERF_SCROLL: 'theme_perf_scroll',
+  PERF_STYLE: 'theme_perf_style',
+  PERF_ERROR: 'theme_perf_error',
 };
 
 export const THEME_TAB_LABELS = {
@@ -70,6 +83,19 @@ export const THEME_GET_METHODS = {
   creator: '创作者任务',
 };
 
+export const THEME_MIX_ACTIONS = {
+  rename: '重命名',
+  delete: '删除',
+};
+
+export const THEME_FAULT_KINDS = {
+  sync: 'sync',
+  rate: 'rate',
+  mix_cap: 'mix_cap',
+};
+
+export const THEME_ANALYTICS_QUEUE_KEY = 'ui_theme_analytics_queue';
+
 const PRIVACY_KEYS = [
   'nickname',
   'phone',
@@ -86,7 +112,14 @@ const PRIVACY_KEYS = [
 ];
 
 const QUEUE_LIMIT = 200;
+const FAULT_GAP_MS = 2000;
+const MIN_DWELL_MS = 300;
+const MAX_DWELL_MS = 86400000;
 const queue = [];
+let lastEmptyScene = '';
+let lastFaultKind = '';
+let lastFaultAt = 0;
+let enterAt = 0;
 
 function wechatApi() {
   if (typeof globalThis === 'undefined') return null;
@@ -180,6 +213,36 @@ export function flattenThemeAnalyticsParams(payload = {}) {
   return flat;
 }
 
+function persistQueueToStorage() {
+  if (typeof uni === 'undefined' || typeof uni.setStorageSync !== 'function') return;
+  try {
+    uni.setStorageSync(THEME_ANALYTICS_QUEUE_KEY, queue.slice(-QUEUE_LIMIT));
+  } catch {
+    // Quota or missing storage must not block the page.
+  }
+}
+
+function restoreQueueFromStorage() {
+  if (queue.length) return;
+  if (typeof uni === 'undefined' || typeof uni.getStorageSync !== 'function') return;
+  try {
+    const saved = uni.getStorageSync(THEME_ANALYTICS_QUEUE_KEY);
+    if (!Array.isArray(saved)) return;
+    saved.forEach((row) => {
+      if (!row || typeof row.event !== 'string') return;
+      queue.push({
+        event: row.event,
+        params: row.params && typeof row.params === 'object' ? row.params : {},
+        transport: row.transport || 'web',
+        at: Number(row.at) || 0,
+      });
+    });
+    trimQueue();
+  } catch {
+    // Ignore corrupt cache.
+  }
+}
+
 function trimQueue() {
   if (queue.length > QUEUE_LIMIT) {
     queue.splice(0, queue.length - QUEUE_LIMIT);
@@ -227,6 +290,10 @@ export function getThemeAnalyticsQueue() {
 
 export function resetThemeAnalyticsQueue() {
   queue.length = 0;
+  lastEmptyScene = '';
+  lastFaultKind = '';
+  lastFaultAt = 0;
+  enterAt = 0;
 }
 
 export function reportThemeEvent(event, payload = {}) {
@@ -254,10 +321,26 @@ export function reportThemeEvent(event, payload = {}) {
 }
 
 export function trackThemeCenterEnter(extra = {}) {
+  restoreQueueFromStorage();
+  enterAt = Date.now();
   return reportThemeEvent(THEME_ANALYTICS_EVENTS.ENTER, {
     logged_in: isLoggedIn() ? 'logged' : 'guest',
     theme_id: extra.themeId || getActiveThemeId(),
   });
+}
+
+export function trackThemeCenterLeave() {
+  const started = enterAt;
+  enterAt = 0;
+  const dwell = Math.min(Math.max(0, Date.now() - started), MAX_DWELL_MS);
+  let record = null;
+  if (started && dwell >= MIN_DWELL_MS) {
+    record = reportThemeEvent(THEME_ANALYTICS_EVENTS.LEAVE, {
+      dwell_ms: dwell,
+    });
+  }
+  persistQueueToStorage();
+  return record;
 }
 
 export function trackThemeTabSwitch(tab) {
@@ -373,6 +456,13 @@ export function trackThemeSaveMix(outfit) {
   });
 }
 
+export function trackThemeMixManage(action, mixId = '') {
+  return reportThemeEvent(THEME_ANALYTICS_EVENTS.MIX_MANAGE, {
+    mix_id: mixId || '',
+    mix_action: THEME_MIX_ACTIONS[action] || action,
+  });
+}
+
 export function trackThemeApplyMix(outfit, { hasUnavailable = false } = {}) {
   return reportThemeEvent(THEME_ANALYTICS_EVENTS.APPLY_MIX, {
     mix_id: outfit?.id || '',
@@ -406,5 +496,72 @@ export function trackThemeApplyInvalid(kind, item, status) {
   return reportThemeEvent(THEME_ANALYTICS_EVENTS.APPLY_INVALID, {
     item_id: item?.id || '',
     item_status: resolved,
+  });
+}
+
+export function trackThemeEmptyShow(scene) {
+  const key = String(scene || '').trim();
+  if (!key || lastEmptyScene === key) return null;
+  lastEmptyScene = key;
+  return reportThemeEvent(THEME_ANALYTICS_EVENTS.EMPTY_SHOW, {
+    scene: THEME_EMPTY_SCENE_LABELS[key] || key,
+  });
+}
+
+export function trackThemeEmptyClick(scene, action) {
+  const key = String(scene || '').trim();
+  const act = String(action || '').trim();
+  if (!key) return null;
+  return reportThemeEvent(THEME_ANALYTICS_EVENTS.EMPTY_CLICK, {
+    scene: THEME_EMPTY_SCENE_LABELS[key] || key,
+    empty_action: THEME_EMPTY_ACTION_LABELS[act] || act,
+  });
+}
+
+export function trackThemeFault(kind) {
+  const faultKind = THEME_FAULT_KINDS[kind] || String(kind || '').trim();
+  if (!faultKind) return null;
+  const now = Date.now();
+  if (lastFaultKind === faultKind && now - lastFaultAt < FAULT_GAP_MS) return null;
+  lastFaultKind = faultKind;
+  lastFaultAt = now;
+  return reportThemeEvent(THEME_ANALYTICS_EVENTS.FAULT, {
+    fault_kind: faultKind,
+  });
+}
+
+export function themeDeviceTier() {
+  const memory = Number(globalThis?.navigator?.deviceMemory) || 0;
+  if (memory && memory <= 2) return 'low';
+  if (memory && memory <= 4) return 'mid';
+  if (memory) return 'high';
+  return 'mid';
+}
+
+export function trackThemePerfListReady({
+  readyMs = 0,
+  fromCache = false,
+  itemCount = 0,
+} = {}) {
+  return reportThemeEvent(THEME_ANALYTICS_EVENTS.PERF_LIST_READY, {
+    ready_ms: Math.max(0, Math.round(Number(readyMs) || 0)),
+    from_cache: fromCache ? 'cache' : 'network',
+    item_count: Math.max(0, Number(itemCount) || 0),
+    device_tier: themeDeviceTier(),
+  });
+}
+
+export function trackThemePerfStyle({ hydrateMs = 0, layerCount = 0 } = {}) {
+  return reportThemeEvent(THEME_ANALYTICS_EVENTS.PERF_STYLE, {
+    hydrate_ms: Math.max(0, Math.round(Number(hydrateMs) || 0)),
+    layer_count: Math.max(0, Number(layerCount) || 0),
+  });
+}
+
+export function trackThemePerfError(kind, itemId = '') {
+  const errorKind = ['render', 'style_json', 'image'].includes(kind) ? kind : 'render';
+  return reportThemeEvent(THEME_ANALYTICS_EVENTS.PERF_ERROR, {
+    error_kind: errorKind,
+    item_id: itemId || undefined,
   });
 }

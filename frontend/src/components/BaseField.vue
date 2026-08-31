@@ -31,10 +31,12 @@
         :maxlength="maxlength"
         :disabled="disabled"
         :readonly="readonly"
+        :confirm-type="confirmType"
         :clearable="clearable"
         :status="error ? 'error' : 'default'"
         borderless
         @change="handleChange"
+        @confirm="handleConfirm"
         @blur="$emit('blur', $event)"
         @focus="$emit('focus', $event)"
       />
@@ -76,8 +78,9 @@ export default {
     autosize: { type: [Boolean, Object], default: false },
     indicator: { type: Boolean, default: false },
     clearable: { type: Boolean, default: false },
+    confirmType: { type: String, default: 'done' },
   },
-  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus'],
+  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus', 'confirm'],
   computed: {
     inputType() {
       if (this.type === 'tel') return 'number';
@@ -94,6 +97,10 @@ export default {
       this.$emit('update:modelValue', value);
       this.$emit('change', value);
       this.$emit('input', value);
+    },
+    handleConfirm(event) {
+      const value = event?.detail?.value ?? event?.value ?? this.modelValue;
+      this.$emit('confirm', value);
     },
   },
 };

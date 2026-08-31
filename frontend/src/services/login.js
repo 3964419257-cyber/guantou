@@ -19,7 +19,7 @@ import {
   getCanDraftOwnerScope,
 } from '@/services/canDrafts';
 import { openPage, ROUTES } from '@/services/navigation';
-import { afterThemeLogin } from '@/services/themeApi';
+import { afterThemeLogin, afterThemeLogout } from '@/services/themeApi';
 import rawRequest from '../utils/rawRequest';
 
 export function resumeInterruptedPageAfterLogin(loggedInUserId = uni.getStorageSync('id')) {
@@ -287,6 +287,7 @@ export async function getLoginStatus() {
         if (!uni.getStorageSync('token')) break;
         uni.removeStorageSync('token');
         uni.removeStorageSync('id');
+        afterThemeLogout();
         uni.showToast({
           title: err.message || '登录已过期，请重新登录',
           icon: 'error',

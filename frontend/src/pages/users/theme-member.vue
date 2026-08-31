@@ -13,6 +13,9 @@
       <view class="muted">
         开通后可解锁全部会员全局主题、会员局部装扮。权益在 H5 网页与微信小程序两端同步。
       </view>
+      <view class="muted">
+        当前为演示占位，真实会员以账号权益为准。
+      </view>
       <view class="status">
         {{ member ? '当前已开通会员。' : '当前未开通会员。' }}
       </view>

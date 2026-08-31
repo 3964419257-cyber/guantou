@@ -1,3 +1,7 @@
+import json
+
+from django.db.models import Case, IntegerField, Q, When
+from django.db.models.expressions import RawSQL
 from rest_framework import permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -9,6 +13,7 @@ from .models import (
     CatalogVersion,
     DecorationItem,
     ItemType,
+    PrivilegeType,
     ThemeItem,
     UserThemeCollect,
     UserThemeConfig,
@@ -28,6 +33,8 @@ from .serializers import (
 from .services import (
     add_collect,
     apply_item,
+    claim_item,
+    clean_search_keyword,
     create_mix,
     delete_mix,
     record_event,
@@ -64,6 +71,27 @@ def request_platform(request):
     return "h5"
 
 
+def _json_text(field):
+    return RawSQL(f"CAST({field} AS TEXT)", [])
+
+
+def _json_needles(value):
+    text = str(value or "")
+    escaped = json.dumps(text, ensure_ascii=True).strip('"')
+    needles = [text]
+    if escaped and escaped != text:
+        needles.append(escaped)
+    return [item for item in needles if item]
+
+
+def _match_json_text(queryset, alias, field, value):
+    queryset = queryset.annotate(**{alias: _json_text(field)})
+    query = Q()
+    for needle in _json_needles(value):
+        query |= Q(**{f"{alias}__icontains": needle})
+    return queryset.filter(query) if query else queryset
+
+
 def apply_catalog_filters(queryset, params, *, decoration=False):
     if params.get("privilege_type"):
         queryset = queryset.filter(privilege_type=params["privilege_type"])
@@ -74,13 +102,22 @@ def apply_catalog_filters(queryset, params, *, decoration=False):
         queryset = queryset.filter(support_terminal__contains=[terminal])
     dialect = params.get("dialect_tag")
     if dialect:
-        queryset = queryset.filter(dialect_tags__contains=[dialect])
+        queryset = _match_json_text(queryset, "_dialect_text", "dialect_tags", dialect)
     style = params.get("style_tag")
     if style:
-        queryset = queryset.filter(style_tags__contains=[style])
-    keyword = params.get("keyword")
+        queryset = _match_json_text(queryset, "_style_text", "style_tags", style)
+    keyword = clean_search_keyword(params.get("keyword"))
     if keyword:
-        queryset = queryset.filter(name__icontains=keyword)
+        queryset = queryset.annotate(
+            _style_kw=_json_text("style_tags"),
+            _dialect_kw=_json_text("dialect_tags"),
+        )
+        tag_query = Q()
+        for needle in _json_needles(keyword):
+            tag_query |= Q(_style_kw__icontains=needle) | Q(_dialect_kw__icontains=needle)
+        queryset = queryset.filter(
+            Q(name__icontains=keyword) | Q(desc__icontains=keyword) | tag_query
+        )
     if decoration and params.get("component_type"):
         queryset = queryset.filter(component_type=params["component_type"])
     sort = params.get("sort")
@@ -90,6 +127,14 @@ def apply_catalog_filters(queryset, params, *, decoration=False):
         queryset = queryset.order_by("name")
     elif sort == "newest":
         queryset = queryset.order_by("-create_time")
+    elif sort == "free":
+        queryset = queryset.annotate(
+            _free_rank=Case(
+                When(privilege_type=PrivilegeType.FREE, then=0),
+                default=1,
+                output_field=IntegerField(),
+            )
+        ).order_by("_free_rank", "-collect_count", "-like_count")
     return queryset
 
 
@@ -212,7 +257,9 @@ class ThemeEventView(APIView):
 
     def post(self, request):
         user = request.user if request.user.is_authenticated else None
-        visitor = request.headers.get("X-Visitor-ID", "")
+        visitor = getattr(request, "_visitor_id", None) or request.headers.get(
+            "X-Visitor-ID", ""
+        )
         record_event(
             user,
             visitor,
@@ -227,4 +274,12 @@ class ThemeEntitlementView(APIView):
 
     def get(self, request):
         row, _ = UserThemeEntitlement.objects.get_or_create(user=request.user)
+        return Response(UserThemeEntitlementSerializer(row).data)
+
+    def post(self, request):
+        row = claim_item(
+            request.user,
+            request.data.get("item_type"),
+            str(request.data.get("item_id") or ""),
+        )
         return Response(UserThemeEntitlementSerializer(row).data)

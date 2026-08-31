@@ -3,11 +3,15 @@ import {
 } from 'vitest';
 import {
   applyOutfitStyle,
+  clearThemeStyleCache,
   COMPONENT_NAV_BAR,
   defaultSupportTerminal,
   flattenStyleJson,
   fromCurrentConfig,
+  fromDecorationItem,
   fromPrivilegeType,
+  fromSavedMix,
+  fromThemeItem,
   isNativeComponent,
   PRIVILEGE_ACTIVITY,
   resolveOutfitStyle,
@@ -45,6 +49,10 @@ describe('themeSchema contract', () => {
     expect(isNativeComponent(COMPONENT_NAV_BAR)).toBe(true);
     expect(THEME_API_PATHS.config).toBe('/users/theme/config/');
     expect(THEME_API_PATHS.entitlement).toBe('/users/theme/entitlement/');
+    expect(THEME_API_PATHS).not.toHaveProperty('submissions');
+    expect(THEME_API_PATHS).not.toHaveProperty('credits');
+    expect(THEME_API_PATHS).not.toHaveProperty('fragments');
+    expect(THEME_API_PATHS).not.toHaveProperty('ranks');
     expect(THEME_DATA_KEYS.local_current_config).toBe('local_current_config');
   });
 
@@ -68,6 +76,47 @@ describe('themeSchema contract', () => {
       status: 'coming',
       support_terminal: ['h5', 'miniprogram'],
     });
+    expect(fromThemeItem({
+      theme_id: 'chuankiang',
+      name: '川渝烟火',
+      desc: '巴蜀市井热辣风格',
+      style_tags: ['地域方言风'],
+      dialect_tags: ['川渝'],
+      privilege_type: 'free',
+      status: 'coming',
+      collect_count: 4,
+      share_count: 1,
+      detail_img: 'wide',
+      poster_img: 'poster',
+      activity_start_at: null,
+      activity_end_at: null,
+    })).toMatchObject({
+      id: 'chuankiang',
+      category: 'dialect',
+      region: 'chuankiang',
+      collect_count: 4,
+      share_count: 1,
+      detail_img: 'wide',
+      poster_img: 'poster',
+      activity_start_at: null,
+    });
+    expect(theme).toMatchObject({
+      detail_img: '',
+      poster_img: '',
+      activity_start_at: null,
+    });
+    expect(fromThemeItem({ name: 'orphan' })).toBeNull();
+    expect(fromThemeItem({ theme_id: 'plain' }).name).toBe('装扮');
+    expect(fromThemeItem({
+      theme_id: 'event-spring',
+      status: 'deprecated',
+      name: '开春乡音',
+    })).toMatchObject({
+      available: true,
+      removed: true,
+      eventStatus: 'ended',
+    });
+    expect(fromDecorationItem({})).toBeNull();
 
     const dress = toDecorationItem({
       id: 'navbar-plain',
@@ -81,9 +130,12 @@ describe('themeSchema contract', () => {
     expect(dress).toMatchObject({
       decoration_id: 'navbar-plain',
       component_type: 'nav_bar',
+      group: 'navbar',
       privilege_type: 'free',
       status: 'available',
       support_terminal: ['h5'],
+      detail_img: '',
+      activity_start_at: null,
     });
     expect(supportsTerminal(dress, {
       group: { mpBlocked: true },
@@ -103,6 +155,7 @@ describe('themeSchema contract', () => {
       name: '川渝全套搭配',
       themeId: 'default',
       localDress: { cards: 'cards-plain' },
+      overlay: false,
       savedAt: 9,
     })).toMatchObject({
       mix_id: 'outfit-1',
@@ -110,6 +163,18 @@ describe('themeSchema contract', () => {
       global_theme_id: 'default',
       decoration_ids: ['cards-plain'],
       decoration_map: { card: 'cards-plain' },
+      is_cover_local_decoration: false,
+    });
+    expect(fromSavedMix({
+      mix_id: 'outfit-1',
+      mix_name: '川渝全套搭配',
+      global_theme_id: 'default',
+      decoration_ids: ['cards-plain'],
+      decoration_map: { card: 'cards-plain' },
+      is_cover_local_decoration: false,
+    })).toMatchObject({
+      overlay: false,
+      localDress: { cards: 'cards-plain' },
     });
     expect(toCurrentConfig({
       themeId: 'default',
@@ -131,10 +196,19 @@ describe('themeSchema contract', () => {
       global_theme_id: 'default',
       decoration_map: { card: 'cards-plain' },
       is_cover_local_decoration: false,
+      recent_use_list: [
+        { item_id: 'default', item_type: 'theme', use_time: 2 },
+        { item_id: '', item_type: 'theme', use_time: 1 },
+        { item_id: 'gone', item_type: 'decoration', use_time: 0 },
+      ],
     }, (itemId) => (itemId === 'cards-plain' ? 'cards' : ''))).toMatchObject({
       themeId: 'default',
       overlay: false,
       localDress: { cards: 'cards-plain' },
+      recent: [
+        { id: 'default', kind: 'theme', usedAt: 2 },
+        { id: 'gone', kind: 'dress', usedAt: 0 },
+      ],
     });
   });
 
@@ -148,6 +222,10 @@ describe('themeSchema contract', () => {
     expect(flat.ok).toBe(true);
     expect(flat.vars['--dress-avatar-frame-border-color']).toBe('var(--accent-color)');
     expect(flattenStyleJson({ borderColor: 'red;background:url(x)' }).vars).toEqual({});
+    const cached = flattenStyleJson('{bad');
+    expect(flattenStyleJson('{bad')).toEqual(cached);
+    clearThemeStyleCache();
+    expect(flattenStyleJson('{bad')).toMatchObject({ ok: false, reason: 'style' });
 
     const resolved = resolveOutfitStyle({
       theme: {

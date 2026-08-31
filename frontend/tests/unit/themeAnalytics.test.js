@@ -13,12 +13,20 @@ import {
   trackThemeApplyInvalid,
   trackThemeApplyMix,
   trackThemeCenterEnter,
+  trackThemeCenterLeave,
   trackThemeCollect,
+  trackThemeEmptyClick,
+  trackThemeEmptyShow,
+  trackThemeFault,
   trackThemeFilterClick,
   trackThemeGet,
   trackThemeHotSearch,
   trackThemeItemDetail,
   trackThemeListScroll,
+  trackThemeMixManage,
+  trackThemePerfError,
+  trackThemePerfListReady,
+  trackThemePerfStyle,
   trackThemePreview,
   trackThemeResetAll,
   trackThemeSaveMix,
@@ -59,6 +67,7 @@ describe('theme analytics', () => {
   it('uses one event catalog and strips privacy fields', () => {
     expect(Object.values(THEME_ANALYTICS_EVENTS)).toEqual(expect.arrayContaining([
       'theme_center_enter',
+      'theme_center_leave',
       'theme_tab_switch',
       'theme_item_enter_detail',
       'theme_list_scroll',
@@ -71,11 +80,18 @@ describe('theme analytics', () => {
       'theme_apply_click',
       'theme_get_click',
       'theme_save_mix',
+      'theme_mix_manage',
       'theme_apply_mix',
       'theme_reset_all',
       'theme_switch_conflict',
       'theme_unsupported_env',
       'theme_apply_invalid_item',
+      'theme_empty_show',
+      'theme_empty_click',
+      'theme_fault',
+      'theme_perf_list_ready',
+      'theme_perf_style',
+      'theme_perf_error',
     ]));
     const flat = flattenThemeAnalyticsParams({
       item_id: 'paper',
@@ -88,9 +104,13 @@ describe('theme analytics', () => {
       item_id: 'paper',
       nickname: '乡音阿宁',
       token: 'secret',
+      user_id: '42',
+      visitor_id: 'abc',
     });
     expect(record.params.nickname).toBeUndefined();
     expect(record.params.token).toBeUndefined();
+    expect(record.params.user_id).toBeUndefined();
+    expect(record.params.visitor_id).toBeUndefined();
     expect(record.params.platform).toBe('h5');
     expect(record.transport).toBe('web');
   });
@@ -216,5 +236,86 @@ describe('theme analytics', () => {
         share_channel: '小程序转发',
       }),
     );
+  });
+
+  it('reports empty-state impressions and actions without duplicating the same scene', () => {
+    trackThemeEmptyShow('recent');
+    trackThemeEmptyShow('recent');
+    trackThemeEmptyClick('favorites', 'browse');
+    const events = getThemeAnalyticsQueue();
+    expect(events.map((row) => row.event)).toEqual([
+      'theme_empty_show',
+      'theme_empty_click',
+    ]);
+    expect(events[0].params.scene).toBe('最近使用空');
+    expect(events[1].params).toMatchObject({
+      scene: '收藏空',
+      empty_action: '去挑选',
+    });
+  });
+
+  it('reports list-ready and style hydrate without PII', () => {
+    trackThemePerfListReady({ readyMs: 120, fromCache: true, itemCount: 8 });
+    trackThemePerfStyle({ hydrateMs: 12, layerCount: 3 });
+    trackThemePerfError('style_json', 'paper');
+    const byEvent = Object.fromEntries(
+      getThemeAnalyticsQueue().map((row) => [row.event, row.params]),
+    );
+    expect(byEvent.theme_perf_list_ready).toMatchObject({
+      ready_ms: '120',
+      from_cache: 'cache',
+      item_count: '8',
+      device_tier: 'mid',
+    });
+    expect(byEvent.theme_perf_style).toMatchObject({
+      hydrate_ms: '12',
+      layer_count: '3',
+    });
+    expect(byEvent.theme_perf_error).toMatchObject({
+      error_kind: 'style_json',
+      item_id: 'paper',
+    });
+    expect(byEvent.theme_perf_list_ready.nickname).toBeUndefined();
+  });
+
+  it('reports leave dwell, mix manage and deduped faults without replaying stored events', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_700_000_000_000);
+    trackThemeCenterEnter();
+    vi.setSystemTime(1_700_000_000_000 + 4500);
+    trackThemeCenterLeave();
+    vi.useRealTimers();
+
+    trackThemeMixManage('rename', 'mix-home');
+    trackThemeMixManage('delete', 'mix-home');
+    trackThemeFault('rate');
+    trackThemeFault('rate');
+    expect(getThemeAnalyticsQueue().filter((row) => row.event === 'theme_fault')).toHaveLength(1);
+
+    const byEvent = Object.fromEntries(
+      getThemeAnalyticsQueue().map((row) => [row.event, row.params]),
+    );
+    expect(byEvent.theme_center_leave.dwell_ms).toBe('4500');
+    expect(byEvent.theme_mix_manage).toMatchObject({
+      mix_id: 'mix-home',
+      mix_action: '删除',
+    });
+    expect(byEvent.theme_fault.fault_kind).toBe('rate');
+    expect(uni.setStorageSync).toHaveBeenCalledWith(
+      'ui_theme_analytics_queue',
+      expect.any(Array),
+    );
+
+    resetThemeAnalyticsQueue();
+    isWechatMiniProgram.mockReturnValue(true);
+    globalThis.wx = { reportEvent: vi.fn() };
+    uni.getStorageSync.mockImplementation((key) => (
+      key === 'ui_theme_analytics_queue'
+        ? [{ event: 'theme_center_enter', params: { platform: 'miniprogram' }, at: 1 }]
+        : ''
+    ));
+    trackThemeCenterEnter();
+    expect(getThemeAnalyticsQueue()[0].event).toBe('theme_center_enter');
+    expect(globalThis.wx.reportEvent).toHaveBeenCalledTimes(1);
   });
 });

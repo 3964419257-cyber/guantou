@@ -165,7 +165,11 @@ export default {
       trackThemeShare(this.target.kind, this.target.item, 'save_poster');
       const result = await saveThemePoster(this.target.kind, this.target.item);
       if (!result.ok) {
-        notify({ title: THEME_FAULT_TOAST.album });
+        notify({
+          title: result.reason === 'album'
+            ? THEME_FAULT_TOAST.album
+            : THEME_FAULT_TOAST.resource,
+        });
         return;
       }
       notifySuccess('海报已保存到相册');

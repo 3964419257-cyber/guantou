@@ -3,6 +3,7 @@ import { notify } from '@/services/feedback';
 import { isWechatMiniProgram } from '@/services/platform';
 
 export const THEME_CATALOG_CACHE_KEY = 'ui_theme_catalog_cache';
+export const THEME_CATALOG_VERSION_KEY = 'ui_theme_catalog_version';
 export const THEME_ACCOUNT_KEY = 'ui_theme_account';
 export const THEME_GUEST_SNAP_KEY = 'ui_theme_guest_snap';
 export const THEME_MIN_MP_SDK = '2.10.0';
@@ -20,12 +21,17 @@ export const THEME_FAULT_TOAST = {
   syncFail: '装扮已本地生效，云端同步失败，稍后会自动重试',
   socialSyncFail: '操作已本地保存，同步云端失败，网络恢复后自动同步',
   skippedRemoved: '部分装扮已下架，已自动跳过',
+  mixDuplicate: '该搭配方案已保存，请勿重复添加',
+  mixEmpty: '当前搭配无有效装扮，已恢复默认样式',
+  mixBroken: '搭配方案异常，暂无法应用',
   resource: '装扮资源加载异常',
   style: '装扮样式加载异常，已恢复默认',
   memberSync: '会员状态正在同步，请稍候',
+  memberExpired: '会员已到期，会员装扮暂不可用',
   quota: '存储空间不足，无法保存装扮配置，请清理存储空间',
   sdk: '当前小程序版本过低，请更新小程序后使用装扮功能',
   album: '保存海报失败，请授予相册权限',
+  rate: '操作过于频繁，请稍后再试',
 };
 
 export const THEME_STORAGE_KEYS = [
@@ -36,6 +42,7 @@ export const THEME_STORAGE_KEYS = [
   'ui_theme_member',
   'ui_theme_owned',
   'ui_theme_creator',
+  'ui_theme_creator_unlocked',
   'ui_theme_shards',
   'ui_theme_recent',
   'ui_theme_outfits',
@@ -50,6 +57,16 @@ export const THEME_STORAGE_KEYS = [
   'local_saved_mix',
 ];
 
+export const THEME_EPHEMERAL_STORAGE_KEYS = [
+  THEME_CATALOG_CACHE_KEY,
+  THEME_CATALOG_VERSION_KEY,
+  'theme_cache',
+  'decoration_cache',
+  'ui_theme_query',
+  'ui_theme_search_cache',
+  'ui_theme_analytics_queue',
+];
+
 const APPLY_GAP_MS = 800;
 let lastApplyAt = 0;
 let lastApplyKey = '';
@@ -60,6 +77,7 @@ let memberFetcher = null;
 let flushTimer = 0;
 let memberSyncing = false;
 let networkBound = false;
+let onThemeLocalCleared = null;
 
 export function isQuotaError(error) {
   const message = String(error?.errMsg || error?.message || error || '');
@@ -74,12 +92,41 @@ export function writeThemeStorage(key, value) {
     uni.setStorageSync(key, value);
     return { ok: true };
   } catch (error) {
+    const quota = isQuotaError(error);
+    if (quota && !THEME_EPHEMERAL_STORAGE_KEYS.includes(key)) {
+      purgeEphemeralThemeStorage();
+      try {
+        uni.setStorageSync(key, value);
+        return { ok: true, purged: true };
+      } catch (retryError) {
+        return {
+          ok: false,
+          reason: isQuotaError(retryError) ? 'quota' : 'write',
+          kind: isQuotaError(retryError) ? THEME_FAULT_KIND.USER : THEME_FAULT_KIND.DATA,
+        };
+      }
+    }
     return {
       ok: false,
-      reason: isQuotaError(error) ? 'quota' : 'write',
-      kind: isQuotaError(error) ? THEME_FAULT_KIND.USER : THEME_FAULT_KIND.DATA,
+      reason: quota ? 'quota' : 'write',
+      kind: quota ? THEME_FAULT_KIND.USER : THEME_FAULT_KIND.DATA,
     };
   }
+}
+
+function purgeEphemeralThemeStorage() {
+  if (typeof uni === 'undefined' || typeof uni.removeStorageSync !== 'function') return;
+  THEME_EPHEMERAL_STORAGE_KEYS.forEach((key) => {
+    try {
+      uni.removeStorageSync(key);
+    } catch {
+      // ignore
+    }
+  });
+}
+
+export function setThemeLogoutHandler(handler) {
+  onThemeLocalCleared = typeof handler === 'function' ? handler : null;
 }
 
 export function readThemeStorage(key) {
@@ -200,17 +247,47 @@ async function defaultCatalog() {
   };
 }
 
+function catalogMetaList(items) {
+  return (items || []).map((item) => {
+    if (!item || typeof item !== 'object') return item;
+    const copy = { ...item };
+    delete copy.style_json;
+    return copy;
+  });
+}
+
+function rememberCatalogVersion(version) {
+  const next = Number(version) || 0;
+  if (!next) return;
+  const previous = Number(readThemeStorage(THEME_CATALOG_VERSION_KEY) || 0);
+  if (previous && next !== previous) {
+    ['theme_cache', 'decoration_cache', THEME_CATALOG_CACHE_KEY].forEach((key) => {
+      try {
+        uni.removeStorageSync(key);
+      } catch {
+        // ignore
+      }
+    });
+    import('@/services/themeSchema').then((mod) => {
+      mod.clearThemeStyleCache?.();
+    }).catch(() => {});
+  }
+  writeThemeStorage(THEME_CATALOG_VERSION_KEY, next);
+}
+
 export async function loadThemeCatalog() {
   const fetcher = catalogFetcher || defaultCatalog;
   try {
     const data = await fetcher();
+    rememberCatalogVersion(data.catalog_version);
     writeThemeStorage(THEME_CATALOG_CACHE_KEY, {
       at: Date.now(),
+      version: Number(data.catalog_version) || 0,
       themes: (data.themes || []).map((item) => item.id),
       dresses: (data.dresses || []).map((item) => item.id),
     });
-    writeThemeStorage('theme_cache', data.themes || []);
-    writeThemeStorage('decoration_cache', data.dresses || []);
+    writeThemeStorage('theme_cache', catalogMetaList(data.themes || []));
+    writeThemeStorage('decoration_cache', catalogMetaList(data.dresses || []));
     return {
       ok: true,
       source: 'remote',
@@ -252,15 +329,24 @@ export async function refreshThemeMemberStatus() {
   }
   memberSyncing = true;
   try {
-    const { getMemberStatus, setMemberStatus } = await import('@/services/themeCenter');
+    const { applyRemoteEntitlement, getMemberStatus } = await import('@/services/themeCenter');
     if (!memberFetcher) {
       memberSyncing = false;
       return { syncing: false, member: getMemberStatus() };
     }
+    const previous = getMemberStatus();
     const remote = await memberFetcher();
-    if (typeof remote === 'boolean') setMemberStatus(remote);
+    if (typeof remote === 'boolean') {
+      applyRemoteEntitlement({ is_member: remote });
+    } else if (remote && typeof remote === 'object') {
+      applyRemoteEntitlement(remote);
+    }
+    const next = getMemberStatus();
+    if (previous && !next) {
+      notify({ title: THEME_FAULT_TOAST.memberExpired });
+    }
     memberSyncing = false;
-    return { syncing: false, member: getMemberStatus() };
+    return { syncing: false, member: next };
   } catch {
     memberSyncing = false;
     return { syncing: false, stale: true, kind: THEME_FAULT_KIND.NETWORK };
@@ -292,6 +378,9 @@ export function scheduleThemeCloudFlush({ social = false } = {}) {
       notify({
         title: social ? THEME_FAULT_TOAST.socialSyncFail : THEME_FAULT_TOAST.syncFail,
       });
+      import('@/services/themeAnalytics').then((mod) => {
+        mod.trackThemeFault?.('sync');
+      }).catch(() => {});
     }
   }, 300);
   return { queued: true };
@@ -303,7 +392,16 @@ export function bindThemeNetworkFlush() {
   }
   networkBound = true;
   uni.onNetworkStatusChange((status) => {
-    if (status?.isConnected) flushThemeCloudQueue();
+    if (!status?.isConnected) return;
+    flushThemeCloudQueue();
+    if (!catalogFetcher) return;
+    loadThemeCatalog().then(async (result) => {
+      if (!result?.ok || !result.data) return;
+      const { mergeRemoteCatalog } = await import('@/services/themeCenter');
+      mergeRemoteCatalog(result.data);
+    }).catch(() => {
+      // Keep the current catalog; the next page show can retry.
+    });
   });
 }
 
@@ -343,13 +441,19 @@ export function guestThemeSnapshot() {
 }
 
 export function clearThemeLocalState() {
-  [...THEME_STORAGE_KEYS, THEME_GUEST_SNAP_KEY, THEME_CATALOG_CACHE_KEY].forEach((key) => {
-    try {
-      uni.removeStorageSync(key);
-    } catch {
-      // ignore
-    }
-  });
+  [...THEME_STORAGE_KEYS, THEME_ACCOUNT_KEY, THEME_GUEST_SNAP_KEY, THEME_CATALOG_CACHE_KEY, THEME_CATALOG_VERSION_KEY, 'ui_theme_analytics_queue']
+    .forEach((key) => {
+      try {
+        uni.removeStorageSync(key);
+      } catch {
+        // ignore
+      }
+    });
+  try {
+    onThemeLocalCleared?.();
+  } catch {
+    // Session reset must not block logout.
+  }
 }
 
 export async function handleThemeAccountLogin(userId) {
@@ -389,9 +493,11 @@ export async function applyThemeMergeChoice(choice, snapshot) {
     setOverlayLocalDress(false);
     const themeId = snapshot?.themeId || DEFAULT_THEME_ID;
     await persistActiveTheme(themeId);
-    Object.entries(snapshot?.localDress || {}).forEach(([groupId, itemId]) => {
-      persistLocalDress(groupId, itemId);
-    });
+    await Promise.all(
+      Object.entries(snapshot?.localDress || {}).map(([groupId, itemId]) => (
+        persistLocalDress(groupId, itemId)
+      )),
+    );
     if (choice === 'local') setOverlayLocalDress(Boolean(snapshot?.overlay));
     writeThemeStorage(THEME_GUEST_SNAP_KEY, '');
     return { ok: true, choice };

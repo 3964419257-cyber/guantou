@@ -14,26 +14,44 @@ import {
   getThemeAnalyticsQueue,
   resetThemeAnalyticsQueue,
 } from '@/services/themeAnalytics';
+import * as themeApi from '@/services/themeApi';
 import {
   applySavedOutfit,
   canLivePreview,
   claimSkin,
+  cleanOutfitName,
+  cleanSearchKeyword,
+  clearLocalDress,
   composePreviewOutfit,
   describeAccess,
+  dressDisplayTags,
   getActiveTheme,
   getDressGroup,
   getDressItem,
   getLocalDressMap,
+  getOverlayLocalDress,
   getRecentRaw,
   getSavedOutfits,
   GLOBAL_THEMES,
+  getRenderableTheme,
+  hasPermission,
+  hydrateFavoriteMap,
+  hydrateFromCloudConfig,
+  hydrateSavedOutfits,
+  isFavorited,
+  isRemotePreviewSrc,
   listAppliedDress,
   listDressGroupsByCategory,
+  listFavorites,
+  listOutfitHubDress,
   listRecentUses,
   listThemesByCategory,
   LOCAL_DRESS_GROUPS,
   persistActiveTheme,
   persistLocalDress,
+  P1_DRESS_GROUP_IDS,
+  previewCoverOf,
+  previewDetailOf,
   queryThemeCatalog,
   recordRecentUse,
   resetAllDress,
@@ -44,19 +62,27 @@ import {
   setCreatorProgress,
   setMemberStatus,
   setOverlayLocalDress,
+  socialStats,
+  themeDisplayTags,
   THEME_CLOUD_QUEUE_KEY,
+  THEME_FAVORITE_STORAGE_KEY,
   THEME_OUTFIT_LIMIT,
+  THEME_OUTFIT_NAME_MAX,
   THEME_OUTFIT_STORAGE_KEY,
   THEME_OVERLAY_STORAGE_KEY,
   THEME_PACK_STORAGE_KEY,
   THEME_QUERY_STORAGE_KEY,
   THEME_RECENT_STORAGE_KEY,
+  THEME_SEARCH_CACHE_KEY,
+  THEME_SEARCH_KEYWORD_MAX,
+  toggleFavorite,
 } from '@/services/themeCenter';
 import {
   resetThemeFaultAdapters,
   THEME_FAULT_TOAST,
 } from '@/services/themeFault';
 import ThemeCenterPage from '@/pages/users/theme-center.vue';
+import { cleanThemeShareQuery, themeShareCopy } from '@/utils/themeShare';
 
 vi.mock('@/services/feedback', () => ({
   notify: vi.fn(),
@@ -97,7 +123,7 @@ describe('themeCenter catalog', () => {
     };
   });
 
-  it('keeps the default pack free and gates member, event, and creator skins', () => {
+  it('keeps the default pack free and gates member, event, and creator skins', async () => {
     const live = GLOBAL_THEMES.filter((item) => item.available);
     expect(live.map((item) => item.id)).toEqual(expect.arrayContaining([
       'default',
@@ -113,10 +139,13 @@ describe('themeCenter catalog', () => {
     });
     expect(listThemesByCategory('cyber').every((item) => !item.available)).toBe(true);
     expect(LOCAL_DRESS_GROUPS.length).toBeGreaterThanOrEqual(20);
+    expect(P1_DRESS_GROUP_IDS).toEqual(['cards', 'profile', 'avatar', 'comment-bubble']);
+    expect(getDressItem('cards-plain').style_json).toEqual({ borderRadius: '12px' });
     expect(listDressGroupsByCategory('nav').map((item) => item.id)).toEqual([
       'navbar',
       'navbar-font',
     ]);
+    expect(listDressGroupsByCategory('nav', { isMiniProgram: true })).toEqual([]);
     expect(listDressGroupsByCategory('tabbar').every((item) => item.mpBlocked)).toBe(true);
     expect(GLOBAL_THEMES.some((item) => item.name === '江南吴语')).toBe(true);
     expect(GLOBAL_THEMES.some((item) => item.name === '岭南粤韵')).toBe(true);
@@ -132,15 +161,15 @@ describe('themeCenter catalog', () => {
     setMemberStatus(true);
     expect(setActiveThemeId('member-pine').ok).toBe(true);
 
-    expect(persistLocalDress('cards', 'cards-event')).toMatchObject({
+    expect(await persistLocalDress('cards', 'cards-event')).toMatchObject({
       ok: false,
       reason: 'event',
     });
     claimSkin('dress', 'cards-event');
-    expect(persistLocalDress('cards', 'cards-event').ok).toBe(true);
+    expect((await persistLocalDress('cards', 'cards-event')).ok).toBe(true);
 
     expect(setActiveThemeId('event-spring').reason).toBe('event');
-    expect(persistLocalDress('avatar', 'avatar-creator').reason).toBe('creator');
+    expect((await persistLocalDress('avatar', 'avatar-creator')).reason).toBe('creator');
     setCreatorProgress({
       cans: 10,
       badge: true,
@@ -148,7 +177,7 @@ describe('themeCenter catalog', () => {
     });
     expect(describeAccess(getDressItem('avatar-creator'), 'dress').action).toBe('claim');
     claimSkin('dress', 'avatar-creator');
-    expect(persistLocalDress('avatar', 'avatar-creator').ok).toBe(true);
+    expect((await persistLocalDress('avatar', 'avatar-creator')).ok).toBe(true);
 
     const navbar = getDressGroup('navbar');
     expect(describeAccess(getDressItem('navbar-member'), 'dress', {
@@ -161,12 +190,49 @@ describe('themeCenter catalog', () => {
     });
   });
 
+  it('does not let a claimed member skin bypass membership or keep rendering after expiry', async () => {
+    memoryStore();
+    expect(claimSkin('theme', 'member-pine')).toEqual({
+      ok: false,
+      reason: 'member',
+    });
+    expect(setActiveThemeId('member-pine').ok).toBe(false);
+    setMemberStatus(true);
+    expect(setActiveThemeId('member-pine').ok).toBe(true);
+    expect(getActiveTheme().id).toBe('member-pine');
+    expect(getRenderableTheme().id).toBe('member-pine');
+    setMemberStatus(false);
+    expect(getActiveTheme().id).toBe('member-pine');
+    expect(hasPermission('theme', getActiveTheme())).toBe(false);
+    expect(getRenderableTheme().id).toBe('default');
+  });
+
+  it('stops rendering a claimed creator dress after the creator progress drops', async () => {
+    memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
+    setCreatorProgress({
+      cans: 10,
+      badge: true,
+      challenge: true,
+    });
+    expect(claimSkin('dress', 'avatar-creator').ok).toBe(true);
+    expect((await persistLocalDress('avatar', 'avatar-creator')).ok).toBe(true);
+    expect(listAppliedDress().find((row) => row.item.id === 'avatar-creator')?.effective).toBe(true);
+    setCreatorProgress({
+      cans: 0,
+      badge: false,
+      challenge: false,
+    });
+    expect(hasPermission('dress', getDressItem('avatar-creator'))).toBe(false);
+    expect(getLocalDressMap().avatar).toBe('avatar-creator');
+    expect(listAppliedDress().find((row) => row.item.id === 'avatar-creator')?.effective).toBe(false);
+  });
+
   it('enables the default pack and rejects placeholders', () => {
     expect(setActiveThemeId('nightferry')).toEqual({ ok: false, reason: 'upcoming' });
     expect(setActiveThemeId('default')).toEqual({
       ok: true,
       theme: expect.objectContaining({ id: 'default' }),
-      overlayCleared: true,
+      overlayCleared: false,
       overlaySuppressed: true,
       persisted: true,
     });
@@ -174,13 +240,13 @@ describe('themeCenter catalog', () => {
     expect(getActiveTheme().name).toBe('默认方言主题');
   });
 
-  it('keeps local dress when overlay is toggled on, and clears it when a global pack is enabled', () => {
+  it('keeps local dress when overlay is on, including after enabling a global pack', async () => {
     memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '1' });
-    expect(persistLocalDress('navbar', 'navbar-plain')).toMatchObject({
+    expect(await persistLocalDress('navbar', 'navbar-plain')).toMatchObject({
       ok: true,
       suppressed: true,
     });
-    expect(persistLocalDress('actions', 'actions-plain').ok).toBe(true);
+    expect((await persistLocalDress('actions', 'actions-plain')).ok).toBe(true);
     expect(getLocalDressMap()).toEqual({
       navbar: 'navbar-plain',
       actions: 'actions-plain',
@@ -191,15 +257,21 @@ describe('themeCenter catalog', () => {
       actions: 'actions-plain',
     });
     expect(listAppliedDress().every((entry) => entry.suppressed && !entry.effective)).toBe(true);
-    expect(setActiveThemeId('default')).toMatchObject({ overlayCleared: true });
-    expect(getLocalDressMap()).toEqual({});
+    expect(setActiveThemeId('default')).toMatchObject({
+      overlayCleared: false,
+      overlaySuppressed: true,
+    });
+    expect(getLocalDressMap()).toEqual({
+      navbar: 'navbar-plain',
+      actions: 'actions-plain',
+    });
   });
 
-  it('does not overwrite other groups when applying one dress', () => {
+  it('does not overwrite other groups when applying one dress', async () => {
     memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
-    persistLocalDress('navbar', 'navbar-plain');
-    persistLocalDress('cards', 'cards-plain');
-    expect(persistLocalDress('navbar', 'navbar-glyph')).toEqual({
+    await persistLocalDress('navbar', 'navbar-plain');
+    await persistLocalDress('cards', 'cards-plain');
+    expect(await persistLocalDress('navbar', 'navbar-glyph')).toEqual({
       ok: false,
       reason: 'upcoming',
     });
@@ -214,19 +286,56 @@ describe('themeCenter catalog', () => {
       token: 'token',
       [THEME_OVERLAY_STORAGE_KEY]: '0',
     });
-    persistLocalDress('navbar', 'navbar-plain');
-    persistLocalDress('actions', 'actions-plain');
+    await persistLocalDress('navbar', 'navbar-plain');
+    await persistLocalDress('actions', 'actions-plain');
+    saveCurrentOutfit('巷口搭配');
+    toggleFavorite('theme', getActiveTheme());
+    recordRecentUse('theme', getActiveTheme());
     const result = await resetAllDress();
     expect(result).toMatchObject({ ok: true, queued: true });
     expect(getActiveTheme().id).toBe('default');
     expect(getLocalDressMap()).toEqual({});
+    expect(getOverlayLocalDress()).toBe(true);
+    expect(getSavedOutfits().map((row) => row.name)).toEqual(['巷口搭配']);
+    expect(isFavorited('theme', 'default')).toBe(true);
+    expect(getRecentRaw().some((row) => row.id === 'default')).toBe(true);
     expect(uni.setStorageSync).toHaveBeenCalledWith(
       THEME_CLOUD_QUEUE_KEY,
       expect.objectContaining({
         themeId: 'default',
         localDress: {},
+        overlay: true,
       }),
     );
+  });
+
+  it('fills P1 outfit hub slots and sanitizes mix names', async () => {
+    memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
+    expect(cleanOutfitName('<b>巷口</b>搭配<>')).toBe('巷口搭配');
+    expect(cleanOutfitName('x'.repeat(40))).toHaveLength(THEME_OUTFIT_NAME_MAX);
+    expect(listOutfitHubDress().map((row) => row.group.id)).toEqual(P1_DRESS_GROUP_IDS);
+    expect(listOutfitHubDress().every((row) => row.empty)).toBe(true);
+    await persistLocalDress('cards', 'cards-plain');
+    await persistLocalDress('navbar', 'navbar-plain');
+    expect(listOutfitHubDress().map((row) => row.group.id)).toEqual([
+      'cards',
+      'profile',
+      'avatar',
+      'comment-bubble',
+      'navbar',
+    ]);
+    expect(listOutfitHubDress().find((row) => row.group.id === 'cards').item.id).toBe('cards-plain');
+    expect(listOutfitHubDress().find((row) => row.group.id === 'profile').empty).toBe(true);
+    const mpHub = listOutfitHubDress({ isMiniProgram: true });
+    expect(mpHub.find((row) => row.group.id === 'navbar')).toMatchObject({
+      blocked: true,
+      empty: false,
+    });
+    expect(mpHub.some((row) => row.empty && row.group.mpBlocked)).toBe(false);
+    expect(dressDisplayTags(getDressItem('cards-plain'), getDressGroup('cards'), {
+      applied: true,
+    }).map((tag) => tag.label)).toEqual(expect.arrayContaining(['罐头卡片', '已启用']));
+    expect(saveCurrentOutfit('<b>巷口搭配</b>').outfit.name).toBe('巷口搭配');
   });
 
   it('queues a cloud payload when the user is signed in', async () => {
@@ -246,28 +355,105 @@ describe('themeCenter catalog', () => {
     );
   });
 
+  it('keeps the local pack when cloud config hydrate is corrupt', () => {
+    memoryStore({ [THEME_PACK_STORAGE_KEY]: 'paper' });
+    const result = hydrateFromCloudConfig({
+      get global_theme_id() {
+        throw new Error('corrupt');
+      },
+    });
+    expect(result).toMatchObject({ ok: false, reason: 'corrupt' });
+    expect(uni.getStorageSync(THEME_PACK_STORAGE_KEY)).toBe('paper');
+  });
+
+  it('enables the second free pack and shows style plus status tags', async () => {
+    memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
+    const result = await persistActiveTheme('paper');
+    expect(result.ok).toBe(true);
+    expect(getActiveTheme().id).toBe('paper');
+    const paper = GLOBAL_THEMES.find((item) => item.id === 'paper');
+    expect(themeDisplayTags(paper, { applied: true }).map((row) => row.label)).toEqual(
+      expect.arrayContaining(['简约', '免费', '已启用']),
+    );
+  });
+
+  it('posts decoration apply when signed in and rolls back on 403', async () => {
+    memoryStore({
+      token: 'token',
+      [THEME_OVERLAY_STORAGE_KEY]: '0',
+    });
+    const apply = vi.spyOn(themeApi, 'applyThemeRemote').mockResolvedValueOnce({});
+    const result = await persistLocalDress('cards', 'cards-plain');
+    expect(result.ok).toBe(true);
+    expect(apply).toHaveBeenCalledWith('decoration', 'cards-plain');
+    expect(getLocalDressMap()).toEqual({ cards: 'cards-plain' });
+
+    apply.mockRejectedValueOnce({
+      statusCode: 403,
+      data: { reason: 'privilege' },
+    });
+    const denied = await persistLocalDress('avatar', 'avatar-plain');
+    expect(denied).toMatchObject({ ok: false, reason: 'privilege', queued: false });
+    expect(getLocalDressMap()).toEqual({ cards: 'cards-plain' });
+    expect(getRecentRaw().some((row) => row.id === 'avatar-plain')).toBe(false);
+    expect(getRecentRaw().some((row) => row.id === 'cards-plain')).toBe(true);
+    apply.mockRestore();
+  });
+
+  it('keeps local pack when apply is rate-limited', async () => {
+    memoryStore({
+      token: 'token',
+      [THEME_OVERLAY_STORAGE_KEY]: '0',
+    });
+    const apply = vi.spyOn(themeApi, 'applyThemeRemote').mockRejectedValueOnce({
+      statusCode: 429,
+      data: { reason: 'rate' },
+    });
+    const result = await persistActiveTheme('paper');
+    expect(result).toMatchObject({ ok: true, reason: 'rate', queued: true });
+    expect(getActiveTheme().id).toBe('paper');
+    apply.mockRestore();
+  });
+
+  it('keeps local dress when apply network fails, and can clear one group', async () => {
+    memoryStore({
+      token: 'token',
+      [THEME_OVERLAY_STORAGE_KEY]: '0',
+    });
+    const apply = vi.spyOn(themeApi, 'applyThemeRemote').mockRejectedValueOnce(new Error('offline'));
+    const result = await persistLocalDress('profile', 'profile-plain');
+    expect(result.ok).toBe(true);
+    expect(getLocalDressMap()).toEqual({ profile: 'profile-plain' });
+    apply.mockRestore();
+
+    await persistLocalDress('cards', 'cards-plain');
+    expect(clearLocalDress('profile')).toMatchObject({ ok: true, cleared: true });
+    expect(getLocalDressMap()).toEqual({ cards: 'cards-plain' });
+    expect(clearLocalDress('profile').cleared).toBe(false);
+  });
+
   it('records recent uses, dedupes, caps at 8, and skips upcoming packs', async () => {
     const store = memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
     await persistActiveTheme('default');
-    persistLocalDress('navbar', 'navbar-plain');
-    persistLocalDress('actions', 'actions-plain');
-    persistLocalDress('navbar', 'navbar-plain');
+    await persistLocalDress('navbar', 'navbar-plain');
+    await persistLocalDress('actions', 'actions-plain');
+    await persistLocalDress('navbar', 'navbar-plain');
     const recents = getRecentRaw();
     expect(recents[0]).toMatchObject({ kind: 'dress', id: 'navbar-plain' });
     expect(recents.filter((row) => row.id === 'navbar-plain')).toHaveLength(1);
-    expect(persistLocalDress('navbar', 'navbar-glyph').ok).toBe(false);
+    expect((await persistLocalDress('navbar', 'navbar-glyph')).ok).toBe(false);
     expect(getRecentRaw().some((row) => row.id === 'navbar-glyph')).toBe(false);
-    expect(recordRecentUse('theme', GLOBAL_THEMES.find((item) => item.id === 'paper'))).toEqual(
+    expect(recordRecentUse('theme', GLOBAL_THEMES.find((item) => item.id === 'chuankiang'))).toEqual(
       getRecentRaw(),
     );
 
-    persistLocalDress('cards', 'cards-plain');
-    persistLocalDress('profile', 'profile-plain');
-    persistLocalDress('avatar', 'avatar-plain');
-    persistLocalDress('tabbar', 'tabbar-plain');
-    persistLocalDress('navbar-font', 'navbar-font-plain');
-    persistLocalDress('tabbar-ornament', 'tabbar-ornament-plain');
-    persistLocalDress('cards-tag', 'cards-tag-plain');
+    await persistLocalDress('cards', 'cards-plain');
+    await persistLocalDress('profile', 'profile-plain');
+    await persistLocalDress('avatar', 'avatar-plain');
+    await persistLocalDress('tabbar', 'tabbar-plain');
+    await persistLocalDress('navbar-font', 'navbar-font-plain');
+    await persistLocalDress('tabbar-ornament', 'tabbar-ornament-plain');
+    await persistLocalDress('cards-tag', 'cards-tag-plain');
     expect(getRecentRaw()).toHaveLength(8);
     expect(getRecentRaw().map((row) => row.id)).not.toContain('default');
 
@@ -315,6 +501,29 @@ describe('themeCenter catalog', () => {
       hint: '装扮已下架',
       disabled: true,
     });
+
+    store[THEME_RECENT_STORAGE_KEY] = [
+      {
+        kind: 'theme',
+        id: 'member-pine',
+        name: '松风会员',
+        preview: 'simple',
+        usedAt: 2,
+      },
+      {
+        kind: 'dress',
+        id: '',
+        usedAt: 1,
+      },
+    ];
+    const gated = listRecentUses();
+    expect(gated).toHaveLength(1);
+    expect(gated[0]).toMatchObject({
+      id: 'member-pine',
+      status: 'gated',
+      disabled: true,
+    });
+    expect(gated[0].label).toContain('会员');
   });
 
   it('saves named outfits, caps at 10, and skips unavailable pieces on apply', () => {
@@ -331,6 +540,7 @@ describe('themeCenter catalog', () => {
       themeId: 'default',
       localDress: { cards: 'cards-plain' },
     });
+    expect(saveCurrentOutfit('再存一次')).toEqual({ ok: false, reason: 'duplicate' });
     expect(uni.setStorageSync).toHaveBeenCalledWith(
       THEME_CLOUD_QUEUE_KEY,
       expect.objectContaining({ outfits: expect.any(Array) }),
@@ -357,6 +567,7 @@ describe('themeCenter catalog', () => {
     expect(applied).toMatchObject({
       ok: true,
       skipped: true,
+      empty: false,
       themeId: 'default',
       localDress: { cards: 'cards-plain' },
     });
@@ -364,24 +575,30 @@ describe('themeCenter catalog', () => {
     expect(getLocalDressMap()).toEqual({ cards: 'cards-plain' });
   });
 
-  it('searches across tabs, greys upcoming packs, and persists query to cloud cache', () => {
+  it('searches across tabs, greys upcoming packs, and keeps query local', () => {
     const store = memoryStore({ token: 'token' });
     const result = searchThemeCatalog('川渝烟火', {}, { isMiniProgram: false });
     expect(result.all.map((row) => row.item.id)).toContain('chuankiang');
     expect(result.themes.every((row) => row.item.available) === false).toBe(true);
-    expect(result.queued).toBe(true);
+    expect(result.queued).toBe(false);
     expect(store[THEME_QUERY_STORAGE_KEY]).toMatchObject({
       keyword: '川渝烟火',
       searching: true,
       sort: 'newest',
     });
-    expect(store[THEME_CLOUD_QUEUE_KEY]).toEqual(expect.objectContaining({
-      query: expect.objectContaining({ keyword: '川渝烟火' }),
-      searchCache: expect.objectContaining({ keyword: '川渝烟火' }),
+    expect(store[THEME_SEARCH_CACHE_KEY]).toEqual(expect.objectContaining({
+      keyword: '川渝烟火',
     }));
+    expect(store[THEME_CLOUD_QUEUE_KEY]).toBeUndefined();
+
+    expect(cleanSearchKeyword('<b>川渝</b>烟火<>')).toBe('川渝烟火');
+    expect(cleanSearchKeyword('x'.repeat(80))).toHaveLength(THEME_SEARCH_KEYWORD_MAX);
+    expect(searchThemeCatalog('<script>川渝烟火</script>').all.map((row) => row.item.id))
+      .toContain('chuankiang');
 
     const avatar = searchThemeCatalog('方言头像框');
     expect(avatar.dresses.some((row) => row.item.name.includes('头像框'))).toBe(true);
+    expect(queryThemeCatalog({ keyword: '罐头卡片' }).dresses.length).toBeGreaterThan(0);
 
     const mixed = queryThemeCatalog({ keyword: '复古国风', sort: 'name' });
     expect(mixed.themes.map((row) => row.item.category)).toEqual(
@@ -412,10 +629,11 @@ describe('themeCenter catalog', () => {
     expect(queryThemeCatalog({ keyword: '没有这个装扮xyz' }).all).toHaveLength(0);
   });
 
-  it('blocks live preview for upcoming and ended packs', () => {
+  it('blocks live preview for upcoming packs and allows ended preview', () => {
     expect(canLivePreview(GLOBAL_THEMES[0])).toBe(true);
-    expect(canLivePreview(GLOBAL_THEMES.find((item) => item.id === 'paper'))).toBe(false);
-    expect(canLivePreview(GLOBAL_THEMES.find((item) => item.id === 'event-spring'))).toBe(false);
+    expect(canLivePreview(GLOBAL_THEMES.find((item) => item.id === 'paper'))).toBe(true);
+    expect(canLivePreview(GLOBAL_THEMES.find((item) => item.id === 'chuankiang'))).toBe(false);
+    expect(canLivePreview(GLOBAL_THEMES.find((item) => item.id === 'event-spring'))).toBe(true);
     memoryStore({
       ui_local_dress: { navbar: 'navbar-plain' },
       ui_theme_overlay_local: '0',
@@ -424,6 +642,18 @@ describe('themeCenter catalog', () => {
     expect(preview.nativeLocked).toBe(true);
     expect(preview.skipped.some((row) => row.group?.id === 'navbar')).toBe(true);
     expect(preview.sample.cans[0].caption).toBe('示例罐头占位');
+  });
+
+  it('uses remote preview images only for http paths', () => {
+    expect(isRemotePreviewSrc('default')).toBe(false);
+    expect(isRemotePreviewSrc('simple')).toBe(false);
+    expect(isRemotePreviewSrc('https://cdn.example/cover.webp')).toBe(true);
+    expect(isRemotePreviewSrc('/static/cover.webp')).toBe(true);
+    expect(previewCoverOf({ preview: 'simple' })).toBe('simple');
+    expect(previewDetailOf({
+      detail_img: 'https://cdn.example/detail.webp',
+      preview: 'simple',
+    })).toBe('https://cdn.example/detail.webp');
   });
 });
 
@@ -478,6 +708,8 @@ describe('Theme center page', () => {
             template: '<input class="outfit-name" :value="modelValue" />',
           },
           'scroll-view': { template: '<div><slot /></div>' },
+          'movable-area': { template: '<div class="zoom-area"><slot /></div>' },
+          'movable-view': { template: '<div><slot /></div>' },
         },
       },
     });
@@ -490,7 +722,12 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('默认方言主题');
     expect(wrapper.text()).toContain('当前使用');
     expect(wrapper.vm.themeActionLabel(GLOBAL_THEMES[0])).toBe('已启用');
-    expect(wrapper.vm.themeActionLabel(GLOBAL_THEMES[1])).toBe('敬请期待');
+    expect(wrapper.vm.themeActionLabel(
+      GLOBAL_THEMES.find((item) => item.id === 'chuankiang'),
+    )).toBe('敬请期待');
+    expect(wrapper.vm.themeActionLabel(
+      GLOBAL_THEMES.find((item) => item.id === 'paper'),
+    )).toBe('立即启用');
     expect(wrapper.text()).toContain('敬请期待');
     expect(wrapper.text()).toContain('免费');
     expect(wrapper.text()).toContain('会员专属');
@@ -541,7 +778,12 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('个人中心');
     expect(wrapper.vm.detailTheme.name).toBe('默认方言主题');
     expect(wrapper.vm.canLivePreviewItem(GLOBAL_THEMES[0])).toBe(true);
-    expect(wrapper.vm.canLivePreviewItem(GLOBAL_THEMES[1])).toBe(false);
+    expect(wrapper.vm.canLivePreviewItem(
+      GLOBAL_THEMES.find((item) => item.id === 'chuankiang'),
+    )).toBe(false);
+    expect(wrapper.vm.canLivePreviewItem(
+      GLOBAL_THEMES.find((item) => item.id === 'event-spring'),
+    )).toBe(true);
 
     wrapper.vm.openLivePreview('theme', GLOBAL_THEMES.find((item) => item.id === 'chuankiang'));
     expect(wrapper.vm.previewOpen).toBe(false);
@@ -554,6 +796,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).not.toContain('短视频');
     wrapper.vm.closePreview();
     expect(wrapper.vm.previewOpen).toBe(false);
+    expect(getActiveTheme().id).toBe('default');
 
     await wrapper.vm.onCardEnable(GLOBAL_THEMES[0]);
     expect(confirmDialog).not.toHaveBeenCalled();
@@ -561,6 +804,70 @@ describe('Theme center page', () => {
     wrapper.vm.category = 'missing';
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('暂无可用主题，更多方言主题正在制作中');
+  });
+
+  it('keeps the live outfit when closing zoom or the preview sandbox', async () => {
+    memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '0' });
+    await persistLocalDress('cards', 'cards-plain');
+    const wrapper = mountPage();
+    wrapper.vm.openDetail(GLOBAL_THEMES[0]);
+    await wrapper.vm.$nextTick();
+    wrapper.vm.openZoom();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.zoomOpen).toBe(true);
+    expect(wrapper.text()).toContain('双指缩放查看细节，点空白关闭');
+    expect(wrapper.text()).toContain('首页罐头流');
+    expect(wrapper.text()).not.toContain('短视频');
+    expect(wrapper.text()).not.toContain('作品');
+    wrapper.vm.closeZoom();
+    expect(wrapper.vm.zoomOpen).toBe(false);
+    wrapper.vm.openLivePreview('theme', GLOBAL_THEMES.find((item) => item.id === 'paper'));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.previewOpen).toBe(true);
+    wrapper.vm.closePreview();
+    expect(wrapper.vm.previewOpen).toBe(false);
+    expect(getActiveTheme().id).toBe('default');
+    expect(getLocalDressMap()).toEqual({ cards: 'cards-plain' });
+  });
+
+  it('opens detail from a recent theme card and routes dress recents to the list page', async () => {
+    memoryStore({
+      [THEME_RECENT_STORAGE_KEY]: [
+        {
+          kind: 'theme',
+          id: 'default',
+          name: '默认方言主题',
+          preview: 'default',
+          usedAt: 2,
+        },
+        {
+          kind: 'dress',
+          id: 'cards-plain',
+          group: 'cards',
+          name: '系统默认卡片',
+          preview: 'cards',
+          usedAt: 1,
+        },
+      ],
+    });
+    const wrapper = mountPage();
+    wrapper.vm.refreshOutfit();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.recentRows[0].id).toBe('default');
+    wrapper.vm.onRecentTap(wrapper.vm.recentRows[0]);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.detailTheme.id).toBe('default');
+    expect(wrapper.text()).not.toContain('作品');
+
+    wrapper.vm.tab = 'local';
+    await wrapper.vm.$nextTick();
+    wrapper.vm.onRecentTap(wrapper.vm.recentRows[0]);
+    expect(uni.navigateTo).toHaveBeenCalledWith({
+      url: expect.stringContaining('/pages/users/theme-dress?group=cards'),
+    });
+    expect(uni.navigateTo).toHaveBeenCalledWith({
+      url: expect.stringContaining('id=cards-plain'),
+    });
   });
 
   it('routes member, event, and creator actions without exposing gated skins', async () => {
@@ -640,19 +947,19 @@ describe('Theme center page', () => {
     });
   });
 
-  it('greys native dress groups on the mini program', async () => {
+  it('hides native dress groups on the mini program', async () => {
     isWechatMiniProgram.mockReturnValue(true);
     const wrapper = mountPage();
     await wrapper.findAll('.tab').at(1).trigger('tap');
-    const navbar = wrapper.vm.dressGroups.find((group) => group.id === 'navbar');
+    expect(wrapper.vm.dressGroups.find((group) => group.id === 'navbar')).toBeUndefined();
+    expect(wrapper.vm.dressGroups.find((group) => group.id === 'tabbar')).toBeUndefined();
     const actions = wrapper.vm.dressGroups.find((group) => group.id === 'actions');
-    expect(navbar.blocked).toBe(true);
+    const cards = wrapper.vm.dressGroups.find((group) => group.id === 'cards');
     expect(actions.blocked).toBe(false);
-    expect(wrapper.text()).toContain('小程序暂不支持该装扮');
-
-    await wrapper.vm.onOpenDress(navbar);
-    expect(notify).toHaveBeenCalledWith({ title: '当前小程序环境暂不支持该装扮' });
-    expect(uni.navigateTo).not.toHaveBeenCalled();
+    expect(cards.blocked).toBe(false);
+    expect(wrapper.text()).toContain('罐头卡片');
+    expect(wrapper.text()).not.toContain('小程序暂不支持该组件装扮');
+    expect(wrapper.text()).not.toContain('导航栏底色与图标');
   });
 
   it('summarizes the live outfit, preview, and reset on the mine tab', async () => {
@@ -669,14 +976,19 @@ describe('Theme center page', () => {
     await wrapper.findAll('.tab').at(3).trigger('tap');
     expect(wrapper.text()).toContain('当前正在使用：默认方言主题');
     expect(wrapper.text()).toContain('全局主题会统一修改整套界面风格');
+    expect(wrapper.text()).toContain('简约');
     expect(wrapper.text()).toContain('还没有保存任何搭配方案，可将当前装扮保存为专属搭配');
     expect(wrapper.text()).toContain('系统默认顶栏');
     expect(wrapper.text()).toContain('系统默认按钮');
+    expect(wrapper.text()).toContain('暂未设置该组件装扮');
+    expect(wrapper.text()).toContain('罐头卡片背景');
     expect(wrapper.text()).toContain('当前生效');
     expect(wrapper.text()).toContain('装扮冲突设置');
     expect(wrapper.text()).toContain('全局主题覆盖局部装扮');
     expect(wrapper.find('.action-stack').exists()).toBe(true);
     expect(wrapper.text()).toContain('未登录状态，装扮仅保存在本地，登录后可同步到云端');
+    expect(wrapper.text()).not.toContain('短视频');
+    expect(wrapper.text()).not.toContain('作品');
 
     wrapper.vm.openPreview();
     await wrapper.vm.$nextTick();
@@ -697,9 +1009,10 @@ describe('Theme center page', () => {
 
     await wrapper.vm.onResetDress();
     expect(confirmDialog).toHaveBeenCalledWith(expect.objectContaining({
-      content: '确定要清空所有全局主题与局部装扮，恢复到系统默认样式吗？',
+      content: '确定重置所有装扮？将恢复系统默认样式，已保存的搭配方案不会删除',
     }));
     expect(notifySuccess).toHaveBeenCalledWith('已恢复为默认样式');
+    expect(wrapper.vm.savedOutfits).toEqual([]);
 
     wrapper.vm.onOpenSaveOutfit();
     await wrapper.vm.$nextTick();
@@ -728,7 +1041,8 @@ describe('Theme center page', () => {
     const wrapper = mountPage();
     wrapper.vm.refreshOutfit();
     await wrapper.findAll('.tab').at(3).trigger('tap');
-    expect(wrapper.vm.dressStatus(wrapper.vm.appliedDress[0])).toBe('当前环境不生效');
+    const nativeRow = wrapper.vm.appliedDress.find((entry) => entry.group.id === 'navbar');
+    expect(wrapper.vm.dressStatus(nativeRow)).toBe('当前环境不生效');
     expect(wrapper.text()).toContain('当前环境不生效');
     wrapper.vm.openPreview();
     await wrapper.vm.$nextTick();
@@ -765,6 +1079,10 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('没有找到相关主题或装扮，换个关键词试试');
 
     wrapper.vm.exitSearch();
+    wrapper.vm.searchForm.keyword = '<script></script>';
+    wrapper.vm.submitThemeSearch();
+    expect(wrapper.vm.searching).toBe(false);
+
     wrapper.vm.openFilterSheet();
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('权限筛选');
@@ -809,12 +1127,46 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('分享给好友');
     expect(wrapper.text()).toContain('复制链接');
 
-    await wrapper.vm.onToggleFavorite('theme', GLOBAL_THEMES[1]);
+    await wrapper.vm.onToggleFavorite('theme', GLOBAL_THEMES.find((item) => item.id === 'chuankiang'));
     expect(notify).toHaveBeenCalledWith({ title: '待上线装扮暂不支持收藏' });
-    await wrapper.vm.onShare('theme', GLOBAL_THEMES[1]);
+    await wrapper.vm.onShare('theme', GLOBAL_THEMES.find((item) => item.id === 'chuankiang'));
     expect(notify).toHaveBeenCalledWith({ title: '待上线装扮暂不支持分享' });
     expect(wrapper.text()).not.toContain('短视频');
     expect(wrapper.text()).not.toContain('作品');
+  });
+
+  it('keeps ended skins collectable and uses catalog heat when counts exist', () => {
+    memoryStore();
+    const ended = GLOBAL_THEMES.find((item) => item.id === 'event-spring');
+    expect(toggleFavorite('theme', ended).ok).toBe(true);
+    expect(isFavorited('theme', 'event-spring')).toBe(true);
+    expect(toggleFavorite('theme', GLOBAL_THEMES.find((item) => item.id === 'chuankiang')).ok).toBe(false);
+    expect(socialStats('theme', {
+      id: 'default',
+      collect_count: 10,
+      share_count: 2,
+      like_count: 1,
+    }).likes).toBe(13);
+    expect(themeShareCopy({ name: '川渝烟火', region: 'chuankiang' }, 'theme'))
+      .toBe('巴适得很，这个川渝乡音主题来看哈！');
+    expect(themeShareCopy(GLOBAL_THEMES[0], 'theme')).toContain('默认方言主题');
+    expect(cleanThemeShareQuery('default"><img src=x>')).toBe('defaultimgsrcx');
+  });
+
+  it('keeps missing catalog ids in the favorite list as retired rows', () => {
+    memoryStore();
+    hydrateFavoriteMap([
+      { item_type: 'theme', item_id: 'gone-theme' },
+      { item_type: 'theme', item_id: 'default' },
+    ]);
+    const rows = listFavorites('theme');
+    expect(rows.map((row) => row.item.id)).toEqual(['gone-theme', 'default']);
+    expect(rows[0].item.name).toBe('装扮已下架');
+    expect(rows[0].item.removed).toBe(true);
+    expect(uni.setStorageSync).toHaveBeenCalledWith(
+      THEME_FAVORITE_STORAGE_KEY,
+      expect.objectContaining({ themes: ['gone-theme', 'default'] }),
+    );
   });
 
   it('reports enter, tab, detail, search and apply analytics', async () => {
@@ -896,6 +1248,16 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('装扮列表加载失败，请检查网络后重试');
   });
 
+  it('clears applied filters from the empty-state action', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.accessFilter = 'member';
+    wrapper.vm.regions = ['chuankiang'];
+    wrapper.vm.onClearAppliedFilters();
+    expect(wrapper.vm.accessFilter).toBe('all');
+    expect(wrapper.vm.regions).toEqual([]);
+    expect(wrapper.vm.themeListEmptyScene).toBe('catalog');
+  });
+
   it('asks before turning overlay on when local dress exists', async () => {
     memoryStore({
       [THEME_OVERLAY_STORAGE_KEY]: '0',
@@ -907,6 +1269,8 @@ describe('Theme center page', () => {
     await wrapper.vm.onOverlayChange(true);
     expect(confirmDialog).toHaveBeenCalledWith(expect.objectContaining({
       content: '开启全局主题覆盖局部装扮后，自定义局部装扮将不会生效，是否继续？',
+      confirmText: '确认开启',
+      cancelText: '取消',
     }));
     expect(wrapper.vm.overlay).toBe(false);
   });
@@ -936,8 +1300,49 @@ describe('Theme center page', () => {
     await wrapper.vm.onApplyOutfit({
       themeId: 'event-spring',
       localDress: { avatar: 'gone-id' },
+      overlay: true,
     });
-    expect(notify).toHaveBeenCalledWith({ title: THEME_FAULT_TOAST.skippedRemoved });
+    expect(notify).toHaveBeenCalledWith({ title: THEME_FAULT_TOAST.mixEmpty });
+    expect(getOverlayLocalDress()).toBe(true);
+  });
+
+  it('hydrates saved mixes from cloud decoration maps', () => {
+    memoryStore();
+    hydrateSavedOutfits([
+      {
+        mix_id: 'mix-home',
+        mix_name: '巷口搭配',
+        global_theme_id: 'default',
+        decoration_map: { card: 'cards-plain' },
+        is_cover_local_decoration: false,
+        create_time: '2026-08-31T00:00:00.000Z',
+      },
+    ]);
+    expect(getSavedOutfits()[0]).toMatchObject({
+      id: 'mix-home',
+      name: '巷口搭配',
+      themeId: 'default',
+      localDress: { cards: 'cards-plain' },
+      overlay: false,
+    });
+  });
+
+  it('previews a mix in the sandbox without writing the live outfit', () => {
+    memoryStore({
+      [THEME_PACK_STORAGE_KEY]: 'default',
+      ui_local_dress: { cards: 'cards-plain' },
+      [THEME_OVERLAY_STORAGE_KEY]: '1',
+    });
+    const preview = composePreviewOutfit({
+      themeId: 'paper',
+      localDress: { avatar: 'avatar-plain' },
+      overlay: false,
+      isMiniProgram: false,
+    });
+    expect(preview.theme.id).toBe('paper');
+    expect(getActiveTheme().id).toBe('default');
+    expect(getLocalDressMap()).toEqual({ cards: 'cards-plain' });
+    expect(getOverlayLocalDress()).toBe(true);
   });
 
   it('shows the login merge sheet', async () => {

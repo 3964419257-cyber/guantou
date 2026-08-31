@@ -94,6 +94,12 @@ class ThemeItem(models.Model):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        super().clean()
+        from .services import clean_catalog_item
+
+        clean_catalog_item(self)
+
 
 class DecorationItem(models.Model):
     decoration_id = models.SlugField(primary_key=True, max_length=64)
@@ -129,6 +135,12 @@ class DecorationItem(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        from .services import clean_catalog_item
+
+        clean_catalog_item(self)
 
 
 class UserThemeEntitlement(models.Model):
@@ -191,6 +203,7 @@ class UserThemeMix(models.Model):
     global_theme_id = models.CharField(max_length=64, default="default")
     decoration_map = models.JSONField(default=dict, blank=True)
     decoration_ids = models.JSONField(default=list, blank=True)
+    is_cover_local_decoration = models.BooleanField(default=True)
     create_time = models.DateTimeField(auto_now_add=True)
 
     class Meta:

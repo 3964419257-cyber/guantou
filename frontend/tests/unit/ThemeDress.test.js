@@ -66,6 +66,8 @@ describe('Theme dress page', () => {
             props: ['title', 'actionText'],
             template: '<div class="empty">{{ title }}</div>',
           },
+          'movable-area': { template: '<div class="zoom-area"><slot /></div>' },
+          'movable-view': { template: '<div><slot /></div>' },
         },
       },
     });
@@ -105,6 +107,16 @@ describe('Theme dress page', () => {
     expect(wrapper.text()).toContain('示例罐头占位');
     expect(wrapper.text()).not.toContain('短视频');
     expect(wrapper.text()).not.toContain('作品');
+    wrapper.vm.closePreview();
+
+    wrapper.vm.openDetail(live);
+    await wrapper.vm.$nextTick();
+    wrapper.vm.openZoom();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.zoomOpen).toBe(true);
+    expect(wrapper.text()).toContain('双指缩放查看细节，点空白关闭');
+    wrapper.vm.closeDetail();
+    expect(wrapper.vm.zoomOpen).toBe(false);
 
     await wrapper.vm.onApply(live);
     expect(notifySuccess).toHaveBeenCalledWith('装扮已生效');
@@ -114,6 +126,20 @@ describe('Theme dress page', () => {
     });
     expect(wrapper.vm.appliedId).toBe('navbar-plain');
     expect(wrapper.vm.applyLabel(live)).toBe('已应用');
+  });
+
+  it('clears one applied group so it follows the global theme', async () => {
+    uni.setStorageSync(THEME_OVERLAY_STORAGE_KEY, '0');
+    const wrapper = mountPage();
+    wrapper.vm.groupId = 'cards';
+    wrapper.vm.refresh();
+    const live = wrapper.vm.items.find((item) => item.id === 'cards-plain');
+    await wrapper.vm.onApply(live);
+    expect(wrapper.vm.appliedId).toBe('cards-plain');
+    wrapper.vm.onClear();
+    expect(notifySuccess).toHaveBeenCalledWith('已恢复跟随全局主题');
+    expect(wrapper.vm.appliedId).toBe('');
+    expect(uni.getStorageSync('ui_local_dress')).toEqual({});
   });
 
   it('keeps applied dress when overlay suppresses it', async () => {

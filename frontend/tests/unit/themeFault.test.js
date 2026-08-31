@@ -3,22 +3,27 @@ import {
 } from 'vitest';
 import {
   applySavedOutfit,
+  getThemeById,
   persistActiveTheme,
   resetThemeSessionState,
   THEME_PACK_STORAGE_KEY,
 } from '@/services/themeCenter';
 import {
   beginThemeApply,
+  bindThemeNetworkFlush,
   flushThemeCloudQueue,
   guestThemeSnapshot,
   handleThemeAccountLogin,
   isQuotaError,
   loadThemeCatalog,
   parseThemeStyle,
+  refreshThemeMemberStatus,
   resetThemeFaultAdapters,
   setThemeCatalogFetcher,
   setThemeCloudFlusher,
+  setThemeMemberFetcher,
   THEME_CATALOG_CACHE_KEY,
+  THEME_CATALOG_VERSION_KEY,
   THEME_FAULT_KIND,
   THEME_FAULT_TOAST,
   themeResourceHealth,
@@ -83,6 +88,21 @@ describe('themeFault', () => {
     });
   });
 
+  it('drops catalog caches when catalog_version changes', async () => {
+    writeThemeStorage(THEME_CATALOG_VERSION_KEY, 1);
+    writeThemeStorage('theme_cache', [{ id: 'stale', style_json: { accent: 'old' } }]);
+    setThemeCatalogFetcher(async () => ({
+      catalog_version: 2,
+      themes: [{ id: 'default', name: '默认方言主题', style_json: { accent: 'pine' } }],
+      dresses: [],
+    }));
+    const result = await loadThemeCatalog();
+    expect(result.ok).toBe(true);
+    expect(uni.getStorageSync(THEME_CATALOG_VERSION_KEY)).toBe(2);
+    expect(uni.getStorageSync('theme_cache')[0]).toMatchObject({ id: 'default' });
+    expect(uni.getStorageSync('theme_cache')[0].style_json).toBeUndefined();
+  });
+
   it('debounces apply clicks within 800ms', () => {
     expect(beginThemeApply('theme:default').ok).toBe(true);
     expect(beginThemeApply('theme:default')).toMatchObject({
@@ -105,6 +125,30 @@ describe('themeFault', () => {
       persisted: false,
       reason: 'quota',
     });
+  });
+
+  it('evicts ephemeral caches then retries a core theme write', () => {
+    const store = {
+      ui_theme_catalog_cache: { themes: ['stale'] },
+      ui_theme_query: { q: 'pine' },
+    };
+    let packWrites = 0;
+    uni.getStorageSync.mockImplementation((key) => store[key] ?? '');
+    uni.setStorageSync.mockImplementation((key, value) => {
+      if (key === THEME_PACK_STORAGE_KEY) {
+        packWrites += 1;
+        if (packWrites === 1) throw new Error('quota exceeded');
+      }
+      store[key] = value;
+    });
+    uni.removeStorageSync.mockImplementation((key) => {
+      delete store[key];
+    });
+    const result = writeThemeStorage(THEME_PACK_STORAGE_KEY, 'default');
+    expect(result).toMatchObject({ ok: true, purged: true });
+    expect(store[THEME_PACK_STORAGE_KEY]).toBe('default');
+    expect(store.ui_theme_catalog_cache).toBeUndefined();
+    expect(store.ui_theme_query).toBeUndefined();
   });
 
   it('asks to merge guest snapshots after login', async () => {
@@ -134,13 +178,46 @@ describe('themeFault', () => {
     expect(result).toMatchObject({ ok: false, kind: THEME_FAULT_KIND.NETWORK });
   });
 
+  it('silently refreshes the catalog after reconnect when a fetcher is bound', async () => {
+    let onChange;
+    uni.onNetworkStatusChange = vi.fn((handler) => {
+      onChange = handler;
+    });
+    setThemeCatalogFetcher(async () => ({
+      themes: [{ id: 'default', blurb: 'from-reconnect', available: true }],
+      dresses: [],
+    }));
+    bindThemeNetworkFlush();
+    onChange({ isConnected: true });
+    await vi.waitFor(() => {
+      expect(getThemeById('default')?.blurb).toBe('from-reconnect');
+    });
+  });
+
   it('skips missing dress ids when applying a saved mix', () => {
     const applied = applySavedOutfit({
       themeId: 'gone-theme',
       localDress: { cards: 'gone-id' },
     });
     expect(applied.skipped).toBe(true);
+    expect(applied.empty).toBe(true);
     expect(applied.themeId).toBe('default');
     expect(THEME_FAULT_TOAST.skippedRemoved).toBe('部分装扮已下架，已自动跳过');
+    expect(THEME_FAULT_TOAST.mixEmpty).toBe('当前搭配无有效装扮，已恢复默认样式');
+    expect(THEME_FAULT_TOAST.mixDuplicate).toBe('该搭配方案已保存，请勿重复添加');
+    expect(THEME_FAULT_TOAST.memberExpired).toBe('会员已到期，会员装扮暂不可用');
+    expect(THEME_FAULT_TOAST.rate).toBe('操作过于频繁，请稍后再试');
+  });
+
+  it('toasts when cloud membership expires without deleting the stored theme id', async () => {
+    uni.setStorageSync('token', 'token');
+    uni.setStorageSync('ui_theme_member', '1');
+    uni.setStorageSync(THEME_PACK_STORAGE_KEY, 'member-pine');
+    setThemeMemberFetcher(async () => false);
+    const { notify } = await import('@/services/feedback');
+    const result = await refreshThemeMemberStatus();
+    expect(result.member).toBe(false);
+    expect(notify).toHaveBeenCalledWith({ title: THEME_FAULT_TOAST.memberExpired });
+    expect(uni.getStorageSync(THEME_PACK_STORAGE_KEY)).toBe('member-pine');
   });
 });

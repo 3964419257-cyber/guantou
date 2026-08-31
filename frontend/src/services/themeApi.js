@@ -1,6 +1,7 @@
 import { isLoggedIn } from '@/services/authGuard';
 import {
   bindThemeNetworkFlush,
+  clearThemeLocalState,
   guestThemeSnapshot,
   handleThemeAccountLogin,
   setThemeCatalogFetcher,
@@ -23,6 +24,7 @@ const silent = {
   silent: true,
   loading: false,
   redirectOnUnauthorized: false,
+  timeout: 15000,
 };
 
 async function fetchPaged(path) {
@@ -37,20 +39,35 @@ async function fetchPaged(path) {
 }
 
 export async function fetchThemeCatalog() {
-  const [themes, decorations] = await Promise.all([
+  const settled = await Promise.allSettled([
     fetchPaged(THEME_API_PATHS.themes),
     fetchPaged(THEME_API_PATHS.decorations),
   ]);
+  const themes = settled[0];
+  const decorations = settled[1];
+  if (themes.status === 'rejected' && decorations.status === 'rejected') {
+    throw themes.reason;
+  }
+  const themePage = themes.status === 'fulfilled'
+    ? themes.value
+    : { results: [], catalog_version: 0 };
+  const dressPage = decorations.status === 'fulfilled'
+    ? decorations.value
+    : { results: [], catalog_version: 0 };
   return {
-    themes: (themes.results || []).map(fromThemeItem).filter(Boolean),
-    dresses: (decorations.results || []).map(fromDecorationItem).filter(Boolean),
-    catalog_version: themes.catalog_version || decorations.catalog_version,
+    themes: (themePage.results || []).map(fromThemeItem).filter(Boolean),
+    dresses: (dressPage.results || []).map(fromDecorationItem).filter(Boolean),
+    catalog_version: themePage.catalog_version || dressPage.catalog_version || 1,
   };
 }
 
 export async function fetchThemeMemberStatus() {
   const data = await request('GET', THEME_API_PATHS.entitlement, {}, silent);
-  return Boolean(data?.is_member);
+  return {
+    is_member: Boolean(data?.is_member),
+    creator_unlocked: Boolean(data?.creator_unlocked),
+    activity_ids: Array.isArray(data?.activity_ids) ? data.activity_ids : [],
+  };
 }
 
 export async function fetchThemeConfig() {
@@ -123,8 +140,20 @@ export async function pullThemeCloudState() {
   if (!isLoggedIn()) return { ok: false, reason: 'guest' };
   if (guestThemeSnapshot()) return { ok: false, reason: 'merge-pending' };
   const config = await fetchThemeConfig();
-  const { hydrateFromCloudConfig } = await import('@/services/themeCenter');
-  hydrateFromCloudConfig(config);
+  const themeCenter = await import('@/services/themeCenter');
+  themeCenter.hydrateFromCloudConfig(config);
+  try {
+    const remote = await request('GET', THEME_API_PATHS.collects, {}, silent);
+    themeCenter.hydrateFavoriteMap?.(remote?.collect_list);
+  } catch {
+    // Keep local favorites; apply/config already landed.
+  }
+  try {
+    const mixes = await request('GET', THEME_API_PATHS.mixes, {}, silent);
+    if (Array.isArray(mixes)) themeCenter.hydrateSavedOutfits?.(mixes);
+  } catch {
+    // Keep local mixes; config already landed.
+  }
   return { ok: true, config };
 }
 
@@ -138,6 +167,53 @@ export async function afterThemeLogin(userId) {
     }
   }
   return result;
+}
+
+export function afterThemeLogout() {
+  clearThemeLocalState();
+}
+
+export async function applyThemeRemote(itemType, itemId) {
+  return request('POST', THEME_API_PATHS.apply, {
+    item_type: itemType,
+    item_id: itemId,
+    platform: currentTerminal(),
+  }, silent);
+}
+
+export async function claimThemeRemote(itemType, itemId) {
+  return request('POST', THEME_API_PATHS.entitlement, {
+    item_type: itemType,
+    item_id: itemId,
+  }, silent);
+}
+
+export async function collectThemeRemote(itemType, itemId) {
+  return request('POST', THEME_API_PATHS.collects, {
+    item_id: itemId,
+    item_type: itemType,
+  }, silent);
+}
+
+export async function uncollectThemeRemote(itemType, itemId) {
+  return request(
+    'DELETE',
+    `${THEME_API_PATHS.collects}${itemId}/?item_type=${encodeURIComponent(itemType)}`,
+    {},
+    silent,
+  );
+}
+
+export function createMixRemote(payload) {
+  return request('POST', THEME_API_PATHS.mixes, payload, silent);
+}
+
+export function renameMixRemote(mixId, name) {
+  return request('PATCH', `${THEME_API_PATHS.mixes}${mixId}/`, { mix_name: name }, silent);
+}
+
+export function deleteMixRemote(mixId) {
+  return request('DELETE', `${THEME_API_PATHS.mixes}${mixId}/`, {}, silent);
 }
 
 export function postThemeEvent(event, itemId = '') {

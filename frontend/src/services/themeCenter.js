@@ -1,23 +1,27 @@
 /**
- * QQ-style theme store catalog. Only the default global pack is live;
- * every other pack and local dress item is a placeholder.
+ * QQ-style theme store catalog. Default and paper packs are live free themes;
+ * paid, event, creator and dialect packs stay gated or upcoming.
  */
 import { isLoggedIn } from '@/services/authGuard';
 import { isWechatMiniProgram } from '@/services/platform';
+import { applyThemeRemote, claimThemeRemote, collectThemeRemote, createMixRemote, deleteMixRemote, renameMixRemote, uncollectThemeRemote } from '@/services/themeApi';
 import {
   captureGuestThemeSnapshot,
   scheduleThemeCloudFlush,
+  setThemeLogoutHandler,
   themeResourceHealth,
   writeThemeStorage,
 } from '@/services/themeFault';
 import {
   applyOutfitStyle,
+  clearThemeStyleCache,
   componentTypeOf,
   defaultSupportTerminal,
+  fromCurrentConfig,
+  fromSavedMix,
   resolveOutfitStyle,
   supportsTerminal,
   THEME_DATA_KEYS,
-  fromCurrentConfig,
   toCollectList,
   toCurrentConfig,
   toSavedMix,
@@ -30,6 +34,7 @@ export const THEME_CLOUD_QUEUE_KEY = 'ui_theme_pack_cloud';
 export const THEME_MEMBER_STORAGE_KEY = 'ui_theme_member';
 export const THEME_OWNED_STORAGE_KEY = 'ui_theme_owned';
 export const THEME_CREATOR_STORAGE_KEY = 'ui_theme_creator';
+export const THEME_CREATOR_UNLOCKED_KEY = 'ui_theme_creator_unlocked';
 export const THEME_SHARDS_STORAGE_KEY = 'ui_theme_shards';
 
 export const ACCESS_FREE = 'free';
@@ -101,6 +106,7 @@ export const THEME_GUEST_FOOTER = [
 ];
 
 export const THEME_PREVIEW_HINT = '预览仅为模拟效果，不会修改你的界面';
+export const THEME_PREVIEW_ZOOM_HINT = '双指缩放查看细节，点空白关闭';
 
 export const THEME_PREVIEW_SAMPLE = {
   nickname: '乡音阿宁',
@@ -122,6 +128,8 @@ export const THEME_QUERY_STORAGE_KEY = 'ui_theme_query';
 export const THEME_SEARCH_CACHE_KEY = 'ui_theme_search_cache';
 export const THEME_RECENT_LIMIT = 8;
 export const THEME_OUTFIT_LIMIT = 10;
+export const THEME_OUTFIT_NAME_MAX = 20;
+export const THEME_SEARCH_KEYWORD_MAX = 64;
 
 export const THEME_FAVORITE_STORAGE_KEY = 'ui_theme_favorites';
 export const THEME_LIKE_STORAGE_KEY = 'ui_theme_likes';
@@ -191,11 +199,18 @@ export const GLOBAL_THEMES = [
     id: 'paper',
     name: '素白纸本',
     description: '田野笔记｜浅底细线、留白克制',
-    blurb: '像一本方言调查手册。上线后可一键换成浅底细线。',
+    blurb: '像一本方言调查手册。一键换成浅底细线，不改罐头播放。',
     category: 'simple',
     preview: 'simple',
-    available: false,
-    tag: '敬请期待',
+    available: true,
+    access: ACCESS_FREE,
+    tag: '免费',
+    support_terminal: ['h5', 'miniprogram'],
+    style_json: {
+      accent: 'pine',
+      primaryLook: 'line',
+      ghostLook: 'line',
+    },
   },
   {
     id: 'member-pine',
@@ -207,6 +222,11 @@ export const GLOBAL_THEMES = [
     available: true,
     access: ACCESS_MEMBER,
     tag: '会员专属',
+    support_terminal: ['h5', 'miniprogram'],
+    style_json: {
+      accent: 'pine',
+      primaryLook: 'fill',
+    },
   },
   {
     id: 'event-lantern',
@@ -219,6 +239,11 @@ export const GLOBAL_THEMES = [
     access: ACCESS_EVENT,
     eventStatus: 'active',
     tag: '活动限定',
+    support_terminal: ['h5', 'miniprogram'],
+    style_json: {
+      accent: 'clay',
+      effect: 'none',
+    },
   },
   {
     id: 'event-spring',
@@ -231,6 +256,10 @@ export const GLOBAL_THEMES = [
     access: ACCESS_EVENT,
     eventStatus: 'ended',
     tag: '已绝版',
+    support_terminal: ['h5', 'miniprogram'],
+    style_json: {
+      accent: 'clay',
+    },
   },
   {
     id: 'creator-tile',
@@ -242,6 +271,10 @@ export const GLOBAL_THEMES = [
     available: true,
     access: ACCESS_CREATOR,
     tag: '方言创作者专属',
+    support_terminal: ['h5', 'miniprogram'],
+    style_json: {
+      accent: 'pine',
+    },
   },
   {
     id: 'chuankiang',
@@ -852,6 +885,20 @@ export const LOCAL_DRESS_GROUPS = DRESS_GROUP_DEFS.map((def) => ({
   component_type: componentTypeOf(def.id),
 }));
 
+/** Phase-1 live groups that both H5 and mini program can render. */
+export const P1_DRESS_GROUP_IDS = ['cards', 'profile', 'avatar', 'comment-bubble'];
+
+const BUILTIN_DRESS_STYLES = {
+  'cards-plain': { borderRadius: '12px' },
+  'profile-plain': { background: 'var(--page-color)' },
+  'avatar-plain': { borderWidth: '0px' },
+  'comment-bubble-plain': { borderRadius: '12px' },
+  'navbar-plain': { color: 'var(--text-color)' },
+  'tabbar-plain': { background: 'var(--surface-color)' },
+  'cards-member': { borderColor: 'var(--accent-color)' },
+  'avatar-creator': { borderWidth: '4px' },
+};
+
 export const DRESS_CATEGORIES = [
   { value: 'all', label: '全部' },
   { value: 'nav', label: '导航栏' },
@@ -936,11 +983,14 @@ LOCAL_DRESS_ITEMS.push(
 
 LOCAL_DRESS_ITEMS.forEach((item, index) => {
   const def = DRESS_GROUP_DEFS.find((row) => row.id === item.group);
+  const builtinStyle = BUILTIN_DRESS_STYLES[item.id] || {};
   LOCAL_DRESS_ITEMS[index] = {
     ...item,
     support_terminal: item.support_terminal || defaultSupportTerminal(Boolean(def?.mpBlocked)),
     component_type: item.component_type || componentTypeOf(item.group),
-    style_json: item.style_json || {},
+    style_json: (item.style_json && Object.keys(item.style_json).length)
+      ? item.style_json
+      : builtinStyle,
   };
 });
 
@@ -958,6 +1008,7 @@ const sessionState = {
 };
 
 let hydratingCloud = false;
+let overlayFlushTimer = 0;
 
 function readStorage(key) {
   if (typeof uni === 'undefined' || typeof uni.getStorageSync !== 'function') {
@@ -1075,28 +1126,51 @@ export function seedFavoriteCount(item) {
   return Math.max(3, Math.floor(seedHeat(item) / 4));
 }
 
+function catalogSocialHeat(item) {
+  if (!item) return null;
+  const hasCatalog = ['collect_count', 'share_count', 'like_count']
+    .some((key) => Object.prototype.hasOwnProperty.call(item, key));
+  if (!hasCatalog) return null;
+  return Number(item.collect_count || 0)
+    + Number(item.share_count || 0)
+    + Number(item.like_count || 0);
+}
+
 export function socialStats(kind, item) {
   const liked = isLiked(kind, item?.id);
   const favorited = isFavorited(kind, item?.id);
+  const catalogHeat = catalogSocialHeat(item);
+  if (catalogHeat != null) {
+    return {
+      liked,
+      favorited,
+      likes: catalogHeat + (liked ? 1 : 0) + (favorited ? 1 : 0),
+      favorites: Number(item.collect_count || 0) + (favorited ? 1 : 0),
+      shares: Number(item.share_count || 0),
+    };
+  }
   return {
     liked,
     favorited,
     likes: seedHeat(item) + (liked ? 1 : 0),
     favorites: seedFavoriteCount(item) + (favorited ? 1 : 0),
+    shares: 0,
   };
 }
 
-export function canShareOrFavorite(item) {
-  return Boolean(item?.available);
+export function canShareOrFavorite(item, { favorited = false } = {}) {
+  if (!item?.id) return false;
+  if (favorited) return true;
+  return Boolean(item.available);
 }
 
 export function sortCatalog(list, kind, sort = 'newest') {
   const rows = list.map((item, index) => ({ item, index }));
   if (sort === 'heat') {
     rows.sort((left, right) => {
-      const leftHeat = socialStats(kind, left.item);
-      const rightHeat = socialStats(kind, right.item);
-      return (rightHeat.likes + rightHeat.favorites) - (leftHeat.likes + leftHeat.favorites);
+      const leftHeat = socialStats(kind, left.item).likes;
+      const rightHeat = socialStats(kind, right.item).likes;
+      return rightHeat - leftHeat;
     });
   } else if (sort === 'free') {
     rows.sort((left, right) => {
@@ -1111,7 +1185,12 @@ export function sortCatalog(list, kind, sort = 'newest') {
       'zh',
     ));
   } else {
-    rows.sort((left, right) => right.index - left.index);
+    rows.sort((left, right) => {
+      const leftTime = Number(left.item.create_time) || 0;
+      const rightTime = Number(right.item.create_time) || 0;
+      if (leftTime !== rightTime) return rightTime - leftTime;
+      return right.index - left.index;
+    });
   }
   return rows.map((row) => row.item);
 }
@@ -1129,6 +1208,11 @@ export function getCreatorProgress() {
 }
 
 export function creatorUnlocked() {
+  if (isLoggedIn()) {
+    const cloud = readStorage(THEME_CREATOR_UNLOCKED_KEY);
+    if (cloud === '1' || cloud === true) return true;
+    if (cloud === '0' || cloud === false) return false;
+  }
   const progress = getCreatorProgress();
   return progress.cans >= 10 && progress.badge && progress.challenge;
 }
@@ -1141,10 +1225,12 @@ export function getShards() {
 
 export function hasPermission(kind, item) {
   if (!item?.available) return false;
+  if (item.eventStatus === 'ended') return false;
   const access = item.access || ACCESS_FREE;
   if (access === ACCESS_FREE) return true;
-  if (isOwned(kind, item.id)) return true;
   if (access === ACCESS_MEMBER) return getMemberStatus();
+  if (access === ACCESS_CREATOR) return creatorUnlocked() && isOwned(kind, item.id);
+  if (access === ACCESS_EVENT) return isOwned(kind, item.id);
   return false;
 }
 
@@ -1290,6 +1376,12 @@ export function getActiveTheme() {
   return GLOBAL_THEMES.find((item) => item.id === getActiveThemeId()) || GLOBAL_THEMES[0];
 }
 
+export function getRenderableTheme() {
+  const theme = getActiveTheme();
+  if (hasPermission('theme', theme)) return theme;
+  return GLOBAL_THEMES.find((item) => item.id === DEFAULT_THEME_ID) || GLOBAL_THEMES[0];
+}
+
 export function listThemesByCategory(category = 'all', region = 'all', sort = 'newest') {
   const source = !category || category === 'all'
     ? GLOBAL_THEMES
@@ -1300,9 +1392,12 @@ export function listThemesByCategory(category = 'all', region = 'all', sort = 'n
   return sortCatalog(list, 'theme', sort);
 }
 
-export function listDressGroupsByCategory(category = 'all') {
-  if (!category || category === 'all') return LOCAL_DRESS_GROUPS;
-  return LOCAL_DRESS_GROUPS.filter((item) => item.category === category);
+export function listDressGroupsByCategory(category = 'all', { isMiniProgram = false } = {}) {
+  const source = !category || category === 'all'
+    ? LOCAL_DRESS_GROUPS
+    : LOCAL_DRESS_GROUPS.filter((item) => item.category === category);
+  if (!isMiniProgram) return source;
+  return source.filter((item) => !item.mpBlocked);
 }
 
 export function getDressGroup(groupId) {
@@ -1365,7 +1460,79 @@ export function catalogStatus(item) {
 }
 
 export function canLivePreview(item) {
-  return catalogStatus(item) === 'usable';
+  const status = catalogStatus(item);
+  return status === 'usable' || status === 'ended';
+}
+
+export function isRemotePreviewSrc(value) {
+  const text = String(value || '').trim();
+  return /^https?:\/\//i.test(text) || text.startsWith('//') || text.startsWith('/');
+}
+
+export function previewCoverOf(item) {
+  return item?.cover_img || item?.preview || '';
+}
+
+export function previewDetailOf(item) {
+  return item?.detail_img || item?.cover_img || item?.preview || '';
+}
+
+export function dressDisplayTags(item, group, { applied = false } = {}) {
+  const tags = [];
+  const category = DRESS_CATEGORIES.find((row) => row.value === group?.category);
+  if (category && category.value !== 'all') {
+    tags.push({ kind: 'style', label: category.label, className: 'tag-style' });
+  }
+  const region = DIALECT_REGIONS.find((row) => row.value === item?.region);
+  if (region && region.value !== 'all') {
+    tags.push({ kind: 'dialect', label: region.label, className: 'tag-dialect' });
+  }
+  if (item) {
+    const ended = item.eventStatus === 'ended' || item.removed;
+    if (!ended) {
+      tags.push({
+        kind: 'access',
+        label: accessLabel(item.access || ACCESS_FREE, item),
+        className: accessTagClass(item),
+      });
+    }
+    if (applied) {
+      tags.push({ kind: 'status', label: '已启用', className: 'tag-active' });
+    } else if (!item.available) {
+      tags.push({ kind: 'status', label: '待上线', className: 'tag-soon' });
+    } else if (ended) {
+      tags.push({ kind: 'status', label: '已绝版', className: 'tag-ended' });
+    }
+  }
+  return tags;
+}
+
+export function themeDisplayTags(theme, { applied = false } = {}) {
+  const tags = [];
+  const category = THEME_CATEGORIES.find((row) => row.value === theme?.category);
+  if (category && category.value !== 'all') {
+    tags.push({ kind: 'style', label: category.label, className: 'tag-style' });
+  }
+  const region = DIALECT_REGIONS.find((row) => row.value === theme?.region);
+  if (region && region.value !== 'all') {
+    tags.push({ kind: 'dialect', label: region.label, className: 'tag-dialect' });
+  }
+  const ended = theme?.eventStatus === 'ended' || theme?.removed;
+  if (!ended) {
+    tags.push({
+      kind: 'access',
+      label: accessLabel(theme?.access || ACCESS_FREE, theme || {}),
+      className: accessTagClass(theme || {}),
+    });
+  }
+  if (applied) {
+    tags.push({ kind: 'status', label: '已启用', className: 'tag-active' });
+  } else if (!theme?.available) {
+    tags.push({ kind: 'status', label: '待上线', className: 'tag-soon' });
+  } else if (ended) {
+    tags.push({ kind: 'status', label: '已绝版', className: 'tag-ended' });
+  }
+  return tags;
 }
 
 export function catalogHaystack(kind, item, group) {
@@ -1384,11 +1551,21 @@ export function catalogHaystack(kind, item, group) {
     group?.hint,
     accessLabel(item?.access || ACCESS_FREE, item || {}),
     kind === 'theme' ? '全局主题' : '局部装扮',
+    ...(Array.isArray(item?.style_tags) ? item.style_tags : []),
+    ...(Array.isArray(item?.dialect_tags) ? item.dialect_tags : []),
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
+export function cleanSearchKeyword(keyword) {
+  const text = String(keyword || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>]/g, '')
+    .trim();
+  return text.slice(0, THEME_SEARCH_KEYWORD_MAX);
+}
+
 export function matchKeyword(haystack, keyword) {
-  const query = String(keyword || '').trim().toLowerCase();
+  const query = cleanSearchKeyword(keyword).toLowerCase();
   if (!query) return true;
   const text = String(haystack || '');
   if (text.includes(query)) return true;
@@ -1428,7 +1605,7 @@ export function getSearchCache() {
 
 export function queryThemeCatalog(query = {}, { isMiniProgram = false } = {}) {
   const next = { ...defaultThemeQuery(), ...query };
-  const keyword = String(next.keyword || '').trim();
+  const keyword = cleanSearchKeyword(next.keyword);
   const themes = GLOBAL_THEMES.filter((item) => {
     if (next.access !== 'all' && (item.access || ACCESS_FREE) !== next.access) return false;
     if (next.category !== 'all' && item.category !== next.category) return false;
@@ -1521,11 +1698,11 @@ export function recentUseStatus(kind, item, group, isMiniProgram = false) {
   if (!item.available) return 'retired';
   if (item.eventStatus === 'ended') return 'ended';
   if (isDressBlocked(item, group, isMiniProgram)) return 'blocked';
-  if (!hasPermission(kind, item)) return 'retired';
+  if (!hasPermission(kind, item)) return 'gated';
   return 'ok';
 }
 
-export function recentStatusMeta(status) {
+export function recentStatusMeta(status, item) {
   if (status === 'ended') {
     return {
       label: '⚠️已绝版',
@@ -1537,6 +1714,13 @@ export function recentStatusMeta(status) {
     return {
       label: '❌环境不支持',
       hint: '当前环境暂不支持该装扮',
+      disabled: true,
+    };
+  }
+  if (status === 'gated') {
+    return {
+      label: accessLabel(item?.access || ACCESS_MEMBER, item || {}),
+      hint: '',
       disabled: true,
     };
   }
@@ -1574,7 +1758,12 @@ export function recordRecentUse(kind, item) {
 
 export function listRecentUses({ isMiniProgram = false, kind = 'all' } = {}) {
   return getRecentRaw()
-    .filter((row) => kind === 'all' || row.kind === kind)
+    .filter((row) => (
+      row
+      && row.id
+      && (row.kind === 'theme' || row.kind === 'dress')
+      && (kind === 'all' || row.kind === kind)
+    ))
     .slice(0, THEME_RECENT_LIMIT)
     .map((row) => {
       const found = row.kind === 'theme' ? getThemeById(row.id) : getDressItem(row.id);
@@ -1593,8 +1782,10 @@ export function listRecentUses({ isMiniProgram = false, kind = 'all' } = {}) {
         ...row,
         item,
         group,
+        access: item.access,
+        region: item.region,
         status,
-        ...recentStatusMeta(status),
+        ...recentStatusMeta(status, item),
       };
     });
 }
@@ -1628,11 +1819,40 @@ export function listAppliedDress({ isMiniProgram = false } = {}) {
     return [{
       group,
       item,
+      empty: false,
       suppressed: overlay,
       blocked,
-      effective: !overlay && !blocked,
+      effective: !overlay && !blocked && hasPermission('dress', item),
     }];
   });
+}
+
+export function listOutfitHubDress({ isMiniProgram = false } = {}) {
+  const applied = listAppliedDress({ isMiniProgram });
+  const byGroup = Object.fromEntries(applied.map((entry) => [entry.group.id, entry]));
+  const overlay = getOverlayLocalDress();
+  const seen = new Set();
+  const rows = [];
+  const pushGroup = (group) => {
+    if (!group || seen.has(group.id)) return;
+    if (isMiniProgram && group.mpBlocked && !byGroup[group.id]) return;
+    seen.add(group.id);
+    if (byGroup[group.id]) {
+      rows.push(byGroup[group.id]);
+      return;
+    }
+    rows.push({
+      group,
+      item: null,
+      empty: true,
+      suppressed: overlay,
+      blocked: Boolean(group.mpBlocked && isMiniProgram),
+      effective: false,
+    });
+  };
+  P1_DRESS_GROUP_IDS.forEach((id) => pushGroup(getDressGroup(id)));
+  applied.forEach((entry) => pushGroup(entry.group));
+  return rows;
 }
 
 export function listSelectedLocalDress() {
@@ -1690,12 +1910,14 @@ export function buildLivePreview({
 
 export function composePreviewOutfit({
   themeId,
+  localDress,
+  overlay,
   extraDress = null,
   isMiniProgram = false,
 } = {}) {
   const theme = getThemeById(themeId) || getActiveTheme();
-  const overlay = getOverlayLocalDress();
-  const selected = getLocalDressMap();
+  const overlayFlag = overlay === undefined ? getOverlayLocalDress() : Boolean(overlay);
+  const selected = { ...(localDress || getLocalDressMap()) };
   if (extraDress?.group) {
     selected[extraDress.group] = extraDress.id;
   }
@@ -1709,13 +1931,17 @@ export function composePreviewOutfit({
     theme,
     dressItems,
     isMiniProgram,
-    overlay,
+    overlay: overlayFlag,
   });
 }
 
 export function resetThemeSessionState() {
   sessionState.themeId = null;
   sessionState.localDress = null;
+  if (overlayFlushTimer) {
+    clearTimeout(overlayFlushTimer);
+    overlayFlushTimer = 0;
+  }
 }
 
 export function setActiveThemeId(themeId) {
@@ -1740,13 +1966,10 @@ export function setActiveThemeId(themeId) {
   }
   const written = writeStorage(THEME_PACK_STORAGE_KEY, pack.id);
   const overlay = getOverlayLocalDress();
-  if (overlay) {
-    writeStorage(LOCAL_DRESS_STORAGE_KEY, {});
-  }
   const result = {
     ok: true,
     theme: pack,
-    overlayCleared: overlay,
+    overlayCleared: false,
     overlaySuppressed: overlay,
     persisted: written.ok,
   };
@@ -1778,17 +2001,44 @@ function writeContractSnapshots() {
   );
 }
 
+let lastHydratePerfAt = 0;
+
+function reportHydratePerf({ hydrateMs, layerCount, ok }) {
+  const now = Date.now();
+  if (now - lastHydratePerfAt < 2000 && ok) return;
+  lastHydratePerfAt = now;
+  import('@/services/themeAnalytics').then((mod) => {
+    mod.trackThemePerfStyle?.({ hydrateMs, layerCount });
+    if (!ok) mod.trackThemePerfError?.('style_json');
+  }).catch(() => {});
+}
+
 export function hydrateOutfitStyle() {
+  const started = Date.now();
   const isMiniProgram = isWechatMiniProgram();
   const overlay = getOverlayLocalDress();
   const applied = listAppliedDress({ isMiniProgram });
-  return applyOutfitStyle(resolveOutfitStyle({
-    theme: getActiveTheme(),
-    dressItems: overlay ? [] : applied.filter((row) => !row.blocked),
+  const dressItems = overlay ? [] : applied.filter((row) => row.effective);
+  const resolved = resolveOutfitStyle({
+    theme: getRenderableTheme(),
+    dressItems,
     overlay,
     isMiniProgram,
-  }));
+  });
+  const result = applyOutfitStyle(resolved);
+  reportHydratePerf({
+    hydrateMs: Date.now() - started,
+    layerCount: 1 + dressItems.length,
+    ok: resolved.ok,
+  });
+  return result;
 }
+
+setThemeLogoutHandler(() => {
+  resetThemeSessionState();
+  clearThemeStyleCache();
+  hydrateOutfitStyle();
+});
 
 export function mergeRemoteCatalog({ themes = [], dresses = [] } = {}) {
   themes.forEach((remote) => {
@@ -1802,6 +2052,12 @@ export function mergeRemoteCatalog({ themes = [], dresses = [] } = {}) {
     if (remote.style_json && Object.keys(remote.style_json).length) {
       current.style_json = remote.style_json;
     }
+    if ('collect_count' in remote) current.collect_count = Number(remote.collect_count || 0);
+    if ('share_count' in remote) current.share_count = Number(remote.share_count || 0);
+    if ('like_count' in remote) current.like_count = Number(remote.like_count || 0);
+    if (remote.poster_img) current.poster_img = remote.poster_img;
+    if (remote.detail_img) current.detail_img = remote.detail_img;
+    if (remote.cover_img) current.cover_img = remote.cover_img;
   });
   dresses.forEach((remote) => {
     const current = LOCAL_DRESS_ITEMS.find((item) => item.id === remote.id);
@@ -1813,14 +2069,19 @@ export function mergeRemoteCatalog({ themes = [], dresses = [] } = {}) {
     if (remote.style_json && Object.keys(remote.style_json).length) {
       current.style_json = remote.style_json;
     }
+    if ('collect_count' in remote) current.collect_count = Number(remote.collect_count || 0);
+    if ('share_count' in remote) current.share_count = Number(remote.share_count || 0);
+    if ('like_count' in remote) current.like_count = Number(remote.like_count || 0);
+    if (remote.poster_img) current.poster_img = remote.poster_img;
   });
 }
 
 export function hydrateFromCloudConfig(dto) {
-  if (!dto) return { ok: false, reason: 'empty' };
+  if (!dto || typeof dto !== 'object') return { ok: false, reason: 'empty' };
   hydratingCloud = true;
   try {
     const mapped = fromCurrentConfig(dto, (itemId) => getDressItem(itemId)?.group);
+    if (!mapped) return { ok: false, reason: 'empty' };
     writeStorage(THEME_PACK_STORAGE_KEY, mapped.themeId || DEFAULT_THEME_ID);
     writeStorage(LOCAL_DRESS_STORAGE_KEY, mapped.localDress || {});
     writeStorage(THEME_OVERLAY_STORAGE_KEY, mapped.overlay ? '1' : '0');
@@ -1830,6 +2091,8 @@ export function hydrateFromCloudConfig(dto) {
     writeContractSnapshots();
     hydrateOutfitStyle();
     return { ok: true, ...mapped };
+  } catch {
+    return { ok: false, reason: 'corrupt' };
   } finally {
     hydratingCloud = false;
   }
@@ -1865,13 +2128,65 @@ export function setMemberStatus(enabled) {
   return getMemberStatus();
 }
 
+export function applyRemoteEntitlement(dto = {}) {
+  if (typeof dto.is_member === 'boolean') {
+    writeStorage(THEME_MEMBER_STORAGE_KEY, dto.is_member ? '1' : '0');
+  }
+  if (typeof dto.creator_unlocked === 'boolean') {
+    writeStorage(THEME_CREATOR_UNLOCKED_KEY, dto.creator_unlocked ? '1' : '0');
+  }
+  if (Array.isArray(dto.activity_ids)) {
+    const owned = getOwnedMap();
+    dto.activity_ids.forEach((id) => {
+      if (getThemeById(id) && !owned.themes.includes(id)) owned.themes.push(id);
+      else if (getDressItem(id) && !owned.dresses.includes(id)) owned.dresses.push(id);
+    });
+    writeStorage(THEME_OWNED_STORAGE_KEY, owned);
+  }
+  hydrateOutfitStyle();
+  return {
+    member: getMemberStatus(),
+    creator: creatorUnlocked(),
+    owned: getOwnedMap(),
+  };
+}
+
 export function claimSkin(kind, id) {
+  const item = kind === 'theme' ? getThemeById(id) : getDressItem(id);
+  if (!item) return { ok: false, reason: 'missing' };
+  const access = item.access || ACCESS_FREE;
+  if (access === ACCESS_FREE || access === ACCESS_MEMBER) {
+    return { ok: false, reason: access };
+  }
+  if (access === ACCESS_EVENT && item.eventStatus === 'ended') {
+    return { ok: false, reason: 'ended' };
+  }
+  if (access === ACCESS_CREATOR && !creatorUnlocked()) {
+    return { ok: false, reason: 'creator' };
+  }
   const owned = getOwnedMap();
   const key = kind === 'theme' ? 'themes' : 'dresses';
-  if (!owned[key].includes(id)) owned[key].push(id);
+  const added = !owned[key].includes(id);
+  if (added) owned[key].push(id);
   writeStorage(THEME_OWNED_STORAGE_KEY, owned);
-  queueCloudSync();
-  return { ok: true, owned };
+  if (!isLoggedIn()) {
+    queueCloudSync();
+    return { ok: true, owned };
+  }
+  const itemType = kind === 'theme' ? 'theme' : 'decoration';
+  return claimThemeRemote(itemType, id)
+    .then(() => {
+      queueCloudSync();
+      return { ok: true, owned: getOwnedMap() };
+    })
+    .catch((error) => {
+      if (added) {
+        const next = getOwnedMap();
+        next[key] = next[key].filter((itemId) => itemId !== id);
+        writeStorage(THEME_OWNED_STORAGE_KEY, next);
+      }
+      return remoteApplyFail(error);
+    });
 }
 
 export function setCreatorProgress(next) {
@@ -1889,8 +2204,8 @@ export function addShards(amount) {
 
 export function persistThemeQuery(query) {
   const next = { ...defaultThemeQuery(), ...query };
+  next.keyword = cleanSearchKeyword(next.keyword);
   writeStorage(THEME_QUERY_STORAGE_KEY, next);
-  queueCloudSync();
   return next;
 }
 
@@ -1898,7 +2213,7 @@ export function searchThemeCatalog(keyword, query = {}, { isMiniProgram = false 
   const next = persistThemeQuery({
     ...getThemeQuery(),
     ...query,
-    keyword: String(keyword || '').trim(),
+    keyword: cleanSearchKeyword(keyword),
     searching: true,
   });
   const result = queryThemeCatalog(next, { isMiniProgram });
@@ -1907,30 +2222,97 @@ export function searchThemeCatalog(keyword, query = {}, { isMiniProgram = false 
     ids: result.all.map((row) => `${row.kind}:${row.item.id}`),
     at: Date.now(),
   });
-  queueCloudSync();
   return {
     ...result,
     query: next,
-    queued: Boolean(readStorage('token')),
+    queued: false,
   };
 }
 
+export function cleanOutfitName(name) {
+  const text = String(name || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>]/g, '')
+    .trim();
+  return text.slice(0, THEME_OUTFIT_NAME_MAX);
+}
+
+function mixSavedAt(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function outfitFingerprint(outfit = {}) {
+  const themeId = outfit.themeId || outfit.global_theme_id || DEFAULT_THEME_ID;
+  const overlay = outfit.overlay === undefined && outfit.is_cover_local_decoration === undefined
+    ? true
+    : Boolean(outfit.overlay ?? outfit.is_cover_local_decoration);
+  const dress = outfit.localDress || {};
+  const pairs = Object.keys(dress)
+    .sort()
+    .map((groupId) => `${groupId}:${dress[groupId]}`)
+    .join('|');
+  return `${themeId}#${overlay ? '1' : '0'}#${pairs}`;
+}
+
+function currentOutfitSnapshot() {
+  return {
+    themeId: getActiveThemeId(),
+    localDress: getLocalDressMap(),
+    overlay: getOverlayLocalDress(),
+  };
+}
+
+function remapOutfitDress(localDress = {}) {
+  const next = {};
+  Object.entries(localDress).forEach(([groupId, itemId]) => {
+    const item = getDressItem(itemId);
+    next[item?.group || groupId] = itemId;
+  });
+  return next;
+}
+
+export function hydrateSavedOutfits(rows = []) {
+  const list = (Array.isArray(rows) ? rows : [])
+    .map((row) => fromSavedMix(row))
+    .filter(Boolean)
+    .map((outfit) => ({
+      ...outfit,
+      localDress: remapOutfitDress(outfit.localDress),
+      overlay: outfit.overlay !== false,
+      savedAt: mixSavedAt(outfit.savedAt),
+    }))
+    .sort((left, right) => right.savedAt - left.savedAt);
+  writeStorage(THEME_OUTFIT_STORAGE_KEY, list);
+  return list;
+}
+
 export function saveCurrentOutfit(name) {
-  const trimmed = String(name || '').trim();
+  const trimmed = cleanOutfitName(name);
   if (!trimmed) return { ok: false, reason: 'name' };
   const list = getSavedOutfits();
   if (list.length >= THEME_OUTFIT_LIMIT) return { ok: false, reason: 'limit' };
+  const snapshot = currentOutfitSnapshot();
+  if (list.some((item) => outfitFingerprint(item) === outfitFingerprint(snapshot))) {
+    return { ok: false, reason: 'duplicate' };
+  }
   const outfit = {
     id: `outfit-${Date.now()}`,
     name: trimmed,
-    themeId: getActiveThemeId(),
-    localDress: getLocalDressMap(),
+    themeId: snapshot.themeId,
+    localDress: snapshot.localDress,
+    overlay: snapshot.overlay,
     savedAt: Date.now(),
   };
   const next = [outfit, ...list];
   const written = writeStorage(THEME_OUTFIT_STORAGE_KEY, next);
   if (!written.ok) {
     return { ok: false, reason: written.reason, persisted: false };
+  }
+  if (isLoggedIn()) {
+    Promise.resolve(createMixRemote(toSavedMix(outfit))).catch(() => {});
   }
   queueCloudSync({ social: true });
   return {
@@ -1942,12 +2324,15 @@ export function saveCurrentOutfit(name) {
 }
 
 export function renameSavedOutfit(id, name) {
-  const trimmed = String(name || '').trim();
+  const trimmed = cleanOutfitName(name);
   if (!trimmed) return { ok: false, reason: 'name' };
   const next = getSavedOutfits().map((item) => (
     item.id === id ? { ...item, name: trimmed } : item
   ));
   writeStorage(THEME_OUTFIT_STORAGE_KEY, next);
+  if (isLoggedIn()) {
+    Promise.resolve(renameMixRemote(id, trimmed)).catch(() => {});
+  }
   queueCloudSync();
   return { ok: true, outfits: next };
 }
@@ -1955,20 +2340,32 @@ export function renameSavedOutfit(id, name) {
 export function deleteSavedOutfit(id) {
   const next = getSavedOutfits().filter((item) => item.id !== id);
   writeStorage(THEME_OUTFIT_STORAGE_KEY, next);
+  if (isLoggedIn()) {
+    Promise.resolve(deleteMixRemote(id)).catch(() => {});
+  }
   queueCloudSync();
   return { ok: true, outfits: next };
 }
 
 export function applySavedOutfit(outfit, { isMiniProgram = false } = {}) {
+  if (!outfit || typeof outfit !== 'object' || Array.isArray(outfit)) {
+    return { ok: false, reason: 'broken', skipped: false, empty: false };
+  }
+  const dressMap = outfit.localDress && typeof outfit.localDress === 'object' && !Array.isArray(outfit.localDress)
+    ? outfit.localDress
+    : {};
+  if (!outfit.themeId && !Object.keys(dressMap).length) {
+    return { ok: false, reason: 'broken', skipped: false, empty: false };
+  }
   let skipped = false;
-  const theme = getThemeById(outfit?.themeId);
-  let themeId = outfit?.themeId;
+  const theme = getThemeById(outfit.themeId);
+  let themeId = outfit.themeId || DEFAULT_THEME_ID;
   if (recentUseStatus('theme', theme, null, isMiniProgram) !== 'ok') {
     themeId = DEFAULT_THEME_ID;
     skipped = true;
   }
   const nextDress = {};
-  Object.entries(outfit?.localDress || {}).forEach(([groupId, itemId]) => {
+  Object.entries(dressMap).forEach(([groupId, itemId]) => {
     const item = getDressItem(itemId);
     const group = getDressGroup(groupId);
     if (recentUseStatus('dress', item, group, isMiniProgram) === 'ok') {
@@ -1977,7 +2374,12 @@ export function applySavedOutfit(outfit, { isMiniProgram = false } = {}) {
       skipped = true;
     }
   });
-  writeStorage(THEME_OVERLAY_STORAGE_KEY, '0');
+  writeStorage(
+    THEME_OVERLAY_STORAGE_KEY,
+    (outfit.overlay === undefined ? getOverlayLocalDress() : Boolean(outfit.overlay))
+      ? '1'
+      : '0',
+  );
   writeStorage(THEME_PACK_STORAGE_KEY, themeId);
   writeStorage(LOCAL_DRESS_STORAGE_KEY, nextDress);
   const appliedTheme = getThemeById(themeId);
@@ -1987,9 +2389,13 @@ export function applySavedOutfit(outfit, { isMiniProgram = false } = {}) {
     if (item) recordRecentUse('dress', item);
   });
   queueCloudSync();
+  const mixHadContent = Boolean(outfit.themeId && outfit.themeId !== DEFAULT_THEME_ID)
+    || Object.keys(dressMap).length > 0;
+  const appliedNothing = themeId === DEFAULT_THEME_ID && Object.keys(nextDress).length === 0;
   return {
     ok: true,
     skipped,
+    empty: Boolean(skipped && mixHadContent && appliedNothing),
     themeId,
     localDress: nextDress,
   };
@@ -2007,11 +2413,42 @@ function togglePair(key, kind, id) {
   return !exists;
 }
 
+export function hydrateFavoriteMap(collectList = []) {
+  const next = { themes: [], dresses: [] };
+  (Array.isArray(collectList) ? collectList : []).forEach((row) => {
+    const id = String(row?.item_id || '').trim();
+    if (!id) return;
+    if (row.item_type === 'theme' && !next.themes.includes(id)) next.themes.push(id);
+    if (row.item_type === 'decoration' && !next.dresses.includes(id)) next.dresses.push(id);
+  });
+  writeStorage(THEME_FAVORITE_STORAGE_KEY, next);
+  return next;
+}
+
 export function toggleFavorite(kind, item) {
-  if (!item?.available) return { ok: false, reason: 'upcoming', favorited: false };
+  if (!item?.id) return { ok: false, reason: 'missing', favorited: false };
+  const already = isFavorited(kind, item.id);
+  if (!canShareOrFavorite(item, { favorited: already })) {
+    return { ok: false, reason: 'upcoming', favorited: false };
+  }
   const favorited = togglePair(THEME_FAVORITE_STORAGE_KEY, kind, item.id);
-  queueCloudSync({ social: true });
-  return { ok: true, favorited };
+  if (!isLoggedIn()) {
+    queueCloudSync({ social: true });
+    return { ok: true, favorited };
+  }
+  const itemType = kind === 'theme' ? 'theme' : 'decoration';
+  const remote = favorited
+    ? collectThemeRemote(itemType, item.id)
+    : uncollectThemeRemote(itemType, item.id);
+  return remote
+    .then(() => {
+      queueCloudSync({ social: true });
+      return { ok: true, favorited };
+    })
+    .catch(() => {
+      queueCloudSync({ social: true });
+      return { ok: true, favorited, queued: true };
+    });
 }
 
 export function toggleLike(kind, item) {
@@ -2020,32 +2457,80 @@ export function toggleLike(kind, item) {
   return { ok: true, liked };
 }
 
+function retiredFavoriteItem(kind, id) {
+  return {
+    id,
+    name: '装扮已下架',
+    available: false,
+    removed: true,
+    preview: 'default',
+    tag: '已下架',
+    group: kind === 'dress' ? '' : undefined,
+  };
+}
+
 export function listFavorites(filter = 'all') {
   const fav = getFavoriteMap();
-  const themes = fav.themes
-    .map((id) => getThemeById(id))
-    .filter(Boolean)
-    .map((item) => ({ kind: 'theme', item }));
-  const dresses = fav.dresses
-    .map((id) => getDressItem(id))
-    .filter(Boolean)
-    .map((item) => ({
+  const themes = fav.themes.map((id) => {
+    const item = getThemeById(id) || retiredFavoriteItem('theme', id);
+    return { kind: 'theme', item };
+  });
+  const dresses = fav.dresses.map((id) => {
+    const item = getDressItem(id) || retiredFavoriteItem('dress', id);
+    return {
       kind: 'dress',
       item,
       group: getDressGroup(item.group),
-    }));
+    };
+  });
   if (filter === 'theme') return themes;
   if (filter === 'dress') return dresses;
   return [...themes, ...dresses];
 }
 
+function isRemoteApplyRejected(error) {
+  const reason = error?.data?.reason || '';
+  return ['coming', 'deprecated', 'privilege', 'terminal'].includes(reason)
+    || error?.statusCode === 403
+    || error?.statusCode === 409;
+}
+
+function isRemoteRateLimited(error) {
+  return error?.data?.reason === 'rate' || error?.statusCode === 429;
+}
+
+function remoteApplyFail(error) {
+  const reason = error?.data?.reason || '';
+  return {
+    ok: false,
+    reason: reason || (error?.statusCode === 409 ? 'upcoming' : 'privilege'),
+    queued: false,
+  };
+}
+
 /**
  * Persist to uni storage (H5 localStorage / 小程序 storage).
- * Logged-in sessions also queue a cloud payload for later sync.
+ * Logged-in sessions also POST /users/theme/apply/ then queue a cloud snapshot.
  */
 export async function persistActiveTheme(themeId) {
+  const previous = getActiveThemeId();
   const result = setActiveThemeId(themeId);
   if (!result.ok) return result;
+  if (isLoggedIn()) {
+    try {
+      await applyThemeRemote('theme', themeId);
+    } catch (error) {
+      if (isRemoteApplyRejected(error)) {
+        writeStorage(THEME_PACK_STORAGE_KEY, previous);
+        hydrateOutfitStyle();
+        return remoteApplyFail(error);
+      }
+      if (isRemoteRateLimited(error)) {
+        recordRecentUse('theme', result.theme);
+        return { ...result, queued: queueCloudSync(), reason: 'rate' };
+      }
+    }
+  }
   recordRecentUse('theme', result.theme);
   return { ...result, queued: queueCloudSync() };
 }
@@ -2056,11 +2541,15 @@ export async function persistCurrentOutfit() {
 
 export function setOverlayLocalDress(enabled) {
   writeStorage(THEME_OVERLAY_STORAGE_KEY, enabled ? '1' : '0');
-  queueCloudSync();
+  if (overlayFlushTimer) clearTimeout(overlayFlushTimer);
+  overlayFlushTimer = setTimeout(() => {
+    overlayFlushTimer = 0;
+    queueCloudSync();
+  }, 80);
   return getOverlayLocalDress();
 }
 
-export function persistLocalDress(groupId, itemId) {
+export async function persistLocalDress(groupId, itemId) {
   const group = getDressGroup(groupId);
   const item = getDressItem(itemId);
   if (!group || !item || item.group !== groupId) {
@@ -2079,9 +2568,33 @@ export function persistLocalDress(groupId, itemId) {
   if (item.eventStatus === 'ended') {
     return { ok: false, reason: 'ended' };
   }
-  const next = { ...getLocalDressMap(), [groupId]: item.id };
+  const previous = getLocalDressMap();
+  const next = { ...previous, [groupId]: item.id };
   const written = writeStorage(LOCAL_DRESS_STORAGE_KEY, next);
-  recordRecentUse('dress', item);
+  if (isLoggedIn()) {
+    try {
+      await applyThemeRemote('decoration', item.id);
+    } catch (error) {
+      if (isRemoteApplyRejected(error)) {
+        writeStorage(LOCAL_DRESS_STORAGE_KEY, previous);
+        hydrateOutfitStyle();
+        return remoteApplyFail(error);
+      }
+      if (isRemoteRateLimited(error)) {
+        if (written.ok) recordRecentUse('dress', item);
+        return {
+          ok: true,
+          item,
+          group,
+          suppressed: getOverlayLocalDress(),
+          queued: queueCloudSync(),
+          persisted: written.ok,
+          reason: 'rate',
+        };
+      }
+    }
+  }
+  if (written.ok) recordRecentUse('dress', item);
   const result = {
     ok: true,
     item,
@@ -2094,12 +2607,30 @@ export function persistLocalDress(groupId, itemId) {
   return result;
 }
 
+export function clearLocalDress(groupId) {
+  const previous = getLocalDressMap();
+  if (!previous[groupId]) {
+    return { ok: true, cleared: false, queued: false };
+  }
+  const next = { ...previous };
+  delete next[groupId];
+  const written = writeStorage(LOCAL_DRESS_STORAGE_KEY, next);
+  const result = {
+    ok: true,
+    cleared: true,
+    queued: queueCloudSync(),
+    persisted: written.ok,
+  };
+  if (!written.ok) result.reason = written.reason;
+  return result;
+}
+
 export async function applyRecent(row, { isMiniProgram = false } = {}) {
   const item = row.kind === 'theme' ? getThemeById(row.id) : getDressItem(row.id);
   const group = row.kind === 'dress' ? getDressGroup(row.group || item?.group) : null;
   const status = recentUseStatus(row.kind, item, group, isMiniProgram);
   if (status !== 'ok') {
-    return { ok: false, status, ...recentStatusMeta(status) };
+    return { ok: false, status, ...recentStatusMeta(status, item) };
   }
   if (row.kind === 'theme') return persistActiveTheme(item.id);
   return persistLocalDress(item.group, item.id);
@@ -2110,11 +2641,14 @@ export function setLocalDress(groupId, itemId) {
 }
 
 export async function resetAllDress() {
+  // Only live config. Keep saved mixes, favorites, recents, and likes.
   writeStorage(THEME_PACK_STORAGE_KEY, DEFAULT_THEME_ID);
   writeStorage(LOCAL_DRESS_STORAGE_KEY, {});
+  writeStorage(THEME_OVERLAY_STORAGE_KEY, '1');
   return {
     ok: true,
     theme: getActiveTheme(),
+    overlay: true,
     queued: queueCloudSync(),
   };
 }

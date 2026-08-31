@@ -119,7 +119,7 @@ export default {
     refresh() {
       this.owned = Boolean(this.item && isOwned(this.kind, this.item.id));
     },
-    onClaim() {
+    async onClaim() {
       if (!this.item) {
         notify({ title: '该限定装扮活动已结束，无法获取' });
         return;
@@ -133,7 +133,13 @@ export default {
         notifySuccess('已获得该装扮，可前往我的装扮使用');
         return;
       }
-      claimSkin(this.kind, this.item.id);
+      const claimed = await Promise.resolve(claimSkin(this.kind, this.item.id));
+      if (!claimed?.ok) {
+        notify({ title: claimed?.reason === 'ended'
+          ? '该限定装扮活动已结束，无法获取'
+          : '暂无权限使用该装扮' });
+        return;
+      }
       trackThemeGet(this.kind, this.item, 'event');
       this.refresh();
       notifySuccess('恭喜，已获得该装扮，可前往我的装扮使用');

@@ -7,7 +7,7 @@
       v-if="!group"
       class="empty-wrap"
     >
-      <EmptyState title="该分类装扮素材即将上线，敬请期待" />
+      <ThemeStatusPane scene="dress_coming" />
     </view>
     <view v-else>
       <view class="lead">
@@ -57,7 +57,7 @@
         v-if="!items.length"
         class="empty-wrap"
       >
-        <EmptyState title="该分类装扮素材即将上线，敬请期待" />
+        <ThemeStatusPane scene="dress_coming" />
       </view>
 
       <view
@@ -68,7 +68,17 @@
         @tap="openDetail(item)"
       >
         <view class="shot-wrap">
+          <image
+            v-if="dressCoverSrc(item)"
+            class="thumb thumb-photo"
+            :class="{ blurred: !item.available }"
+            :src="dressCoverSrc(item)"
+            mode="aspectFill"
+            lazy-load
+            @error="onPreviewImgError(item.id)"
+          />
           <view
+            v-else
             class="thumb"
             :class="[`thumb-${item.preview}`, { blurred: !item.available }]"
           >
@@ -139,6 +149,15 @@
             >
               {{ applyLabel(item) }}
             </BaseButton>
+            <BaseButton
+              v-if="item.id === appliedId"
+              class="item-action"
+              size="extra-small"
+              variant="ghost"
+              @click="onClear"
+            >
+              恢复跟随主题
+            </BaseButton>
           </view>
         </view>
       </view>
@@ -199,11 +218,22 @@
             </view>
           </view>
           <view
-            class="thumb thumb-lg"
+            class="thumb thumb-lg pressable"
             :class="[`thumb-${detailItem.preview}`, { blurred: !detailItem.available }]"
+            @tap="openZoom"
           >
-            <view class="thumb-bar" />
-            <view class="thumb-card" />
+            <image
+              v-if="dressDetailSrc(detailItem)"
+              class="thumb-photo"
+              :src="dressDetailSrc(detailItem)"
+              mode="aspectFill"
+              lazy-load
+              @error="onPreviewImgError(`detail:${detailItem.id}`)"
+            />
+            <template v-else>
+              <view class="thumb-bar" />
+              <view class="thumb-card" />
+            </template>
           </view>
           <view
             v-if="!detailItem.available"
@@ -308,17 +338,72 @@
           >
             {{ applyLabel(detailItem) }}
           </BaseButton>
+          <BaseButton
+            v-if="detailItem.id === appliedId"
+            size="small"
+            variant="ghost"
+            @click="onClear"
+          >
+            恢复跟随主题
+          </BaseButton>
         </view>
       </view>
     </view>
 
     <ThemeLivePreview
-      :open="previewOpen"
+      v-if="previewOpen"
+      :open="true"
       title="实时预览"
       :model="livePreviewModel"
       @cancel="closePreview"
       @apply="onConfirmPreview"
     />
+
+    <view
+      v-if="zoomOpen && detailItem"
+      class="sheet-mask zoom-mask"
+      @tap="closeZoom"
+    >
+      <view class="sheet-mask-dim" />
+      <view
+        class="zoom-sheet"
+        @tap.stop
+      >
+        <view
+          class="preview-close pressable"
+          @tap="closeZoom"
+        >
+          关闭
+        </view>
+        <view class="muted">
+          {{ zoomHint }}
+        </view>
+        <movable-area class="zoom-area">
+          <movable-view
+            class="zoom-view"
+            direction="all"
+            :scale="true"
+            scale-min="1"
+            scale-max="3"
+          >
+            <image
+              v-if="dressDetailSrc(detailItem)"
+              class="thumb thumb-xl thumb-photo"
+              :src="dressDetailSrc(detailItem)"
+              mode="aspectFit"
+            />
+            <view
+              v-else
+              class="thumb thumb-xl"
+              :class="`thumb-${detailItem.preview}`"
+            >
+              <view class="thumb-bar" />
+              <view class="thumb-card" />
+            </view>
+          </movable-view>
+        </movable-area>
+      </view>
+    </view>
 
     <ThemeShareSheet
       :target="shareTarget"
@@ -331,10 +416,10 @@
 <script>
 import BaseButton from '@/components/BaseButton.vue';
 import confirmDialog from '@/components/ConfirmDialog';
-import EmptyState from '@/components/EmptyState.vue';
 import PageShell from '@/components/PageShell.vue';
 import ThemeLivePreview from '@/components/ThemeLivePreview.vue';
 import ThemeShareSheet from '@/components/ThemeShareSheet.vue';
+import ThemeStatusPane from '@/components/ThemeStatusPane.vue';
 import { notify, notifySuccess } from '@/services/feedback';
 import {
   goBack,
@@ -348,6 +433,7 @@ import {
   trackThemeApply,
   trackThemeApplyInvalid,
   trackThemeCollect,
+  trackThemeFault,
   trackThemeGet,
   trackThemeItemDetail,
   trackThemeListScroll,
@@ -359,6 +445,7 @@ import {
   accessTagClass,
   canLivePreview,
   claimSkin,
+  clearLocalDress,
   composePreviewOutfit,
   describeAccess,
   getActiveTheme,
@@ -366,11 +453,15 @@ import {
   getLocalDressMap,
   getOverlayLocalDress,
   isFavorited,
+  isRemotePreviewSrc,
   listDressItems,
   persistLocalDress,
+  previewCoverOf,
+  previewDetailOf,
   socialStats,
   THEME_ACCESS_FOOTER,
   THEME_PREVIEW_FOOTER,
+  THEME_PREVIEW_ZOOM_HINT,
   THEME_SOCIAL_FOOTER,
   THEME_SORTS,
   toggleFavorite,
@@ -383,11 +474,11 @@ import {
   isThemeSdkSupported,
   THEME_FAULT_TOAST,
 } from '@/services/themeFault';
-import { themeSharePayload } from '@/utils/themeShare';
+import { cleanThemeShareQuery, themeSharePayload } from '@/utils/themeShare';
 
 export default {
   components: {
-    BaseButton, EmptyState, PageShell, ThemeLivePreview, ThemeShareSheet,
+    BaseButton, PageShell, ThemeLivePreview, ThemeShareSheet, ThemeStatusPane,
   },
   data() {
     return {
@@ -399,6 +490,8 @@ export default {
       detailItem: null,
       shareTarget: null,
       previewOpen: false,
+      zoomOpen: false,
+      coverFailed: {},
       previewItem: null,
       previewModel: null,
       dressSort: 'newest',
@@ -407,6 +500,7 @@ export default {
       accessFooter: THEME_ACCESS_FOOTER,
       socialFooter: THEME_SOCIAL_FOOTER,
       previewFooter: THEME_PREVIEW_FOOTER,
+      zoomHint: THEME_PREVIEW_ZOOM_HINT,
       scrollTimer: 0,
       sdkSupported: true,
     };
@@ -432,14 +526,15 @@ export default {
   },
   onLoad(options) {
     this.sdkSupported = isThemeSdkSupported();
-    this.groupId = options?.group || '';
+    this.groupId = cleanThemeShareQuery(options?.group) || options?.group || '';
     if (!getDressGroup(this.groupId)) {
       goBack(ROUTES.themeCenter);
       return;
     }
     this.refresh();
     if (options?.id) {
-      const match = this.items.find((item) => item.id === options.id);
+      const shareId = cleanThemeShareQuery(options.id);
+      const match = shareId && this.items.find((item) => item.id === shareId);
       if (match) this.openDetail(match);
     }
   },
@@ -476,12 +571,20 @@ export default {
     isItemFav(id) {
       return this.socialTick >= 0 && isFavorited('dress', id);
     },
-    onToggleFavorite(item) {
-      if (!item?.available) {
+    async onToggleFavorite(item) {
+      if (!beginThemeApply(`fav:dress:${item?.id}`).ok) return;
+      const already = isFavorited('dress', item?.id);
+      if (!item?.available && !already) {
         notify({ title: '待上线装扮暂不支持收藏' });
         return;
       }
-      const result = toggleFavorite('dress', item);
+      const result = await Promise.resolve(toggleFavorite('dress', item));
+      if (!result?.ok) {
+        if (result?.reason === 'upcoming') {
+          notify({ title: '待上线装扮暂不支持收藏' });
+        }
+        return;
+      }
       this.refresh();
       trackThemeCollect('dress', item, result.favorited);
       notifySuccess(result.favorited ? '已收藏该装扮' : '已取消收藏');
@@ -492,6 +595,7 @@ export default {
       this.refresh();
     },
     onShare(item) {
+      if (!beginThemeApply(`share:dress:${item?.id}`).ok) return;
       if (!item?.available) {
         notify({ title: '待上线装扮暂不支持分享' });
         return;
@@ -536,11 +640,36 @@ export default {
     },
     openDetail(item) {
       this.detailItem = item;
+      this.zoomOpen = false;
       trackThemeItemDetail('dress', item, this.group);
       trackThemePreview('dress', item, 'detail');
     },
     closeDetail() {
+      this.zoomOpen = false;
       this.detailItem = null;
+    },
+    dressCoverSrc(item) {
+      const src = previewCoverOf(item);
+      if (!item?.id || !isRemotePreviewSrc(src) || this.coverFailed[item.id]) return '';
+      return src;
+    },
+    dressDetailSrc(item) {
+      const src = previewDetailOf(item);
+      const key = `detail:${item?.id}`;
+      if (!item?.id || !isRemotePreviewSrc(src) || this.coverFailed[key]) return '';
+      return src;
+    },
+    onPreviewImgError(key) {
+      this.coverFailed = { ...this.coverFailed, [key]: true };
+      notify({ title: THEME_FAULT_TOAST.resource });
+    },
+    openZoom() {
+      if (!this.detailItem) return;
+      if (!beginThemeApply('preview-zoom').ok) return;
+      this.zoomOpen = true;
+    },
+    closeZoom() {
+      this.zoomOpen = false;
     },
     canLivePreviewItem(item) {
       return canLivePreview(item);
@@ -554,6 +683,8 @@ export default {
         });
         return;
       }
+      if (this.previewOpen) return;
+      if (!beginThemeApply('preview-open').ok) return;
       this.previewItem = item;
       beginThemePreview();
       this.previewModel = composePreviewOutfit({
@@ -649,7 +780,11 @@ export default {
         return;
       }
       if (info.action === 'claim') {
-        claimSkin('dress', item.id);
+        const claimed = await Promise.resolve(claimSkin('dress', item.id));
+        if (!claimed?.ok) {
+          notify({ title: '暂无权限使用该装扮' });
+          return;
+        }
         trackThemeGet('dress', item, item.access);
         this.refresh();
         notifySuccess('恭喜，已获得该装扮，可前往我的装扮使用');
@@ -671,13 +806,28 @@ export default {
       }
       if (item.id === this.appliedId) return;
       if (!beginThemeApply(`dress:${item.id}`).ok) return;
-      const result = persistLocalDress(this.groupId, item.id);
+      const result = await persistLocalDress(this.groupId, item.id);
       if (!result.ok) {
         if (result.reason === 'quota') {
           notify({ title: THEME_FAULT_TOAST.quota });
           return;
         }
+        if (result.reason === 'terminal') {
+          notify({ title: '当前环境暂不支持该装扮' });
+          return;
+        }
+        if (result.reason === 'privilege') {
+          notify({ title: '暂无权限使用该装扮' });
+          return;
+        }
         notify({ title: '装扮素材即将上线' });
+        return;
+      }
+      if (result.reason === 'rate') {
+        notify({ title: THEME_FAULT_TOAST.rate });
+        trackThemeFault('rate');
+        this.refresh();
+        this.closeDetail();
         return;
       }
       if (result.persisted === false) {
@@ -687,6 +837,15 @@ export default {
       this.refresh();
       this.closeDetail();
       notifySuccess('装扮已生效');
+    },
+    onClear() {
+      const result = clearLocalDress(this.groupId);
+      if (result.reason === 'quota' || result.persisted === false) {
+        notify({ title: THEME_FAULT_TOAST.quota });
+      }
+      this.refresh();
+      this.closeDetail();
+      notifySuccess('已恢复跟随全局主题');
     },
   },
 };
@@ -879,11 +1038,57 @@ export default {
   border-radius: var(--radius-md);
   background: var(--page-color);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .thumb-lg {
   width: 100%;
   height: 240rpx;
+}
+
+.thumb-xl {
+  width: 100%;
+  height: 520rpx;
+}
+
+.thumb-photo {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.zoom-sheet {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-4) var(--space-3);
+  background: var(--page-color);
+  box-sizing: border-box;
+}
+
+.zoom-area {
+  width: 100%;
+  height: 0;
+  flex: 1;
+  margin-top: var(--space-3);
+}
+
+.zoom-view {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-close {
+  align-self: flex-end;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle-color);
+  color: var(--text-secondary-color);
+  font-size: var(--font-size-xs);
 }
 
 .thumb.blurred {

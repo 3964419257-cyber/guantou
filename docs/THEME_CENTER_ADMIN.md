@@ -1,12 +1,30 @@
 # 主题装扮后台管理
 
-**文档状态：** 产品约定（三期运营能力；一期、二期不按本文开工）  
+**文档状态：** 独立拆分（完整 `/manage/` 中台、报表、热搜/文案 CMS 按三期验收；Django Admin 校验与活动窗校正可提前）  
 **产品：** 乡声集盒 · 主题中心运营后台  
-**入口：** 内部运营台（staff 登录）。不是 C 端主题中心，也不对普通用户开放。
+**入口：** 内部 Django Admin（staff 登录）。不是 C 端主题中心，也不对普通用户开放。  
+**对应实现：** `backend/guantou/themes/admin.py`、`models.py` `clean`、`services.clean_catalog_item` / `sync_activity_windows`；审计 `audit.ObjectChangeLog`
 
-本文只定模块、字段、校验、权限和生效规则，不定 UI 稿。总览见 [`THEME_CENTER.md`](THEME_CENTER.md)。C 端字段与枚举以 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md) 为准。埋点口径见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)：后台上下架、定时、报表属 **三期**。图片 WebP、多尺寸与 `catalog_version` 见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。用户数据只读与越权见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。
+本文只定模块、字段、校验、权限和生效规则，不定 UI 稿。总览见 [`THEME_CENTER.md`](THEME_CENTER.md)。C 端字段与枚举以 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md) 为准（标准化数据结构，独立拆分）。埋点口径见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。C 端检索见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)（热搜后台配置属三期）。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)（批量改权限属三期）。历史搭配只读见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态不配后台文案，见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)：后台上下架中台、定时看板、报表属 **三期**。图片 WebP、多尺寸与 `catalog_version` 见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。用户数据只读与越权见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。C 端预览沙盒见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。
 
-对外文案：用户可见的「作品」一律写成 **罐头**。下文「罐头卡片」对应需求里的作品卡片。界面不用「短视频」。
+需求原文若把「一期 MVP 完整运营中台」、有引用也能物理删除、空态/热搜/分享文案后台可配、Excel 实时看板写成当前闸门，规划仍以 ROADMAP 为准：运营后台按 **三期** 验收。现在只保证 Django Admin 能改目录、非法 `style_json`/标签/终端进不了库、有引用不能删、活动时间窗可校正。**不要**另做一套 C 端可调的 `/manage/`，**不要**改 STATUS 已落地空态句。
+
+对外文案：用户可见的「作品」一律写成 **罐头**。下文「罐头卡片」对应需求里的作品卡片。界面不用「短视频」。方言地域标签用 DATA 七项（`川渝` 等），不要写成「川渝烟火」当标签值。
+
+## 分期范围
+
+| 现在做（Django Admin 底座） | 不做（三期 / 需求原文不采用） |
+| --- | --- |
+| 主题 / 装扮增删改；保存校验 `style_json`、终端、标签字典、活动时间；剥名称/简介 HTML | 独立可视化运营台、后台实时预览沙盒（预览走 C 端 PREVIEW） |
+| 手动改 `status` 上下架/绝版；保存 bump `catalog_version` | `/manage/themes/` 批量 REST、批量打标 UI、批量下架流水线 |
+| 有收藏/搭配/当前配置引用 **禁止物理删除**，只能 `deprecated` | 「删除后前端彻底无数据」——有引用必须绝版留历史 |
+| `sync_theme_activity_windows` 按时间窗校正 coming/available/deprecated | 节日全自动轮换中台、任务失败重试看板（节日仍复用活动窗，见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)） |
+| 用户 config / collect / mix **只读**；`ObjectChangeLog` 记目录变更 | 改用户搭配；样式 JSON 版本库与一键回退 |
+| 热度三计数只读展示 | Excel 导出、日/周/月榜、转化率看板（口径仍见 ANALYTICS） |
+| 超管才能删零引用 `coming` 草稿 | 热搜词 / 分享文案 / 空态文案 CMS（STATUS / SEARCH 已钉死） |
+| staff / superuser 沿用 Django（见角色） | 精细化「只读账号」产品角色页；投稿审核见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)（三期） |
+
+C 端目录走 Django `themes`：`GET /themes/`、`GET /decorations/`。运营在 Django Admin 改主题/装扮（保存 bump `catalog_version`）。`/manage/themes/` 批量运营接口仍属三期，C 端不要调用。对象变更可复用 `audit.ObjectChangeLog`。
 
 ## 原则
 
@@ -29,8 +47,6 @@
   ├─ 数据看板（聚合指标，无 C 端 PII）
   └─ 操作日志
 ```
-
-C 端目录走 Django `themes`：`GET /themes/`、`GET /decorations/`，运营可在 Django Admin 改主题/装扮（会 bump `catalog_version`）。`/manage/themes/` 批量运营接口仍属三期，C 端不要调用。对象变更可复用 `audit.ObjectChangeLog`。
 
 ---
 
@@ -157,7 +173,7 @@ C 端目录走 Django `themes`：`GET /themes/`、`GET /decorations/`，运营�
 
 **即将到期列表：** `status=available` 且结束时间在未来 72 小时内。供运营预警，不自动发站内信（三期可不做通知，看板即可）。
 
-定时任务按分钟扫描；漏扫时以「当前时间 vs 窗口」校正状态，不以任务是否跑过为准。每次自动改状态写操作日志，操作人记为系统任务。
+定时任务按分钟扫描（三期调度）；现网可用 `python manage.py sync_theme_activity_windows` 校正。漏扫时以「当前时间 vs 窗口」校正状态，不以任务是否跑过为准。C 端启用仍按窗口二次校验（SECURITY），即使 `status` 尚未改也会拦截。每次自动改状态写 `ObjectChangeLog`，操作人可能为空（系统任务）。
 
 手动上架活动装扮：若当前时间早于开始时间，拒绝。手动从绝版恢复：仅超级管理员，且须重设时间窗口。
 
@@ -339,7 +355,31 @@ C 端路径仍是 `/themes/`、`/decorations/`，不要让 App 打 `/manage/`。
 
 ---
 
-## 验收（三期后台）
+## 现状对照
+
+| 约定 | 现网 |
+| --- | --- |
+| Django Admin 改主题/装扮 | 已落地；保存 `clean_catalog_item` + bump `catalog_version` |
+| `style_json` 非法不能入库 | 已落地（`;` `{` `}` 拦截） |
+| nav/tab 不得含小程序 | 已落地 `full_clean` |
+| 方言/风格标签字典 | 已落地；未知标签禁止保存 |
+| 有引用不能删 | Admin `has_delete_permission`：仅超管 + `coming` + 零引用 |
+| 用户搭配/收藏/当前配置 | Admin 只读，禁增改删 |
+| 活动窗校正 | `sync_theme_activity_windows`；C 端 apply 仍按时间窗拦截 |
+| 目录变更审计 | `ObjectChangeLog`（热度计数字段忽略） |
+| `/manage/` REST、报表导出、热搜/空态 CMS、后台预览沙盒 | **未做**（三期） |
+
+---
+
+## 验收（现在）
+
+- staff 可在 Django Admin 改名称、终端、标签、权限、状态、`style_json`；非法 JSON / 未知方言标签 / 空终端不能保存。
+- 有收藏或当前配置/搭配引用的件不能物理删除。
+- 活动件过结束时间后跑校正命令应变 `deprecated`；C 端即使未跑命令也不能启用。
+- 保存后 `catalog_version` 增加，C 端缓存按 PERF 作废。
+- 文案无「作品」「短视频」。
+
+## 验收（三期后台中台）
 
 - 运营可配终端、方言/风格标签、活动时间，保存后 C 端拉目录能对上。
 - JSON 非法不能保存；待上线不能被启用。
@@ -350,3 +390,7 @@ C 端路径仍是 `/themes/`、`/decorations/`，不要让 App 打 `/manage/`。
 - 运营员不能删除、不能改系统标签字典。
 - 报表时间范围与权限/方言/小程序不支持指标可出数，导出不含账号 PII。
 - 文案无「作品」「短视频」。
+
+## 后续（不在本期）
+
+智能推荐权重、节日全自动轮换策略、地域使用分布报表、样式版本回退、热搜/分享/空态 CMS。用户投稿审核队列见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)（三期，不在本期 Django Admin 做）。碎片账本、榜单中台、公开复刻见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)。

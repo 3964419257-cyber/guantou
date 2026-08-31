@@ -27,15 +27,29 @@
 | 主题 | 文档 |
 | --- | --- |
 | 三期范围与小程序降级 | [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md) |
-| 字段、存储、C 端接口 | [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md) |
-| 容错与登录合并 | [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md) |
-| 埋点与报表口径 | [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md) |
+| 全局主题模块（独立拆分） | [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md) |
+| 局部装扮模块（独立拆分） | [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md) |
+| 冲突控制开关（独立拆分） | [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md) |
+| 我的装扮汇总（独立拆分） | [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md) |
+| 三层预览体系（独立拆分） | [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md) |
+| 最近使用记录（独立拆分） | [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md) |
+| 搜索筛选排序（独立拆分） | [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md) |
+| 四维权限（独立拆分） | [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md) |
+| 收藏 / 分享 / 热度（独立拆分） | [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md) |
+| 历史搭配方案（独立拆分） | [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md) |
+| 空态 / 占位 / 失效标识（独立拆分） | [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md) |
+| 双端存储与云端同步（独立拆分） | [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md) |
+| 标准化数据结构（独立拆分） | [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md) |
+| 全场景异常与边界兜底（独立拆分） | [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md) |
+| 全链路数据埋点（独立拆分） | [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md) |
 | 页面 / 弹窗跳转 | [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md) |
-| 运营后台 | [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md) |
-| 性能 | [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md) |
-| 安全风控 | [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md) |
+| 运营后台（独立拆分） | [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md) |
+| 全链路性能优化（独立拆分） | [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md) |
+| 全链路安全风控（独立拆分） | [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md) |
+| 用户投稿与创作者自制（独立拆分，三期） | [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md) |
+| 三期商业化与生态拓展（独立拆分） | [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md) |
 
-仓库里已有不少二期页面入口。验收仍按期：一期能换主题和核心装扮并同步；二期方言素材 + 权限/搜索/搭配真正跑通；三期才做后台、碎片、社区。**不要因为页面先写了就把付费和方言货架一次做完。**
+仓库里已有不少二期页面入口。验收仍按期：一期能换主题和核心装扮并同步；二期方言素材 + 权限/搜索/搭配真正跑通；三期才做后台、碎片、社区、投稿。**不要因为页面先写了就把付费和方言货架一次做完。**
 
 ---
 
@@ -58,24 +72,26 @@
 
 | # | 模块 | 期 | 要点 |
 | --- | --- | --- | --- |
-| 1 | 主题中心首页 | ● | 个人中心进入。一期 Tab：全局主题、局部装扮。二期加我的收藏。底部/子页：我的装扮汇总 |
+| 1 | 主题中心首页 | ● | 个人中心进入。一期 Tab：全局主题、局部装扮。底部/第四入口：我的装扮汇总（`?tab=mine`，见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)）。二期加我的收藏 |
 | 2 | 局部装扮组件 | ●/○ | 一期只做罐头卡片、主页背景、头像框、评论气泡。二期补按钮、话题卡、输入框；nav/tab **二期可见但小程序置灰**。契约：`nav_bar` `tab_bar` `button` `card` `home_bg` `avatar_frame` `comment_bubble` `topic_card` `input_box` |
 | 3 | 覆盖开关 | ● | 「全局主题覆盖局部装扮」。打开且已有局部装扮要二次确认 |
-| 4 | 预览 | ●/○ | 卡片缩略、详情大图（一期）。全屏实时模拟（二期）。小程序预览标注原生栏不生效 |
-| 5 | 最近使用 / 历史搭配 | ○ | 最近 8 条；搭配只存 id；一键应用跳过绝版/不支持件 |
-| 6 | 搜索筛选排序 | ○ | 关键词；权限/风格/组件/方言地域；多种排序。搜索为子页（现网可先页内 searching） |
-| 7 | 权限 | ○ | `free` `member` `activity` `creator`。待上线占位不可启用。会员/活动/任务走站内页 |
-| 8 | 分享 | ○ | 私信、微信/小程序转发、复制链接（H5）、海报（优先后台预生成图） |
-| 9 | 收藏 | ○ | 个人标记，不是解锁。空态留在收藏 Tab |
+| 4 | 预览 | ●/○ | 卡片缩略、详情大图（一期，见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)）。全屏实时模拟（二期）。小程序预览标注原生栏不生效 |
+| 5 | 最近使用 / 历史搭配 | ○ | 最近 8 条（见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)）；搭配最多 10 套、一键应用跳过失效件（见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)） |
+| 6 | 搜索筛选排序 | ○ | 关键词；权限/风格/组件/方言地域；多种排序。搜索为子页（现网可先页内 searching）。见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md) |
+| 7 | 权限 | ○ | `free` `member` `activity` `creator`。待上线占位不可启用。会员/活动/任务走站内页。见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md) |
+| 8 | 分享 | ○ | 私信、微信/小程序转发、复制链接（H5）、海报（优先后台预生成图）。见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md) |
+| 9 | 收藏 | ○ | 个人标记，不是解锁。空态留在收藏 Tab。见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md) |
 | 10 | 重置全部 | ● | 二次确认后恢复默认 |
-| 11 | 本地 + 云端 | ● | 游客只本地。登录写云端，失败先本地再生效再重试。A→B 清本地。游客→登录：云端 / 本地 / 合并 |
-| 12 | 容错 | ● | 列表失败重试或缓存条；绝版跳过；存储满会话临时生效；小程序 SDK 过低提示 |
+| 11 | 本地 + 云端 | ● | 游客只本地。登录写云端，失败先本地再生效再重试。登出 / A→B 清本地。游客→登录：云端 / 本地 / 合并。见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md) |
+| 12 | 容错 | ● | 列表失败重试或缓存条；绝版跳过；存储满会话临时生效；小程序 SDK 过低提示。策略见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。空态文案见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md) |
 | 13 | 数据 | ● | `theme_item` / `decoration_item` / `user_collect` / `user_saved_mix` / `user_current_config`。搭配与配置 **只存 id** |
 | 14 | 分期 | — | 见 ROADMAP，完成一期再开二期 |
 | 15 | 跳转 | ● | 主页面 / 子页面入栈；详情、筛选、分享、预览、确认为模态不入栈。返回：弹窗关层、子页回首页、首页回个人中心 |
-| 16 | 后台 | △ | 增删改、终端、标签、活动定时、只读用户搭配、报表、日志。有引用禁止物理删除 |
+| 16 | 后台 | △ | 增删改、终端、标签、活动定时、只读用户搭配、报表、日志。有引用禁止物理删除。Django Admin 校验与活动窗校正可提前；`/manage/` 中台、热搜/空态 CMS、Excel 看板按三期。见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md) |
 | 17 | 性能 | △（分页/懒加载可提前） | >50 条虚拟列表；每页 20；列表缩略图；style 防抖；缓存无整份 JSON；关预览释放 |
-| 18 | 安全 | ○（随权限上线） | 启用服务端校验；不收客户端 `style_json`/计数；限流 429；收藏搭配隔离；包内不写死会员 |
+| 18 | 安全 | ○（随权限上线） | 启用服务端二次校验；不收客户端 `style_json`/计数；限流 429；收藏搭配隔离；包内不写死会员。HMAC 当授权 / 后台可配阈值 / 风险看板见 SECURITY 分期，不做一期闸门。见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md) |
+| 19 | 用户投稿 | △ | 创作者草稿、审核后进目录。现网无入口。见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md) |
+| 20 | 商业化 / 碎片 / 社区 | △ | 账本、支付、公开复刻、榜单。现网无路由。见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md) |
 
 冲突开关打开时只生效全局主题。同一 `component_type` 同时只生效一件局部装扮。
 
@@ -90,7 +106,7 @@
 用户会以为「买了顶栏却没变」。
 
 - 一期：**不展示** nav/tab 装扮入口（不要置灰卡）。
-- 二期：入口可见 + 置灰 +「小程序环境不支持」；预览写明系统默认顶栏/底栏。
+- 二期：入口可见 + 置灰 +「小程序暂不支持该组件装扮」；预览写明系统默认顶栏/底栏。
 - 两端都不对原生栏注入 `style_json`。人力优先头像框、罐头卡片、评论气泡、主页背景。
 
 ### 2. `style_json` 损坏导致花屏、白屏
@@ -126,7 +142,10 @@
 ### 7. 换账号串号
 
 - A→B：清空本地主题/收藏/搭配，拉 B 的云端。
+- 登出 / token 失效：清本地主题键，游客不残留上一账号配置。
 - 游客→登录：弹窗选云端 / 本地 / 合并；合并后服务端仍会滤掉无权限 id。
+
+策略见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。
 
 其它：存储满 → 会话临时生效；SDK 过低 → 提示不跳错页；活动到期自动绝版且不可再启用。
 
@@ -140,7 +159,9 @@
 
 - 个人中心能进主题中心；能换全局主题，真实页样式变。
 - 能启用一期四类局部装扮；覆盖开关开则局部不生效，关则能单独生效。
-- 能重置；游客杀进程再进配置还在；登录换设备（或清缓存拉云端）能对上。
+- 能重置；重置不删收藏、历史搭配、最近使用；游客杀进程再进配置还在；登录换设备（或清缓存拉云端）能对上。
+- 「我的装扮」（`?tab=mine`）能看当前全局主题与一期局部槽位；【更换主题】回到全局主题 Tab。
+- 列表卡片缩略与详情大图可看；关闭预览不改真实配置。全屏实时模拟不作为一期闸门。
 - 坏 JSON 回退默认，不白屏。列表失败有重试或缓存条。
 - 小程序 **没有** nav/tab 装扮入口。文案无「作品」「短视频」。
 - 快速连点启用不重复提交（同按钮防抖）。
@@ -153,11 +174,14 @@
 - 小程序 nav/tab 可见但不可启用，有环境文案；H5 可按权限启用。
 - 换账号不串号；游客登录合并三种选择可用。
 
-### 三期后台与性能
+### 三期后台、投稿与生态
 
-- 运营可新增/编辑/上下架；活动到点自动上架/绝版；非法 JSON 不能存。
+- 运营可新增/编辑/上下架；活动到点自动上架/绝版；非法 JSON 不能存。见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。
 - 有引用的装扮不能删。报表、操作日志可查。运营不能改用户搭配。
 - 目录 100+ 列表可滑；弱网先出缓存。
+- 投稿未过审不上公开目录。见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)。
+- 碎片只记云端；公开复刻走同一套下架跳过；**绝版仍不可启用**。见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)。
+- 未开工前不对用户承诺支付、社区页、投稿入口。
 
 ### 稳定性（各期都要）
 
@@ -173,10 +197,10 @@ H5、小程序各走一遍该阶段主路径。小程序不支持处必须是产
 
 ## 五、后续方向（三期及以后，不插队）
 
-1. 装扮碎片：发方言 **罐头** 获碎片，兑换限定装扮（服务端账本）。
-2. 装扮社区：看别人搭配，一键复制（走同一套下架跳过）。
-3. 用户投稿自制装扮，审核后上架。
-4. 节日主题定时轮换（复用活动开始/结束）。
+1. 装扮碎片：发方言 **罐头** 获碎片，兑换限定装扮（服务端账本）。见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)。
+2. 装扮社区：看别人搭配，一键复制（走同一套下架跳过）。见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)。
+3. 用户投稿自制装扮，审核后上架。见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)（三期；现网无入口）。
+4. 节日主题定时轮换（复用活动开始/结束）。见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)、[`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。
 5. 更多地域主题与纹样（头像 / 罐头卡 / 评论优先加量）。
 
 不做（除非单独立项）：直播装扮、第三方皮肤市场、跨 App 导出、承诺小程序原生栏可换皮。
@@ -187,5 +211,6 @@ H5、小程序各走一遍该阶段主路径。小程序不支持处必须是产
 
 1. 先看本文 + ROADMAP，锁定当前期「做 / 不做」。
 2. 实现字段对 DATA，交互对 NAV，失败对 FAULT，权限对 SECURITY。
-3. 二期货架和付费未过闸门，不要把后台、碎片、社区并行铺开。
+3. 二期货架和付费未过闸门，不要把后台、碎片、社区、投稿、支付并行铺开。见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)。
 4. C 端不写管理界面；运营走 `/manage/`，staff 登录。
+5. [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md) / [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md) 写的是三期契约，**不是已上线能力**。与一期/二期分册冲突时，以 ROADMAP「是否对用户开放」为准。

@@ -1,13 +1,29 @@
 # 主题中心安全风控
 
-**文档状态：** 产品约定（关键写操作以服务端为准；一期可仅本地，会员/活动权限上线必须带服务端校验）  
-**产品：** 乡声集盒 · 主题中心（H5 网页 + 微信小程序）
+**文档状态：** 独立拆分（底座随一期写接口落地；会员/活动/创作者一旦对用户开放必须带服务端校验）  
+**产品：** 乡声集盒 · 主题中心 · 全链路安全风控  
+**对应实现：** `backend/guantou/themes/services.py`、`views.py`；前端拦截 `themeCenter.js` / `themeFault.js` / `themeSchema.js`（`cleanOutfitName`、`flattenStyleJson`）
 
-本文只定接口校验、防刷、防篡改、XSS、数据隔离和异常处理，不定 UI 稿。前端按钮置灰只是体验，**不能当授权**。抓包改 `item_id` 也必须被服务端拒绝。
+本文只定接口校验、防刷、防篡改、XSS、数据隔离和异常处理，不定 UI 稿。前端按钮置灰、防抖、非法参数拦截只是体验，**不能当授权**。抓包改 `item_id` 也必须被服务端拒绝。H5 与小程序拦截逻辑一致，不做终端差异化放行。
 
-相关：总览 [`THEME_CENTER.md`](THEME_CENTER.md)，数据 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)，容错 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)，埋点 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)，后台只读用户数据 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)，身份审计 [`AUTH_AUDIT_GUIDE.md`](AUTH_AUDIT_GUIDE.md)。
+相关：总览 [`THEME_CENTER.md`](THEME_CENTER.md)，标准化数据结构（独立拆分）[`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)，容错 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)，埋点 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)，搜索词清洗 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)，四维权限 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)，收藏分享热度 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)，历史搭配 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。后台只读用户数据 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)，身份审计 [`AUTH_AUDIT_GUIDE.md`](AUTH_AUDIT_GUIDE.md)，分期 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。
 
-对外文案不用「作品」「短视频」。Toast 仍不超过 32 字，不把栈、SQL、签名算法返回给客户端。
+需求原文若把 HMAC/时间戳当授权、后台可配限流中台、自动封禁、信用分、AI 风控写成一期闸门，规划仍以 ROADMAP 为准：免费皮启用校验、不收客户端 `style_json`/计数、限流 429、账号隔离是底座；付费/专属权益上线必须齐服务端二次校验。**不要**把密钥写进小程序代码，**不要**另做风控看板或敏感词库当分册。Toast 以 FAULT 已落地句为准。
+
+对外文案不用「作品」「短视频」。Toast 仍不超过 32 字，不把栈、SQL、签名算法、限流阈值返回给客户端。
+
+## 分期范围
+
+| 现在做 | 不做（三期 / 需求原文不采用） |
+| --- | --- |
+| 写接口 `IsAuthenticated`；`assert_applyable` 二次校验权益/状态/终端 | 客户端 HMAC、包内密钥、用时间戳替代 token |
+| apply 同 `item_id` 1 次/秒；config 20/分；收藏写（含取消）20/分；搭配 10/分；events 60/分 | 后台可配阈值、黑名单 UI、自动封禁账号 |
+| 搭配名剥标签；`style_json` 仅目录下发；C 端白名单解析失败回退默认 | 用户上传自定义样式 JSON；色情敏感词库拦搭配名 |
+| 收藏/搭配/配置按当前 token 隔离；越权 mix id 对外 404 | 查询他人收藏/搭配的接口 |
+| 403/429 记服务端日志 + `VisitorEvent`；C 端埋点无账号 | 安全风险看板、突发预警中台（三期 ADMIN） |
+| 高频按钮 800ms 防抖；429 Toast「操作过于频繁，请稍后再试」 | 把限流当启用失败回滚本地已生效的免费皮 |
+
+一期目录可先本地：免费皮本地启用。**会员、活动、创作者专属一旦对用户开放，必须先有本文的服务端校验**，否则不要上这些权限。
 
 ## 原则
 
@@ -51,9 +67,9 @@
 
 客户端改 body 里的 `item_id`、伪造 `member: true`、带上别人的 `style_json`：**忽略这些字段**，只信服务端目录和账号权益表。
 
-`PUT /users/theme/config/` 只接受 `global_theme_id`、`decoration_map`（值为 id）、`is_cover_local_decoration`。其它键丢弃。服务端按 id 重算，不把客户端 JSON 当样式。
+`PUT /users/theme/config/` 只接受 `global_theme_id`、`decoration_map`（值为 id）、`is_cover_local_decoration`、`recent_use_list`（`item_id` / `item_type` / `use_time`，最多 8 条）。其它键丢弃。服务端按 id 重算，不把客户端 JSON 当样式。`recent_use_list` 只保留上述三字段，满 8 截断、缺 id 丢掉。`is_cover_local_decoration=true` 只影响渲染，**不得**据此清空已保存的 `decoration_map`。配置写入限流，超限 429。
 
-未登录：本地可换免费皮；登录后 flush 时服务端仍按上表过滤，无权限的 id 从云端配置里剔除并提示「部分装扮当前无法生效」。
+未登录：本地可换免费皮；登录后 flush 时服务端仍按上表过滤。`PUT /users/theme/config/` 对 **每一个** `decoration_map` id 再跑 `assert_applyable`：新写入且权益/状态/终端不通过的 id **剔除**（不 403 整单，避免合法皮被脏字段拖死）；已在该账号配置里且仅权益过期 / 终端不支持 / 绝版的 id **保留**（停渲染、不删配置，见 PRIVILEGE）。`coming` 不保留。客户端不得靠「选使用本地」把未拥有的会员皮写进云端。
 
 ### 2. 身份
 
@@ -71,12 +87,12 @@ H5 / 小程序 **藏不住** 写死在包里的 HMAC 密钥，密钥不能当授
 
 | 手段 | 约定 |
 | --- | --- |
-| 限流 | 同一用户：应用同一 `item_id` **1 次/秒**；收藏写 **20 次/分钟**；保存搭配 **10 次/分钟**；`/events/` **60 次/分钟**。超限 **429** |
-| 幂等 | 写接口可带 `Idempotency-Key`；5 分钟内相同键返回首次结果，不重复加收藏、不重复占搭配名额 |
-| 时钟 | 可选 `X-Timestamp`，与服务器相差超过 5 分钟则 400；**不能**替代 token |
-| 短期签名 | 若做签名，密钥必须登录后下发、短 TTL、绑定 user id；禁止写进小程序代码 |
+| 限流 | 同一用户：应用同一 `item_id` **1 次/秒**；`PUT /users/theme/config/` **20 次/分钟**；收藏写（POST/DELETE 共用窗口）**20 次/分钟**；保存搭配 **10 次/分钟**；`/events/` **60 次/分钟**。超限 **429**，`data.reason=rate` |
+| 幂等 | 可选 `Idempotency-Key`（现网未接）。**不能**替代 token，也不能靠客户端签名防重放 |
+| 时钟 | 可选 `X-Timestamp` **不能**替代 token；现网不以时钟偏差拒请求，避免设备校时误杀 |
+| 短期签名 | 不做。H5 / 小程序藏不住写死在包里的 HMAC 密钥 |
 
-游客本地高频点启用：前端已有约 800ms 防抖即可，不打云端。
+游客本地高频点启用：前端已有约 800ms 防抖即可，不打云端。登录态 apply 被 429：本地已换的免费皮 **保留**，Toast 限流句，云端队列稍后重试；**不要**当成 403 回滚。
 
 429 Toast：「操作过于频繁，请稍后再试」。记风控日志，不把阈值数字回给客户端。
 
@@ -84,9 +100,9 @@ H5 / 小程序 **藏不住** 写死在包里的 HMAC 密钥，密钥不能当授
 
 ## 二、数据防篡改
 
-1. **搭配只存 id：** `mix_name`、`global_theme_id`、`decoration_ids` / `decoration_map`。body 里的 `style_json`、封面 URL、权限字段一律丢弃。样式只从目录详情读。
+1. **搭配只存 id：** `mix_name`、`global_theme_id`、`decoration_ids` / `decoration_map`、`is_cover_local_decoration`。body 里的 `style_json`、封面 URL、权限字段一律丢弃。样式只从目录详情读。
 2. **搭配名：** 1～20 字（与现网表单一致），去首尾空白；去掉 HTML / 脚本片段；不允许 `<` `>`；纯文本存储，输出再转义。
-3. **收藏：** `item_id` + `item_type`（仅 `theme` \| `decoration`）必须能命中目录。不存在 → 400/404，不写库。待上线/绝版 **可以收藏**（个人标记），**不能启用**。
+3. **收藏：** `item_id` + `item_type`（仅 `theme` \| `decoration`）必须能命中目录。不存在 → 400/404，不写库。`coming` 禁止新增收藏（409 `coming`，文案「待上线装扮暂不支持收藏」）；`deprecated` **可以收藏**，**不能启用**。见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。
 4. **点赞/热度：** 客户端不得提交 `like_count` / `share_count`。计数只由服务端按去重后的行为累加。
 
 `style_json` 注入：服务端与 C 端同一套白名单（token / `var(--*)`，禁止 `;` `{` `}`）。运营保存时已校验；C 端再滤一层。用户接口 **没有** 上传自定义样式的入口。
@@ -127,6 +143,7 @@ H5 保持现有 CSP / 不把运营 HTML 当富文本。小程序无 DOM XSS，�
 | 按他人 id 查收藏/搭配 | **不提供** 该接口；误打返回 404 |
 | 运营 `/manage/theme-collects/` 等 | staff 只读；禁止 PATCH 用户 config / mix（后台文档已禁改搭配） |
 | 账号 A → B | `handleThemeAccountLogin` 清空本地主题/收藏/搭配键，再拉 B 的云端配置 |
+| 登出 / token 失效 | 清本地主题键，游客不残留上一账号配置。见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md) |
 
 合并游客本地与云端时，服务端仍过滤无权限 id，不能靠「选使用本地」把会员皮写进云端。
 
@@ -194,6 +211,7 @@ H5 保持现有 CSP / 不把运营 HTML 当富文本。小程序无 DOM XSS，�
 | 404 | `not_found` | id 不存在或不属于你（对外都当不存在） |
 | 409 | `coming` / `deprecated` | 状态不可启用 |
 | 409 | `mix_cap` | 搭配已满 10 |
+| 409 | `mix_dup` | 完全相同的搭配组合已保存 |
 | 429 | `rate` | 限流 |
 | 400 | `invalid` | 格式/XSS/非法字段 |
 
@@ -205,23 +223,31 @@ H5 保持现有 CSP / 不把运营 HTML 当富文本。小程序无 DOM XSS，�
 
 | 约定 | 现网 |
 | --- | --- |
-| 未登录不写云端 | 已约定；目录接口多未接 |
-| 搭配存 id、账号切换清本地 | 已落地 |
-| 后台不改用户搭配 | 后台 PRD 已禁 |
-| apply/config 服务端权益校验 | 待目录与会员接口落地 |
-| 事件不计客户端 count | 埋点在端上，热度尚未服务端账本 |
-| 429 主题写接口 | 验证码等已有 429；主题写接口未接 |
+| 未登录不写云端 | 已落地：`/users/theme/*` 写接口 `IsAuthenticated`，游客 401 |
+| 搭配存 id、账号切换清本地 | 已落地；登出清主题键见 SYNC |
+| 后台不改用户搭配 | 已落地：UserThemeConfig/Collect/Mix admin 只读 |
+| apply 服务端权益校验 | 已落地 `assert_applyable`；领取活动件走 `POST /users/theme/entitlement/` |
+| PUT config 装扮 id 二次校验 | 主题与 `decoration_map` 均过滤；过期件保留、新越权 id 剔除 |
+| 事件不计客户端 count | 已落地：`share_count` 由去重后的 `theme_share_click` 累加；`collect_count` 随收藏写接口 |
+| 429 主题写接口 | 已落地（上表窗口）；超限文案「操作过于频繁，请稍后再试」 |
+| 风控日志 | `VisitorEvent` 记 path/status；403/429 `ThemeAPIError` 另打 `theme_risk` 日志。不上报分析 SDK |
+| HMAC / 后台可配限流 / 自动封禁 | **不采用**（见分期范围） |
 
 ---
 
 ## 验收
 
 - 抓包把免费请求改成会员 `item_id`：403，云端配置不变。
+- `PUT` 夹带未拥有的会员装扮 id：200，该 id 不进 `decoration_map`。
 - 未登录 POST collects/mixes/config/apply：401。
 - 用自己的 token 带他人 mix id：404。
 - body 夹带 `style_json`：保存后库中无该字段，样式仍是目录里的。
 - 搭配名含 `<script>`：存下来的是过滤后文本，页面按文本显示。
-- 短时间狂点启用：429 或幂等，热度不按请求次数暴涨。
+- 短时间狂点启用：429，热度不按请求次数暴涨；页面 Toast 限流句，不崩、不回内部规则。
 - A 登出登 B：本地看不见 A 的搭配。
 - 小程序分享非法 id：进主题中心，不显示已启用会员皮。
 - 运营只能看收藏/搭配，不能改。
+
+## 后续（不在本期）
+
+用户信用分、智能风控模型、装扮资源防盗链、按会员/创作者分级限流、后台阈值配置与风险看板。用户投稿审核与 UGC JSON 仍走 `clean_catalog_item`，见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)（三期；不另做信用分或主题中心敏感词库）。积分刷取、公开复刻越权见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)（三期账本未上线前无兑换接口）。

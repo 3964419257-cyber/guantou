@@ -154,6 +154,16 @@ describe('BaseField', () => {
     expect(wrapper.emitted('update:modelValue')[0]).toEqual(['罐头释义']);
     expect(wrapper.emitted('input')[0]).toEqual(['罐头释义']);
   });
+
+  it('forwards confirm from the text input', async () => {
+    const wrapper = mount(BaseField, {
+      props: { name: 'keyword', modelValue: '川渝', confirmType: 'search' },
+    });
+    const input = wrapper.findAllComponents({ name: 'TDesignStub' })[1];
+    input.vm.$emit('confirm', { detail: { value: '川渝' } });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('confirm')[0]).toEqual(['川渝']);
+  });
 });
 
 describe('TDesign infrastructure primitives', () => {

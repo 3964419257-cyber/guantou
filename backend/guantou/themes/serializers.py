@@ -104,6 +104,7 @@ class UserThemeMixSerializer(serializers.ModelSerializer):
             "global_theme_id",
             "decoration_ids",
             "decoration_map",
+            "is_cover_local_decoration",
             "create_time",
         )
 

@@ -1,6 +1,7 @@
 import request from '@/utils/request';
 import rawRequest from '@/utils/rawRequest';
 import { afterLogin } from '@/services/login';
+import { afterThemeLogout } from '@/services/themeApi';
 
 /**
  * US0101 新建用户（普通）
@@ -182,6 +183,7 @@ export function clearUserInfo() {
   delete app.globalData.userInfo;
   delete app.globalData.contribution;
   delete app.globalData.id;
+  afterThemeLogout();
 }
 
 /**

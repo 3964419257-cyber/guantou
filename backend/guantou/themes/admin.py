@@ -11,12 +11,12 @@ from .models import (
     UserThemeEntitlement,
     UserThemeMix,
 )
-from .services import item_is_referenced, validate_style_json
+from .services import clean_catalog_item, item_is_referenced
 
 
 class CatalogAdminMixin:
     def save_model(self, request, obj, form, change):
-        obj.style_json = validate_style_json(obj.style_json)
+        clean_catalog_item(obj)
         super().save_model(request, obj, form, change)
         CatalogVersion.bump()
 
@@ -43,9 +43,48 @@ class ThemeItemAdmin(CatalogAdminMixin, admin.ModelAdmin):
         "status",
         "support_terminal",
         "collect_count",
+        "like_count",
+        "share_count",
     )
     list_filter = ("privilege_type", "status")
     search_fields = ("theme_id", "name")
+    readonly_fields = ("like_count", "collect_count", "share_count", "create_time")
+    fieldsets = (
+        (
+            "基础信息",
+            {
+                "fields": (
+                    "theme_id",
+                    "name",
+                    "desc",
+                    "cover_img",
+                    "detail_img",
+                    "poster_img",
+                )
+            },
+        ),
+        (
+            "样式与标签",
+            {"fields": ("style_json", "style_tags", "dialect_tags")},
+        ),
+        (
+            "权限与终端",
+            {
+                "fields": (
+                    "privilege_type",
+                    "get_condition",
+                    "status",
+                    "support_terminal",
+                    "activity_start_at",
+                    "activity_end_at",
+                )
+            },
+        ),
+        (
+            "热度",
+            {"fields": ("like_count", "collect_count", "share_count", "create_time")},
+        ),
+    )
 
 
 @admin.register(DecorationItem)
@@ -57,9 +96,51 @@ class DecorationItemAdmin(CatalogAdminMixin, admin.ModelAdmin):
         "privilege_type",
         "status",
         "support_terminal",
+        "collect_count",
+        "like_count",
+        "share_count",
     )
     list_filter = ("component_type", "privilege_type", "status")
     search_fields = ("decoration_id", "name")
+    readonly_fields = ("like_count", "collect_count", "share_count", "create_time")
+    fieldsets = (
+        (
+            "基础信息",
+            {
+                "fields": (
+                    "decoration_id",
+                    "name",
+                    "desc",
+                    "cover_img",
+                    "detail_img",
+                    "poster_img",
+                    "component_type",
+                    "group",
+                )
+            },
+        ),
+        (
+            "样式与标签",
+            {"fields": ("style_json", "style_tags", "dialect_tags")},
+        ),
+        (
+            "权限与终端",
+            {
+                "fields": (
+                    "privilege_type",
+                    "get_condition",
+                    "status",
+                    "support_terminal",
+                    "activity_start_at",
+                    "activity_end_at",
+                )
+            },
+        ),
+        (
+            "热度",
+            {"fields": ("like_count", "collect_count", "share_count", "create_time")},
+        ),
+    )
 
 
 @admin.register(UserThemeEntitlement)
@@ -124,6 +205,7 @@ class UserThemeMixAdmin(admin.ModelAdmin):
         "global_theme_id",
         "decoration_map",
         "decoration_ids",
+        "is_cover_local_decoration",
         "create_time",
     )
 

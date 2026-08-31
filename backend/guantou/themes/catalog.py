@@ -27,8 +27,8 @@ THEMES = [
         "style_json": {"accent": "pine", "primaryLook": "line", "ghostLook": "line"},
         "style_tags": ["简约"],
         "privilege_type": PrivilegeType.FREE,
-        "get_condition": "敬请期待",
-        "status": ItemStatus.COMING,
+        "get_condition": "免费启用",
+        "status": ItemStatus.AVAILABLE,
         "support_terminal": ["h5", "miniprogram"],
     },
     {
