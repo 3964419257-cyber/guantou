@@ -227,7 +227,7 @@ export default {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.16;
+  opacity: var(--dress-grain-opacity, 0.16);
   background-image: radial-gradient(var(--immersive-border-color) 1rpx, transparent 1rpx);
   background-size: 46rpx 46rpx;
 }

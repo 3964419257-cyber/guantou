@@ -661,6 +661,8 @@ class ThemeApiTests(TestCase):
             "国风",
             "市井烟火",
             "节日限定",
+            "节日风俗",
+            "季节时令",
             "二次元",
             "极简暗色",
         ]
@@ -738,6 +740,84 @@ class ThemeApiTests(TestCase):
                     json.dumps(item.style_json, sort_keys=True, ensure_ascii=True)
                 )
             self.assertEqual(len(set(looks)), 9, group)
+
+    def test_live_packs_ship_surface_recipes(self):
+        paper = ThemeItem.objects.get(theme_id="paper")
+        self.assertEqual(paper.style_json.get("cardBorderRadius"), "4px")
+        self.assertEqual(paper.style_json.get("cardBackground"), "var(--page-color)")
+        nightferry = ThemeItem.objects.get(theme_id="nightferry")
+        self.assertEqual(nightferry.style_json.get("cardBorderRadius"), "6px")
+        self.assertEqual(
+            nightferry.style_json.get("cardBorderColor"), "var(--text-color)"
+        )
+        chuankiang = ThemeItem.objects.get(theme_id="chuankiang")
+        self.assertEqual(chuankiang.style_json.get("cardBorderRadius"), "14px")
+        self.assertEqual(chuankiang.style_json.get("cardBackground"), "var(--page-color)")
+        detail = self.client.get("/themes/paper/")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["style_json"]["cardBorderRadius"], "4px")
+
+        style_tags = [
+            "简约",
+            "地域方言风",
+            "复古",
+            "赛博",
+            "国风",
+            "市井烟火",
+            "节日限定",
+            "节日风俗",
+            "季节时令",
+            "二次元",
+            "极简暗色",
+        ]
+        fingerprints = []
+        available_free = ThemeItem.objects.filter(
+            privilege_type="free",
+            status=ItemStatus.AVAILABLE,
+        )
+        for tag in style_tags:
+            matched = [
+                item for item in available_free if tag in (item.style_tags or [])
+            ]
+            self.assertGreaterEqual(len(matched), 9, tag)
+            sample = matched[0].style_json or {}
+            self.assertTrue(sample.get("cardBorderRadius"), tag)
+            fingerprints.append(
+                "|".join(
+                    [
+                        str(sample.get("cardBorderRadius")),
+                        str(sample.get("cardBorderWidth")),
+                        str(sample.get("cardShadow")),
+                        str(sample.get("grainOpacity")),
+                    ]
+                )
+            )
+        self.assertEqual(len(set(fingerprints)), len(style_tags))
+
+        for group, ids in (
+            (
+                "cards",
+                [
+                    "cards-paper",
+                    "cards-brick",
+                    "cards-round",
+                    "cards-sharp",
+                    "cards-wide",
+                    "cards-thin",
+                    "cards-accent",
+                    "cards-soft",
+                    "cards-ridge",
+                    "cards-folk",
+                    "cards-season",
+                ],
+            ),
+        ):
+            labels = []
+            for decoration_id in ids:
+                item = DecorationItem.objects.get(decoration_id=decoration_id)
+                labels.extend(item.style_tags or [])
+            for tag in style_tags:
+                self.assertIn(tag, labels, f"{group}:{tag}")
 
     def test_guest_cannot_claim_entitlement(self):
         response = self.client.post(

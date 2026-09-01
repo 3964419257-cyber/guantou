@@ -131,6 +131,7 @@
             v-if="entry.kind === 'theme'"
             class="shot shot-sm"
             :class="[`shot-${entry.item.preview}`, { blurred: !entry.item.available }]"
+            :style="themePreviewVars(entry.item)"
           >
             <view class="shot-home">
               <view class="shot-nav" />
@@ -281,6 +282,7 @@
                 v-else-if="row.kind === 'theme'"
                 class="shot shot-xs"
                 :class="`shot-${row.preview}`"
+                :style="themePreviewVars(row.item)"
               >
                 <view class="shot-home">
                   <view class="shot-nav" />
@@ -368,6 +370,7 @@
           <view
             class="shot shot-sm"
             :class="`shot-${activeTheme.preview}`"
+            :style="themePreviewVars(activeTheme)"
           >
             <view class="shot-home">
               <view class="shot-nav" />
@@ -475,6 +478,7 @@
                 v-else
                 class="shot"
                 :class="[`shot-${theme.preview}`, { blurred: !theme.available }]"
+                :style="themePreviewVars(theme)"
               >
                 <view class="shot-home">
                   <view class="shot-nav" />
@@ -851,6 +855,7 @@
           <view
             class="shot shot-sm"
             :class="previewShotClass"
+            :style="themePreviewVars(activeTheme)"
           >
             <view class="shot-home">
               <view class="shot-nav" />
@@ -992,6 +997,7 @@
             <view
               class="shot shot-xs"
               :class="`shot-${outfitThemePreview(outfit)}`"
+              :style="outfitPreviewVars(outfit)"
             >
               <view class="shot-home">
                 <view class="shot-nav" />
@@ -1285,6 +1291,7 @@
           <view
             class="shot shot-lg pressable"
             :class="[`shot-${detailTheme.preview}`, { blurred: !detailTheme.available }]"
+            :style="themePreviewVars(detailTheme)"
             @tap="openZoom"
           >
             <image
@@ -1315,6 +1322,7 @@
           <view
             class="shot shot-lg pressable"
             :class="[`shot-${detailTheme.preview}`, { blurred: !detailTheme.available }]"
+            :style="themePreviewVars(detailTheme)"
             @tap="openZoom"
           >
             <view class="shot-me">
@@ -1490,6 +1498,7 @@
               v-else
               class="shot shot-xl"
               :class="`shot-${detailTheme.preview}`"
+              :style="themePreviewVars(detailTheme)"
             >
               <view class="shot-home">
                 <view class="shot-nav" />
@@ -1817,6 +1826,7 @@ import {
   setOverlayLocalDress,
   socialStats,
   themeDisplayTags,
+  themePreviewVars,
   THEME_ACCESS_FILTERS,
   THEME_ACCESS_FOOTER,
   THEME_CATEGORIES,
@@ -2111,6 +2121,10 @@ export default {
     return themeSharePayload('theme', this.activeTheme);
   },
   methods: {
+    themePreviewVars,
+    outfitPreviewVars(outfit) {
+      return themePreviewVars(getThemeById(outfit?.themeId));
+    },
     async bootThemeCenter() {
       await this.retryCatalog();
       await this.syncAccountAndMember();
@@ -3718,8 +3732,12 @@ export default {
   flex: 1;
   padding: 8rpx;
   border-radius: var(--radius-sm);
-  background: var(--surface-color);
+  background: var(--dress-home-bg-background, var(--surface-color));
   box-sizing: border-box;
+}
+
+.shot-home {
+  background: var(--page-color);
 }
 
 .shot-nav,
@@ -3729,6 +3747,21 @@ export default {
 .shot-avatar {
   border-radius: var(--radius-sm);
   background: var(--accent-color);
+}
+
+.shot-nav {
+  background: var(--dress-nav-bar-background, var(--accent-color));
+}
+
+.shot-tab {
+  background: var(--dress-tab-bar-background, var(--accent-color));
+}
+
+.shot-feed {
+  background: var(--dress-card-background, var(--accent-subtle-color));
+  border-radius: var(--dress-card-border-radius, var(--radius-sm));
+  box-shadow: var(--dress-card-shadow, none);
+  border: var(--dress-card-border-width, 0px) solid var(--dress-card-border-color, transparent);
 }
 
 .shot-nav,
@@ -3748,7 +3781,6 @@ export default {
 
 .shot-feed {
   height: 28rpx;
-  background: var(--accent-subtle-color);
 }
 
 .shot-feed.thin,
@@ -3769,6 +3801,7 @@ export default {
   height: 36rpx;
   margin-top: 8rpx;
   border-radius: var(--radius-pill);
+  border: var(--dress-avatar-frame-border-width, 0px) solid var(--dress-avatar-frame-border-color, transparent);
 }
 
 .shot-line {
@@ -3781,83 +3814,44 @@ export default {
   background: var(--surface-subtle-color);
 }
 
-.shot-simple .shot-nav,
-.shot-simple .shot-avatar {
-  background: var(--text-secondary-color);
-}
-
 .shot-dialect {
   background: var(--accent-preview-tea);
-}
-
-.shot-dialect .shot-nav,
-.shot-dialect .shot-avatar {
-  background: var(--accent-preview-clay);
 }
 
 .shot-retro {
   background: var(--accent-preview-osmanthus);
 }
 
-.shot-retro .shot-nav,
-.shot-retro .shot-avatar {
-  background: var(--gilt-color);
-}
-
 .shot-festival {
   background: var(--accent-preview-clay);
 }
 
-.shot-festival .shot-nav,
-.shot-festival .shot-avatar {
-  background: var(--warning-color);
+.shot-folk {
+  background: var(--accent-preview-osmanthus);
+}
+
+.shot-season {
+  background: var(--accent-preview-tea);
 }
 
 .shot-cyber {
   background: var(--accent-preview-ink);
 }
 
-.shot-cyber .shot-nav,
-.shot-cyber .shot-feed,
-.shot-cyber .shot-avatar {
-  background: var(--accent-subtle-color);
-}
-
 .shot-guofeng {
   background: var(--accent-preview-tea);
-}
-
-.shot-guofeng .shot-nav,
-.shot-guofeng .shot-avatar {
-  background: var(--accent-color);
 }
 
 .shot-street {
   background: var(--accent-preview-clay);
 }
 
-.shot-street .shot-nav,
-.shot-street .shot-avatar {
-  background: var(--warning-color);
-}
-
 .shot-anime {
   background: var(--accent-subtle-color);
 }
 
-.shot-anime .shot-nav,
-.shot-anime .shot-avatar {
-  background: var(--accent-color);
-}
-
 .shot-dark {
   background: var(--accent-preview-ink);
-}
-
-.shot-dark .shot-nav,
-.shot-dark .shot-feed,
-.shot-dark .shot-avatar {
-  background: var(--gilt-color);
 }
 
 .thumb {

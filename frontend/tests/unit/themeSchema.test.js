@@ -247,13 +247,30 @@ describe('themeSchema contract', () => {
     expect(resolved.skipped[0].reason).toBe('native');
     expect(resolved.appearance.accent).toBe('pine');
 
-    const covered = resolveOutfitStyle({
-      theme: { style_json: { accent: 'ink' } },
+    expect(flattenStyleJson({
+      cardBackground: 'var(--page-color)',
+      cardBorderRadius: '4px',
+    }).vars).toMatchObject({
+      '--dress-card-background': 'var(--page-color)',
+      '--dress-card-border-radius': '4px',
+    });
+    const coveredSkin = resolveOutfitStyle({
+      theme: {
+        style_json: {
+          accent: 'ink',
+          cardBorderRadius: '6px',
+          cardBackground: 'var(--surface-color)',
+        },
+      },
       dressItems: [{ item: { style_json: { borderWidth: '8px' }, group: 'cards' } }],
       overlay: true,
     });
-    expect(Object.keys(covered.vars)).toHaveLength(0);
-    expect(covered.appearance.accent).toBe('ink');
+    expect(coveredSkin.vars).toMatchObject({
+      '--dress-card-border-radius': '6px',
+      '--dress-card-background': 'var(--surface-color)',
+    });
+    expect(coveredSkin.vars['--dress-card-border-width'] || coveredSkin.vars['--dress-border-width']).toBeFalsy();
+    expect(coveredSkin.appearance.accent).toBe('ink');
 
     applyOutfitStyle(resolveOutfitStyle({
       theme: { style_json: { accent: 'tea', primaryLook: 'ardent' } },

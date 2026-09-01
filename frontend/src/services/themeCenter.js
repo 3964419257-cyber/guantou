@@ -25,6 +25,7 @@ import {
   clearThemeStyleCache,
   componentTypeOf,
   defaultSupportTerminal,
+  flattenStyleJson,
   fromCurrentConfig,
   fromSavedMix,
   resolveOutfitStyle,
@@ -61,6 +62,8 @@ export const THEME_CATEGORIES = [
   { value: 'guofeng', label: '国风' },
   { value: 'street', label: '市井烟火' },
   { value: 'festival', label: '节日限定' },
+  { value: 'folk', label: '节日风俗' },
+  { value: 'season', label: '季节时令' },
   { value: 'anime', label: '二次元' },
   { value: 'dark', label: '极简暗色' },
 ];
@@ -176,6 +179,8 @@ export const THEME_HOT_KEYWORDS = [
   '方言头像框',
   '岭南粤韵',
   '复古国风',
+  '节日风俗',
+  '季节时令',
 ];
 
 export const FAVORITE_FILTERS = [
@@ -873,6 +878,222 @@ const EXTRA_FREE_THEMES = [
     ghostLook: 'fog',
     effect: 'none',
   }),
+  freeTheme({
+    id: 'templefair',
+    name: '庙会灯幡',
+    description: '庙会灯幡｜陶土热烈',
+    blurb: '像一场乡庙会。陶土热烈键带浅光，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'clay',
+    primaryLook: 'ardent',
+    ghostLook: 'gilt',
+    effect: 'glow',
+  }),
+  freeTheme({
+    id: 'paperhorse',
+    name: '纸马乡祀',
+    description: '纸马乡祀｜茶褐古风',
+    blurb: '像一匹纸马。茶褐古风键带晕墨，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'tea',
+    primaryLook: 'classic',
+    ghostLook: 'classic',
+    effect: 'ink',
+  }),
+  freeTheme({
+    id: 'drumlane',
+    name: '社鼓巷口',
+    description: '社鼓巷口｜松绿清新',
+    blurb: '像巷口社鼓。松绿清新键微浮，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'pine',
+    primaryLook: 'fill',
+    ghostLook: 'fresh',
+    effect: 'lift',
+  }),
+  freeTheme({
+    id: 'riverlantern',
+    name: '河灯夜渡',
+    description: '河灯夜渡｜雾青水洗',
+    blurb: '像河面上的纸灯。雾青水洗键，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'mist',
+    primaryLook: 'wash',
+    ghostLook: 'fog',
+    effect: 'none',
+  }),
+  freeTheme({
+    id: 'wheatrite',
+    name: '麦收祭田',
+    description: '麦收祭田｜桂金朱印',
+    blurb: '像麦收祭田。桂金朱印键带金边，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'osmanthus',
+    primaryLook: 'gilt',
+    ghostLook: 'seal',
+    effect: 'gilt',
+  }),
+  freeTheme({
+    id: 'kilnrite',
+    name: '窑神香火',
+    description: '窑神香火｜陶土深沉',
+    blurb: '像窑神香火。陶土深沉键，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'clay',
+    primaryLook: 'solemn',
+    ghostLook: 'quiet',
+    effect: 'none',
+  }),
+  freeTheme({
+    id: 'boatbless',
+    name: '开船祈风',
+    description: '开船祈风｜青墨细线',
+    blurb: '像开船祈风。青墨细描边，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'ink',
+    primaryLook: 'outline',
+    ghostLook: 'line',
+    effect: 'none',
+  }),
+  freeTheme({
+    id: 'beamred',
+    name: '上梁红绸',
+    description: '上梁红绸｜茶褐朱印',
+    blurb: '像上梁红绸。茶褐朱印键按下会弹，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'tea',
+    primaryLook: 'seal',
+    ghostLook: 'classic',
+    effect: 'press',
+  }),
+  freeTheme({
+    id: 'nightwatch',
+    name: '打更巷火',
+    description: '打更巷火｜松绿对比',
+    blurb: '像打更巷火。松绿对比键带散光，不改罐头播放。',
+    category: 'folk',
+    preview: 'folk',
+    accent: 'pine',
+    primaryLook: 'contrast',
+    ghostLook: 'ardent',
+    effect: 'bloom',
+  }),
+  freeTheme({
+    id: 'springthaw',
+    name: '开春解冻',
+    description: '开春解冻｜松绿清新',
+    blurb: '像开春解冻。松绿清新水洗键，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'pine',
+    primaryLook: 'fresh',
+    ghostLook: 'wash',
+    effect: 'none',
+  }),
+  freeTheme({
+    id: 'summerlotus',
+    name: '夏荷田塘',
+    description: '夏荷田塘｜雾青浅底',
+    blurb: '像夏荷田塘。雾青浅底清新键微浮，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'mist',
+    primaryLook: 'soft',
+    ghostLook: 'fresh',
+    effect: 'lift',
+  }),
+  freeTheme({
+    id: 'autumngrain',
+    name: '秋晒谷场',
+    description: '秋晒谷场｜桂金古风',
+    blurb: '像秋晒谷场。桂金古风键，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'osmanthus',
+    primaryLook: 'classic',
+    ghostLook: 'gilt',
+    effect: 'none',
+  }),
+  freeTheme({
+    id: 'winterhearth',
+    name: '冬夜炭火',
+    description: '冬夜炭火｜茶褐薄雾',
+    blurb: '像冬夜炭火。茶褐薄雾键，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'tea',
+    primaryLook: 'fog',
+    ghostLook: 'quiet',
+    effect: 'none',
+  }),
+  freeTheme({
+    id: 'rainstart',
+    name: '清明雨丝',
+    description: '清明雨丝｜青墨水洗',
+    blurb: '像清明雨丝。青墨水洗键带晕墨，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'ink',
+    primaryLook: 'wash',
+    ghostLook: 'wash',
+    effect: 'ink',
+  }),
+  freeTheme({
+    id: 'grainrain',
+    name: '谷雨茶芽',
+    description: '谷雨茶芽｜松绿实心',
+    blurb: '像谷雨茶芽。松绿实心雾面键，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'pine',
+    primaryLook: 'fill',
+    ghostLook: 'fog',
+    effect: 'none',
+  }),
+  freeTheme({
+    id: 'heatwave',
+    name: '大暑蝉鸣',
+    description: '大暑蝉鸣｜陶土热烈',
+    blurb: '像大暑蝉鸣。陶土热烈清新键带光晕，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'clay',
+    primaryLook: 'ardent',
+    ghostLook: 'fresh',
+    effect: 'glow',
+  }),
+  freeTheme({
+    id: 'frostfall',
+    name: '霜降薄雾',
+    description: '霜降薄雾｜雾青细线',
+    blurb: '像霜降薄雾。雾青细描边雾面，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'mist',
+    primaryLook: 'outline',
+    ghostLook: 'fog',
+    effect: 'none',
+  }),
+  freeTheme({
+    id: 'snownook',
+    name: '小雪窗格',
+    description: '小雪窗格｜青墨深沉',
+    blurb: '像小雪窗格。青墨深沉金框，不改罐头播放。',
+    category: 'season',
+    preview: 'season',
+    accent: 'ink',
+    primaryLook: 'solemn',
+    ghostLook: 'gilt',
+    effect: 'none',
+  }),
 ];
 
 export const GLOBAL_THEMES = [
@@ -1476,6 +1697,721 @@ export const GLOBAL_THEMES = [
   ...EXTRA_FREE_THEMES,
 ];
 
+function packSurface(overrides = {}) {
+  const out = {};
+  if (overrides.radius != null) out.cardBorderRadius = overrides.radius;
+  if (overrides.cardBg != null) out.cardBackground = overrides.cardBg;
+  if (overrides.cardBorder != null) out.cardBorderColor = overrides.cardBorder;
+  if (overrides.cardWidth != null) out.cardBorderWidth = overrides.cardWidth;
+  if (overrides.cardShadow != null) out.cardShadow = overrides.cardShadow;
+  if (overrides.profileBg != null) out.profileBackground = overrides.profileBg;
+  if (overrides.profileColor != null) out.profileColor = overrides.profileColor;
+  if (overrides.avatarWidth != null) out.avatarBorderWidth = overrides.avatarWidth;
+  if (overrides.avatarColor != null) out.avatarBorderColor = overrides.avatarColor;
+  if (overrides.commentRadius != null) out.commentBorderRadius = overrides.commentRadius;
+  if (overrides.commentBg != null) out.commentBackground = overrides.commentBg;
+  if (overrides.commentBorder != null) out.commentBorderColor = overrides.commentBorder;
+  if (overrides.navBg != null) out.navBackground = overrides.navBg;
+  if (overrides.navColor != null) out.navColor = overrides.navColor;
+  if (overrides.navBorder != null) out.navBorder = overrides.navBorder;
+  if (overrides.tabBg != null) out.tabBackground = overrides.tabBg;
+  if (overrides.grain != null) out.grainOpacity = overrides.grain;
+  return out;
+}
+
+function styleFamily(overrides = {}) {
+  return {
+    cardBorderRadius: '12px',
+    cardBackground: 'var(--surface-color)',
+    cardBorderColor: 'var(--border-color)',
+    cardBorderWidth: '1px',
+    cardShadow: 'none',
+    profileBackground: 'transparent',
+    profileColor: 'var(--text-color)',
+    avatarBorderWidth: '2px',
+    avatarBorderColor: 'var(--accent-color)',
+    commentBorderRadius: '12px',
+    commentBackground: 'var(--surface-subtle-color)',
+    commentBorderColor: 'transparent',
+    navBackground: 'var(--accent-subtle-color)',
+    navColor: 'var(--text-color)',
+    navBorder: 'var(--accent-color)',
+    tabBackground: 'var(--immersive-veil-color)',
+    grainOpacity: '0.14',
+    ...packSurface(overrides),
+  };
+}
+
+const STYLE_FAMILIES = {
+  simple: styleFamily({
+    radius: '12px',
+    cardWidth: '1px',
+    grain: '0.1',
+  }),
+  dialect: styleFamily({
+    radius: '14px',
+    cardBg: 'var(--page-color)',
+    cardWidth: '0px',
+    commentRadius: '16px',
+    avatarWidth: '0px',
+    grain: '0.16',
+  }),
+  retro: styleFamily({
+    radius: '2px',
+    cardWidth: '1px',
+    cardBorder: 'var(--text-color)',
+    commentRadius: '2px',
+    avatarWidth: '1px',
+    grain: '0.18',
+  }),
+  cyber: styleFamily({
+    radius: '0px',
+    cardWidth: '1px',
+    cardBorder: 'var(--accent-color)',
+    cardShadow: '0 0 22rpx var(--accent-subtle-color)',
+    commentRadius: '0px',
+    grain: '0.2',
+  }),
+  guofeng: styleFamily({
+    radius: '8px',
+    cardWidth: '2px',
+    cardBorder: 'var(--gilt-color)',
+    commentRadius: '6px',
+    avatarWidth: '3px',
+    avatarColor: 'var(--gilt-color)',
+    grain: '0.12',
+  }),
+  street: styleFamily({
+    radius: '10px',
+    cardShadow: '0 10rpx 24rpx var(--border-color)',
+    commentRadius: '10px',
+    grain: '0.14',
+  }),
+  festival: styleFamily({
+    radius: '16px',
+    cardBorder: 'var(--gilt-color)',
+    cardShadow: '0 0 18rpx var(--accent-subtle-color)',
+    commentRadius: '16px',
+    avatarColor: 'var(--gilt-color)',
+    grain: '0.1',
+  }),
+  folk: styleFamily({
+    radius: '12px',
+    cardWidth: '2px',
+    cardBorder: 'var(--accent-color)',
+    cardShadow: '0 8rpx 20rpx var(--accent-subtle-color)',
+    commentRadius: '12px',
+    grain: '0.15',
+  }),
+  season: styleFamily({
+    radius: '18px',
+    cardBg: 'var(--page-color)',
+    cardWidth: '0px',
+    commentRadius: '18px',
+    avatarWidth: '1px',
+    grain: '0.13',
+  }),
+  anime: styleFamily({
+    radius: '6px',
+    cardWidth: '2px',
+    cardBorder: 'var(--text-color)',
+    commentRadius: '8px',
+    avatarWidth: '3px',
+    grain: '0.12',
+  }),
+  dark: styleFamily({
+    radius: '8px',
+    cardBg: 'var(--page-color)',
+    cardWidth: '1px',
+    commentRadius: '8px',
+    grain: '0.18',
+  }),
+};
+
+const PACK_SURFACES = {
+  default: packSurface({
+    cardShadow: '0 8rpx 22rpx var(--border-color)',
+    grain: '0.12',
+  }),
+  paper: packSurface({
+    radius: '4px',
+    cardBg: 'var(--page-color)',
+    commentRadius: '4px',
+    avatarWidth: '1px',
+    grain: '0.08',
+  }),
+  mistpad: packSurface({
+    radius: '16px',
+    cardBg: 'var(--surface-subtle-color)',
+    cardWidth: '0px',
+    commentRadius: '16px',
+    avatarWidth: '0px',
+    grain: '0.1',
+  }),
+  inkline: packSurface({
+    radius: '8px',
+    cardWidth: '1px',
+    cardBorder: 'var(--text-color)',
+    commentRadius: '6px',
+    commentBorder: 'var(--border-color)',
+    grain: '0.09',
+  }),
+  claypad: packSurface({
+    radius: '14px',
+    cardBg: 'var(--page-color)',
+    commentRadius: '14px',
+    grain: '0.11',
+  }),
+  teanote: packSurface({
+    radius: '12px',
+    cardBg: 'var(--surface-subtle-color)',
+    commentBg: 'var(--page-color)',
+    grain: '0.13',
+  }),
+  fieldfresh: packSurface({
+    radius: '20px',
+    cardShadow: '0 12rpx 28rpx var(--border-color)',
+    commentRadius: '20px',
+    grain: '0.1',
+  }),
+  mistfill: packSurface({
+    radius: '12px',
+    cardWidth: '1px',
+    commentBorder: 'var(--border-color)',
+    grain: '0.12',
+  }),
+  giltedge: packSurface({
+    radius: '8px',
+    cardBorder: 'var(--gilt-color)',
+    commentBorder: 'var(--gilt-color)',
+    avatarColor: 'var(--gilt-color)',
+    grain: '0.09',
+  }),
+  wuyu: packSurface({
+    radius: '12px',
+    cardBg: 'var(--page-color)',
+    cardWidth: '0px',
+    commentRadius: '14px',
+    grain: '0.15',
+  }),
+  yue: packSurface({
+    radius: '4px',
+    cardWidth: '3px',
+    cardBorder: 'var(--accent-color)',
+    commentRadius: '4px',
+    avatarWidth: '4px',
+    grain: '0.11',
+  }),
+  minnan: packSurface({
+    radius: '16px',
+    cardBorder: 'var(--gilt-color)',
+    cardShadow: '0 10rpx 24rpx var(--border-color)',
+    commentRadius: '16px',
+    grain: '0.1',
+  }),
+  wuyubridge: packSurface({
+    radius: '14px',
+    cardBg: 'var(--surface-subtle-color)',
+    cardWidth: '0px',
+    grain: '0.14',
+  }),
+  wuyurain: packSurface({
+    radius: '10px',
+    cardBg: 'var(--page-color)',
+    cardShadow: '0 8rpx 20rpx var(--border-color)',
+    grain: '0.18',
+  }),
+  yueporch: packSurface({
+    radius: '6px',
+    cardWidth: '2px',
+    cardBorder: 'var(--accent-color)',
+    commentRadius: '6px',
+    grain: '0.1',
+  }),
+  yuewindow: packSurface({
+    radius: '4px',
+    cardBorder: 'var(--gilt-color)',
+    cardWidth: '2px',
+    avatarColor: 'var(--gilt-color)',
+    grain: '0.09',
+  }),
+  minnanharbor: packSurface({
+    radius: '18px',
+    cardShadow: '0 10rpx 24rpx var(--border-color)',
+    commentRadius: '18px',
+    grain: '0.11',
+  }),
+  minnantemple: packSurface({
+    radius: '2px',
+    cardWidth: '2px',
+    cardBorder: 'var(--gilt-color)',
+    commentRadius: '2px',
+    grain: '0.1',
+  }),
+  mimeograph: packSurface({
+    radius: '2px',
+    cardWidth: '1px',
+    cardBorder: 'var(--text-color)',
+    commentRadius: '2px',
+    grain: '0.2',
+  }),
+  teaslip: packSurface({
+    radius: '8px',
+    cardBg: 'var(--page-color)',
+    grain: '0.12',
+  }),
+  ledger: packSurface({
+    radius: '0px',
+    cardWidth: '2px',
+    cardBorder: 'var(--text-color)',
+    commentRadius: '0px',
+    grain: '0.16',
+  }),
+  oldnews: packSurface({
+    radius: '0px',
+    cardWidth: '1px',
+    commentRadius: '0px',
+    grain: '0.19',
+  }),
+  kilnslip: packSurface({
+    radius: '6px',
+    cardBg: 'var(--page-color)',
+    grain: '0.13',
+  }),
+  teapress: packSurface({
+    radius: '4px',
+    cardWidth: '2px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.15',
+  }),
+  rustwash: packSurface({
+    radius: '10px',
+    cardBg: 'var(--page-color)',
+    cardWidth: '0px',
+    grain: '0.17',
+  }),
+  ledgergold: packSurface({
+    radius: '0px',
+    cardBorder: 'var(--gilt-color)',
+    cardWidth: '1px',
+    grain: '0.14',
+  }),
+  mistclassic: packSurface({
+    radius: '8px',
+    cardWidth: '1px',
+    grain: '0.12',
+  }),
+  nightferry: packSurface({
+    radius: '6px',
+    cardWidth: '1px',
+    cardBorder: 'var(--text-color)',
+    cardShadow: '0 0 24rpx var(--accent-subtle-color)',
+    commentRadius: '6px',
+    grain: '0.2',
+  }),
+  signalbooth: packSurface({
+    radius: '2px',
+    cardWidth: '2px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.16',
+  }),
+  gridlamp: packSurface({
+    radius: '0px',
+    cardWidth: '1px',
+    commentRadius: '0px',
+    grain: '0.18',
+  }),
+  nightgrid: packSurface({
+    radius: '0px',
+    cardWidth: '1px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.19',
+  }),
+  coldlamp: packSurface({
+    radius: '8px',
+    cardShadow: '0 0 20rpx var(--accent-subtle-color)',
+    grain: '0.14',
+  }),
+  coppernet: packSurface({
+    radius: '4px',
+    cardWidth: '2px',
+    grain: '0.15',
+  }),
+  teaterminal: packSurface({
+    radius: '2px',
+    cardWidth: '1px',
+    cardBorder: 'var(--text-color)',
+    grain: '0.17',
+  }),
+  goldwire: packSurface({
+    radius: '6px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.12',
+  }),
+  voidpulse: packSurface({
+    radius: '12px',
+    cardBg: 'var(--page-color)',
+    cardShadow: '0 0 28rpx var(--accent-subtle-color)',
+    grain: '0.22',
+  }),
+  qingshan: packSurface({
+    radius: '10px',
+    cardBg: 'var(--page-color)',
+    cardWidth: '0px',
+    grain: '0.11',
+  }),
+  sealpaper: packSurface({
+    radius: '4px',
+    cardWidth: '3px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.1',
+  }),
+  inkscroll: packSurface({
+    radius: '8px',
+    cardBg: 'var(--page-color)',
+    grain: '0.16',
+  }),
+  pinewash: packSurface({
+    radius: '12px',
+    cardBg: 'var(--page-color)',
+    cardWidth: '0px',
+    grain: '0.13',
+  }),
+  inkseal: packSurface({
+    radius: '2px',
+    cardWidth: '4px',
+    cardBorder: 'var(--accent-color)',
+    commentRadius: '2px',
+    grain: '0.12',
+  }),
+  claywash: packSurface({
+    radius: '10px',
+    cardBg: 'var(--surface-subtle-color)',
+    grain: '0.11',
+  }),
+  giltfan: packSurface({
+    radius: '8px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.09',
+  }),
+  teascroll: packSurface({
+    radius: '6px',
+    cardBg: 'var(--page-color)',
+    grain: '0.14',
+  }),
+  mistshan: packSurface({
+    radius: '16px',
+    cardWidth: '1px',
+    grain: '0.12',
+  }),
+  teahouse: packSurface({
+    radius: '12px',
+    cardShadow: '0 10rpx 24rpx var(--border-color)',
+    grain: '0.13',
+  }),
+  nightstall: packSurface({
+    radius: '8px',
+    cardWidth: '1px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.16',
+  }),
+  lanternalley: packSurface({
+    radius: '10px',
+    cardShadow: '0 0 18rpx var(--accent-subtle-color)',
+    grain: '0.14',
+  }),
+  stalltea: packSurface({
+    radius: '10px',
+    cardBg: 'var(--accent-subtle-color)',
+    grain: '0.12',
+  }),
+  alleyink: packSurface({
+    radius: '6px',
+    cardWidth: '2px',
+    grain: '0.15',
+  }),
+  bricklamp: packSurface({
+    radius: '4px',
+    cardBg: 'var(--surface-subtle-color)',
+    grain: '0.13',
+  }),
+  pinealley: packSurface({
+    radius: '8px',
+    cardShadow: '0 8rpx 20rpx var(--border-color)',
+    grain: '0.12',
+  }),
+  miststall: packSurface({
+    radius: '14px',
+    cardWidth: '0px',
+    grain: '0.14',
+  }),
+  goldstall: packSurface({
+    radius: '8px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.11',
+  }),
+  midautumn: packSurface({
+    radius: '16px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.1',
+  }),
+  duanwu: packSurface({
+    radius: '8px',
+    cardWidth: '2px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.12',
+  }),
+  lanternyear: packSurface({
+    radius: '12px',
+    cardShadow: '0 0 20rpx var(--accent-subtle-color)',
+    grain: '0.13',
+  }),
+  springpine: packSurface({
+    radius: '14px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.1',
+  }),
+  teafest: packSurface({
+    radius: '6px',
+    cardWidth: '3px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.11',
+  }),
+  mistlantern: packSurface({
+    radius: '18px',
+    cardBg: 'var(--surface-subtle-color)',
+    grain: '0.12',
+  }),
+  inkyear: packSurface({
+    radius: '4px',
+    cardWidth: '3px',
+    grain: '0.14',
+  }),
+  clayfresh: packSurface({
+    radius: '12px',
+    cardShadow: '0 8rpx 18rpx var(--border-color)',
+    grain: '0.11',
+  }),
+  osmanfill: packSurface({
+    radius: '10px',
+    cardBg: 'var(--accent-subtle-color)',
+    grain: '0.09',
+  }),
+  pixelbooth: packSurface({
+    radius: '0px',
+    cardWidth: '2px',
+    commentRadius: '0px',
+    grain: '0.22',
+  }),
+  starglyph: packSurface({
+    radius: '20px',
+    cardShadow: '0 0 22rpx var(--accent-subtle-color)',
+    commentRadius: '20px',
+    grain: '0.12',
+  }),
+  comicstrip: packSurface({
+    radius: '2px',
+    cardWidth: '2px',
+    cardBorder: 'var(--text-color)',
+    commentRadius: '2px',
+    grain: '0.1',
+  }),
+  pixelfill: packSurface({
+    radius: '0px',
+    cardWidth: '2px',
+    grain: '0.2',
+  }),
+  starsoft: packSurface({
+    radius: '18px',
+    cardBg: 'var(--surface-subtle-color)',
+    grain: '0.11',
+  }),
+  comicoutline: packSurface({
+    radius: '4px',
+    cardWidth: '2px',
+    cardBorder: 'var(--text-color)',
+    grain: '0.1',
+  }),
+  inkpixel: packSurface({
+    radius: '0px',
+    cardWidth: '1px',
+    grain: '0.18',
+  }),
+  teacomic: packSurface({
+    radius: '6px',
+    cardBg: 'var(--page-color)',
+    grain: '0.12',
+  }),
+  pineglyph: packSurface({
+    radius: '8px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.11',
+  }),
+  inknight: packSurface({
+    radius: '8px',
+    cardWidth: '1px',
+    cardBorder: 'var(--text-color)',
+    grain: '0.2',
+  }),
+  voidgrid: packSurface({
+    radius: '0px',
+    cardWidth: '1px',
+    grain: '0.21',
+  }),
+  coalnook: packSurface({
+    radius: '12px',
+    cardBg: 'var(--surface-subtle-color)',
+    grain: '0.17',
+  }),
+  inkfill: packSurface({
+    radius: '8px',
+    cardWidth: '1px',
+    grain: '0.19',
+  }),
+  teacontrast: packSurface({
+    radius: '6px',
+    cardWidth: '2px',
+    cardBorder: 'var(--text-color)',
+    grain: '0.16',
+  }),
+  claydark: packSurface({
+    radius: '4px',
+    cardBg: 'var(--page-color)',
+    grain: '0.18',
+  }),
+  osmandark: packSurface({
+    radius: '10px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.15',
+  }),
+  pinevoid: packSurface({
+    radius: '2px',
+    cardWidth: '2px',
+    grain: '0.2',
+  }),
+  mistfog: packSurface({
+    radius: '16px',
+    cardBg: 'var(--page-color)',
+    cardWidth: '0px',
+    grain: '0.14',
+  }),
+  templefair: packSurface({
+    radius: '12px',
+    cardWidth: '2px',
+    grain: '0.15',
+  }),
+  paperhorse: packSurface({
+    radius: '8px',
+    cardBg: 'var(--page-color)',
+    grain: '0.17',
+  }),
+  drumlane: packSurface({
+    radius: '14px',
+    cardShadow: '0 12rpx 24rpx var(--border-color)',
+    grain: '0.13',
+  }),
+  riverlantern: packSurface({
+    radius: '16px',
+    cardWidth: '0px',
+    grain: '0.16',
+  }),
+  wheatrite: packSurface({
+    cardBorder: 'var(--gilt-color)',
+    avatarColor: 'var(--gilt-color)',
+    grain: '0.11',
+  }),
+  kilnrite: packSurface({
+    radius: '6px',
+    cardBg: 'var(--page-color)',
+    grain: '0.18',
+  }),
+  boatbless: packSurface({
+    radius: '4px',
+    cardBorder: 'var(--text-color)',
+    grain: '0.14',
+  }),
+  beamred: packSurface({
+    cardWidth: '3px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.12',
+  }),
+  nightwatch: packSurface({
+    cardShadow: '0 0 24rpx var(--accent-subtle-color)',
+    grain: '0.19',
+  }),
+  springthaw: packSurface({
+    radius: '20px',
+    grain: '0.11',
+  }),
+  summerlotus: packSurface({
+    radius: '18px',
+    cardBg: 'var(--surface-subtle-color)',
+    grain: '0.12',
+  }),
+  autumngrain: packSurface({
+    radius: '10px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.13',
+  }),
+  winterhearth: packSurface({
+    radius: '14px',
+    cardBg: 'var(--page-color)',
+    grain: '0.17',
+  }),
+  rainstart: packSurface({
+    cardWidth: '0px',
+    grain: '0.18',
+  }),
+  grainrain: packSurface({
+    radius: '16px',
+    cardShadow: '0 10rpx 22rpx var(--border-color)',
+    grain: '0.1',
+  }),
+  heatwave: packSurface({
+    cardWidth: '2px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.14',
+  }),
+  frostfall: packSurface({
+    radius: '22px',
+    cardWidth: '0px',
+    grain: '0.15',
+  }),
+  snownook: packSurface({
+    radius: '8px',
+    cardWidth: '1px',
+    cardBorder: 'var(--text-color)',
+    grain: '0.16',
+  }),
+  'member-pine': packSurface({
+    radius: '10px',
+    cardWidth: '2px',
+    cardBorder: 'var(--accent-color)',
+    grain: '0.1',
+  }),
+  'event-lantern': packSurface({
+    radius: '12px',
+    cardShadow: '0 0 20rpx var(--accent-subtle-color)',
+    grain: '0.13',
+  }),
+  'event-spring': packSurface({
+    radius: '14px',
+    cardBorder: 'var(--gilt-color)',
+    grain: '0.1',
+  }),
+  'creator-tile': packSurface({
+    radius: '6px',
+    cardWidth: '2px',
+    grain: '0.11',
+  }),
+};
+
+GLOBAL_THEMES.forEach((item) => {
+  const family = STYLE_FAMILIES[item.category] || STYLE_FAMILIES.simple;
+  const extra = PACK_SURFACES[item.id] || {};
+  item.style_json = { ...(item.style_json || {}), ...family, ...extra };
+});
+
 const DRESS_GROUP_DEFS = [
   {
     id: 'navbar',
@@ -1585,6 +2521,8 @@ const DRESS_GROUP_DEFS = [
       ['cards-accent', '浅彩罐头卡', '卡片底换成浅强调色。'],
       ['cards-soft', '雾底罐头卡', '卡片底换成更软的浅底。'],
       ['cards-ridge', '压线罐头卡', '卡片外加一圈加厚压线。'],
+      ['cards-folk', '社火折边', '卡片带社火折边和暖边。'],
+      ['cards-season', '时令浅卡', '卡片换成时令浅底软边。'],
     ],
   },
   {
@@ -1636,6 +2574,8 @@ const DRESS_GROUP_DEFS = [
       ['profile-glow', '浅彩主页', '主页底换成浅强调色。'],
       ['profile-fog', '薄雾主页', '主页底换成更淡的页面底。'],
       ['profile-tile', '青瓦主页', '主页底带一层青瓦浅纹。'],
+      ['profile-folk', '庙会浅底', '主页底换成庙会浅暖色。'],
+      ['profile-season', '四时浅底', '主页底换成四时浅底。'],
     ],
   },
   {
@@ -1700,6 +2640,8 @@ const DRESS_GROUP_DEFS = [
       ['avatar-mist', '雾边圆框', '头像外加一圈浅雾边。'],
       ['avatar-seal', '朱印圆框', '头像外加一圈朱印色细框。'],
       ['avatar-wide', '宽墨圆框', '头像外加一圈更宽的墨框。'],
+      ['avatar-folk', '香火圆框', '头像外加一圈香火暖边。'],
+      ['avatar-season', '节气细框', '头像外加一圈节气细边。'],
     ],
   },
   {
@@ -1750,6 +2692,8 @@ const DRESS_GROUP_DEFS = [
       ['comment-accent', '浅彩气泡', '评论气泡底换成浅强调色。'],
       ['comment-square', '小方气泡', '评论气泡收成小圆角方框。'],
       ['comment-fog', '薄雾气泡', '评论气泡底换成一层薄雾。'],
+      ['comment-folk', '社火气泡', '评论气泡带社火暖边。'],
+      ['comment-season', '时令气泡', '评论气泡换成时令浅底。'],
     ],
   },
   {
@@ -1907,6 +2851,53 @@ export const LOCAL_DRESS_GROUPS = DRESS_GROUP_DEFS.map((def) => ({
 
 /** Phase-1 live groups that both H5 and mini program can render. */
 export const P1_DRESS_GROUP_IDS = ['cards', 'profile', 'avatar', 'comment-bubble'];
+
+const DRESS_STYLE_BY_ID = {
+  'cards-paper': '简约',
+  'cards-brick': '地域方言风',
+  'cards-round': '二次元',
+  'cards-sharp': '赛博',
+  'cards-wide': '市井烟火',
+  'cards-thin': '极简暗色',
+  'cards-accent': '节日限定',
+  'cards-soft': '复古',
+  'cards-ridge': '国风',
+  'cards-folk': '节日风俗',
+  'cards-season': '季节时令',
+  'profile-mist': '地域方言风',
+  'profile-night': '赛博',
+  'profile-grain': '市井烟火',
+  'profile-wash': '复古',
+  'profile-line': '简约',
+  'profile-deep': '极简暗色',
+  'profile-glow': '节日限定',
+  'profile-fog': '二次元',
+  'profile-tile': '国风',
+  'profile-folk': '节日风俗',
+  'profile-season': '季节时令',
+  'avatar-frame': '国风',
+  'avatar-glyph': '二次元',
+  'avatar-ink': '复古',
+  'avatar-thin': '简约',
+  'avatar-soft': '地域方言风',
+  'avatar-ridge': '市井烟火',
+  'avatar-mist': '极简暗色',
+  'avatar-seal': '节日限定',
+  'avatar-wide': '赛博',
+  'avatar-folk': '节日风俗',
+  'avatar-season': '季节时令',
+  'comment-paper': '简约',
+  'comment-round': '二次元',
+  'comment-ink': '复古',
+  'comment-pill': '市井烟火',
+  'comment-soft': '地域方言风',
+  'comment-line': '赛博',
+  'comment-accent': '节日限定',
+  'comment-square': '国风',
+  'comment-fog': '极简暗色',
+  'comment-folk': '节日风俗',
+  'comment-season': '季节时令',
+};
 
 const BUILTIN_DRESS_STYLES = {
   'cards-plain': { borderRadius: '12px' },
@@ -2077,6 +3068,42 @@ const BUILTIN_DRESS_STYLES = {
     borderRadius: '20px',
     background: 'var(--page-color)',
   },
+  'cards-folk': {
+    borderRadius: '10px',
+    borderWidth: '2px',
+    borderColor: 'var(--accent-color)',
+    background: 'var(--accent-subtle-color)',
+  },
+  'cards-season': {
+    borderRadius: '18px',
+    borderWidth: '0px',
+    background: 'var(--page-color)',
+  },
+  'profile-folk': {
+    background: 'var(--accent-subtle-color)',
+    color: 'var(--gilt-color)',
+  },
+  'profile-season': {
+    background: 'var(--page-color)',
+    color: 'var(--text-secondary-color)',
+  },
+  'avatar-folk': {
+    borderWidth: '5px',
+    borderColor: 'var(--gilt-color)',
+  },
+  'avatar-season': {
+    borderWidth: '3px',
+    borderColor: 'var(--border-color)',
+  },
+  'comment-folk': {
+    borderRadius: '10px',
+    background: 'var(--accent-subtle-color)',
+    borderColor: 'var(--accent-color)',
+  },
+  'comment-season': {
+    borderRadius: '22px',
+    background: 'var(--surface-subtle-color)',
+  },
 };
 
 const FREE_LIVE_DRESS_IDS = new Set([
@@ -2116,6 +3143,14 @@ const FREE_LIVE_DRESS_IDS = new Set([
   'comment-accent',
   'comment-square',
   'comment-fog',
+  'cards-folk',
+  'cards-season',
+  'profile-folk',
+  'profile-season',
+  'avatar-folk',
+  'avatar-season',
+  'comment-folk',
+  'comment-season',
 ]);
 
 export const DRESS_CATEGORIES = [
@@ -2203,6 +3238,7 @@ LOCAL_DRESS_ITEMS.push(
 LOCAL_DRESS_ITEMS.forEach((item, index) => {
   const def = DRESS_GROUP_DEFS.find((row) => row.id === item.group);
   const builtinStyle = BUILTIN_DRESS_STYLES[item.id] || {};
+  const styleTag = DRESS_STYLE_BY_ID[item.id];
   LOCAL_DRESS_ITEMS[index] = {
     ...item,
     support_terminal: item.support_terminal || defaultSupportTerminal(Boolean(def?.mpBlocked)),
@@ -2210,6 +3246,7 @@ LOCAL_DRESS_ITEMS.forEach((item, index) => {
     style_json: (item.style_json && Object.keys(item.style_json).length)
       ? item.style_json
       : builtinStyle,
+    ...(styleTag ? { style_tags: [styleTag] } : {}),
   };
 });
 
@@ -2702,6 +3739,10 @@ export function dressDisplayTags(item, group, { applied = false } = {}) {
   if (category && category.value !== 'all') {
     tags.push({ kind: 'style', label: category.label, className: 'tag-style' });
   }
+  const visual = (item?.style_tags || []).find((label) => label !== category?.label);
+  if (visual) {
+    tags.push({ kind: 'style', label: visual, className: 'tag-style' });
+  }
   const region = DIALECT_REGIONS.find((row) => row.value === item?.region);
   if (region && region.value !== 'all') {
     tags.push({ kind: 'dialect', label: region.label, className: 'tag-dialect' });
@@ -3118,13 +4159,24 @@ export function buildLivePreview({
   effective.forEach((row) => {
     if (row.group?.id) shotClass.push(`dress-${row.group.id}`);
   });
+  const resolved = resolveOutfitStyle({
+    theme,
+    dressItems: overlay ? [] : effective,
+    overlay,
+    isMiniProgram,
+  });
   return {
     theme,
     shotClass,
     skipped,
     nativeLocked: Boolean(isMiniProgram),
     sample: THEME_PREVIEW_SAMPLE,
+    vars: resolved.vars,
   };
+}
+
+export function themePreviewVars(item) {
+  return flattenStyleJson(item?.style_json).vars;
 }
 
 export function composePreviewOutfit({
@@ -3269,7 +4321,7 @@ export function mergeRemoteCatalog({ themes = [], dresses = [] } = {}) {
     current.blurb = remote.blurb || current.blurb;
     current.description = remote.description || current.description;
     if (remote.style_json && Object.keys(remote.style_json).length) {
-      current.style_json = remote.style_json;
+      current.style_json = { ...(current.style_json || {}), ...remote.style_json };
     }
     if ('collect_count' in remote) current.collect_count = Number(remote.collect_count || 0);
     if ('share_count' in remote) current.share_count = Number(remote.share_count || 0);
@@ -3286,7 +4338,7 @@ export function mergeRemoteCatalog({ themes = [], dresses = [] } = {}) {
     current.eventStatus = remote.eventStatus;
     if (remote.group) current.group = remote.group;
     if (remote.style_json && Object.keys(remote.style_json).length) {
-      current.style_json = remote.style_json;
+      current.style_json = { ...(current.style_json || {}), ...remote.style_json };
     }
     if ('collect_count' in remote) current.collect_count = Number(remote.collect_count || 0);
     if ('share_count' in remote) current.share_count = Number(remote.share_count || 0);

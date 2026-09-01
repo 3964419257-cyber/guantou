@@ -166,16 +166,16 @@ export default {
 
 .base-button--look-classic {
   --td-button-border-radius: var(--radius-sm);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   box-shadow:
-    inset 0 0 0 2rpx var(--accent-color),
-    0 0 0 4rpx var(--surface-color),
-    0 0 0 6rpx var(--accent-color);
+    inset 0 0 0 1px var(--accent-color),
+    0 0 0 3px var(--surface-color),
+    0 0 0 4px var(--accent-subtle-color);
 }
 
 .base-button--look-ardent {
   letter-spacing: 0.04em;
-  box-shadow: 0 10rpx 28rpx var(--accent-subtle-color);
+  box-shadow: 0 8rpx 22rpx var(--accent-subtle-color);
 }
 
 .base-button--look-fresh {
@@ -187,24 +187,28 @@ export default {
 
 .base-button--look-seal {
   --td-button-border-radius: var(--radius-sm);
-  letter-spacing: 0.2em;
-  box-shadow: inset 0 0 0 4rpx var(--on-accent-color);
+  letter-spacing: 0.14em;
+  box-shadow: inset 0 0 0 3rpx var(--on-accent-color);
 }
 
 .base-button--look-gilt {
   --td-button-border-radius: var(--radius-sm);
-  color: var(--gilt-color);
-  box-shadow: inset 0 0 0 2rpx var(--gilt-color);
+  box-shadow:
+    inset 0 0 0 1px var(--gilt-color),
+    0 0 0 1px var(--accent-subtle-color);
 }
 
 .base-button--look-wash {
   --td-brand-color: var(--accent-subtle-color);
+  --td-brand-color-active: var(--surface-subtle-color);
   --td-text-color-anti: var(--text-secondary-color);
-  opacity: 0.94;
 }
 
 .base-button--look-fog {
-  opacity: 0.88;
+  --td-brand-color: var(--surface-subtle-color);
+  --td-brand-color-active: var(--surface-subtle-color);
+  --td-text-color-anti: var(--text-secondary-color);
+  box-shadow: inset 0 0 0 1px var(--border-color);
 }
 
 .base-button--ghost.base-button--look-filled,
@@ -230,7 +234,8 @@ export default {
 }
 
 .base-button--ghost.base-button--look-wash {
-  opacity: 0.82;
+  --td-brand-color: var(--accent-subtle-color);
+  --td-text-color-anti: var(--text-secondary-color);
 }
 
 .base-button--ghost.base-button--look-gilt {
@@ -239,7 +244,7 @@ export default {
 }
 
 .base-button--effect-glow {
-  box-shadow: 0 0 28rpx var(--accent-color);
+  box-shadow: 0 0 18rpx var(--accent-subtle-color);
 }
 
 .base-button--effect-lift {

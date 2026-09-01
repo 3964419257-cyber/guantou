@@ -41,6 +41,7 @@
       <view
         class="mock-phone"
         :class="[model.shotClass, { native: model.nativeLocked }]"
+        :style="model.vars"
       >
         <view
           class="mock-nav"
@@ -92,6 +93,7 @@
       <view
         class="mock-phone"
         :class="model.shotClass"
+        :style="model.vars"
       >
         <view class="mock-profile">
           <view class="mock-avatar" />
@@ -119,6 +121,7 @@
       <view
         class="mock-phone mock-comments"
         :class="model.shotClass"
+        :style="model.vars"
       >
         <view
           v-for="row in model.sample.comments"
@@ -144,6 +147,7 @@
       <view
         class="mock-phone mock-topics"
         :class="model.shotClass"
+        :style="model.vars"
       >
         <view
           v-for="topic in model.sample.topics"
@@ -193,6 +197,7 @@ export default {
         skipped: [],
         nativeLocked: false,
         sample: THEME_PREVIEW_SAMPLE,
+        vars: {},
       }),
     },
   },
@@ -308,9 +313,14 @@ export default {
   justify-content: space-between;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--accent-color);
-  color: var(--on-accent-color);
+  background: var(--dress-nav-bar-background, var(--accent-color));
+  color: var(--dress-nav-bar-color, var(--on-accent-color));
+  border: 1px solid var(--dress-nav-bar-border-color, transparent);
   font-size: var(--font-size-xs);
+}
+
+.mock-tab {
+  background: var(--dress-tab-bar-background, var(--accent-color));
 }
 
 .mock-nav.locked,
@@ -321,8 +331,10 @@ export default {
 
 .mock-can {
   padding: var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--surface-color);
+  border-radius: var(--dress-card-border-radius, var(--radius-md));
+  background: var(--dress-card-background, var(--surface-color));
+  border: var(--dress-card-border-width, 1px) solid var(--dress-card-border-color, var(--border-color));
+  box-shadow: var(--dress-card-shadow, none);
 }
 
 .mock-video {
@@ -376,7 +388,8 @@ export default {
   gap: var(--space-1);
   padding: var(--space-3) var(--space-2);
   border-radius: var(--radius-md);
-  background: var(--surface-color);
+  background: var(--dress-home-bg-background, var(--surface-color));
+  color: var(--dress-home-bg-color, var(--text-color));
 }
 
 .mock-avatar {
@@ -384,7 +397,8 @@ export default {
   height: 72rpx;
   border-radius: var(--radius-pill);
   background: var(--accent-color);
-  box-shadow: 0 0 0 4rpx var(--gilt-color);
+  border: var(--dress-avatar-frame-border-width, 0px) solid var(--dress-avatar-frame-border-color, transparent);
+  box-shadow: none;
 }
 
 .mock-avatar.sm {
@@ -409,7 +423,9 @@ export default {
 .mock-bubble {
   display: flex;
   gap: var(--space-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--dress-comment-bubble-border-radius, var(--radius-md));
+  background: var(--dress-comment-bubble-background, var(--accent-subtle-color));
+  border: 1px solid var(--dress-comment-bubble-border-color, transparent);
   color: var(--text-color);
 }
 
@@ -452,6 +468,14 @@ export default {
 .shot-festival,
 .shot-street {
   background: var(--accent-preview-clay);
+}
+
+.shot-folk {
+  background: var(--accent-preview-osmanthus);
+}
+
+.shot-season {
+  background: var(--accent-preview-tea);
 }
 
 .shot-guofeng {

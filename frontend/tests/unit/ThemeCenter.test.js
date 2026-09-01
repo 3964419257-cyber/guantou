@@ -50,6 +50,7 @@ import {
   listThemesByCategory,
   LOCAL_DRESS_GROUPS,
   LOCAL_DRESS_ITEMS,
+  mergeRemoteCatalog,
   persistActiveTheme,
   persistLocalDress,
   P1_DRESS_GROUP_IDS,
@@ -326,6 +327,59 @@ describe('themeCenter catalog', () => {
     expect(getDressItem('comment-round').available).toBe(true);
     expect(getDressItem('comment-ink').available).toBe(true);
     expect(getDressItem('navbar-glyph').available).toBe(false);
+    expect(GLOBAL_THEMES.find((item) => item.id === 'paper').style_json).toMatchObject({
+      cardBorderRadius: '4px',
+      cardBackground: 'var(--page-color)',
+    });
+    expect(GLOBAL_THEMES.find((item) => item.id === 'nightferry').style_json).toMatchObject({
+      cardBorderRadius: '6px',
+      cardBorderColor: 'var(--text-color)',
+    });
+    expect(GLOBAL_THEMES.find((item) => item.id === 'chuankiang').style_json).toMatchObject({
+      cardBorderRadius: '14px',
+      cardBackground: 'var(--page-color)',
+    });
+    const styleLabels = THEME_CATEGORIES
+      .filter((row) => row.value !== 'all')
+      .map((row) => row.label);
+    const familyMarks = THEME_CATEGORIES.filter((row) => row.value !== 'all').map((row) => {
+      const pack = GLOBAL_THEMES.find((item) => (
+        item.category === row.value
+        && item.available
+        && (item.access || ACCESS_FREE) === ACCESS_FREE
+      ));
+      expect(pack?.style_json?.cardBorderRadius).toBeTruthy();
+      expect(pack?.style_json?.grainOpacity).toBeTruthy();
+      return [
+        pack.style_json.cardBorderRadius,
+        pack.style_json.cardBorderWidth,
+        pack.style_json.cardShadow,
+        pack.style_json.grainOpacity,
+      ].join('|');
+    });
+    expect(new Set(familyMarks).size).toBe(styleLabels.length);
+    P1_DRESS_GROUP_IDS.forEach((groupId) => {
+      const labels = LOCAL_DRESS_ITEMS
+        .filter((item) => item.group === groupId && item.available && (item.access || ACCESS_FREE) === ACCESS_FREE)
+        .flatMap((item) => item.style_tags || []);
+      styleLabels.forEach((label) => {
+        expect(labels).toContain(label);
+      });
+    });
+  });
+
+  it('keeps pack surfaces when remote catalog only returns appearance', () => {
+    const paper = GLOBAL_THEMES.find((item) => item.id === 'paper');
+    const before = { ...paper.style_json };
+    mergeRemoteCatalog({
+      themes: [{ id: 'paper', available: true, style_json: { accent: 'mist' } }],
+    });
+    expect(paper.style_json).toMatchObject({
+      accent: 'mist',
+      cardBorderRadius: '4px',
+      cardBackground: 'var(--page-color)',
+    });
+    paper.style_json = before;
   });
 
   it('keeps local dress when overlay is on, including after enabling a global pack', async () => {
@@ -480,12 +534,32 @@ describe('themeCenter catalog', () => {
     expect(uni.setBackgroundColor).toHaveBeenCalledWith(expect.objectContaining({
       backgroundColor: '#f3f5f8',
     }));
+    expect(getAppliedOutfitVars()).toMatchObject({
+      '--dress-card-border-radius': '6px',
+      '--dress-card-border-color': 'var(--text-color)',
+    });
     await persistLocalDress('cards', 'cards-paper');
     hydrateOutfitStyle();
     expect(getAppliedOutfitVars()).toMatchObject({
       '--dress-card-border-radius': '4px',
       '--dress-card-background': 'var(--surface-color)',
     });
+  });
+
+  it('paints pack surfaces while overlay covers local dress', async () => {
+    memoryStore({ [THEME_OVERLAY_STORAGE_KEY]: '1' });
+    await persistActiveTheme('paper');
+    expect(getAppliedOutfitVars()).toMatchObject({
+      '--dress-card-border-radius': '4px',
+      '--dress-card-background': 'var(--page-color)',
+    });
+    await persistLocalDress('cards', 'cards-round');
+    hydrateOutfitStyle();
+    expect(getAppliedOutfitVars()).toMatchObject({
+      '--dress-card-border-radius': '4px',
+      '--dress-card-background': 'var(--page-color)',
+    });
+    expect(getLocalDressMap()).toEqual({ cards: 'cards-round' });
   });
 
   it('posts decoration apply when signed in and rolls back on 403', async () => {
@@ -868,6 +942,8 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('二次元');
     expect(wrapper.text()).toContain('极简暗色');
     expect(wrapper.text()).toContain('节日限定');
+    expect(wrapper.text()).toContain('节日风俗');
+    expect(wrapper.text()).toContain('季节时令');
     expect(wrapper.text()).toContain('全局主题将统一改变导航栏、按钮、卡片、背景、文字色彩');
     expect(wrapper.text()).toContain('全局主题会带轻微地域纹理，不会改变罐头播放内容');
     expect(wrapper.text()).not.toContain('短视频');
@@ -1463,6 +1539,10 @@ describe('Theme center page', () => {
       isMiniProgram: false,
     });
     expect(preview.theme.id).toBe('paper');
+    expect(preview.vars).toMatchObject({
+      '--dress-card-border-radius': '4px',
+      '--dress-card-background': 'var(--page-color)',
+    });
     expect(getActiveTheme().id).toBe('default');
     expect(getLocalDressMap()).toEqual({ cards: 'cards-plain' });
     expect(getOverlayLocalDress()).toBe(true);

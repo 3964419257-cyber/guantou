@@ -73,9 +73,10 @@ export default {
 .plate {
   margin-bottom: 20rpx;
   overflow: hidden;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--surface-color);
+  border: var(--dress-card-border-width, 1rpx) solid var(--dress-card-border-color, var(--border-color));
+  border-radius: var(--dress-card-border-radius, var(--radius-md));
+  background: var(--dress-card-background, var(--surface-color));
+  box-shadow: var(--dress-card-shadow, none);
 }
 .plate--primary {
   border-left: 8rpx solid var(--accent-color);
