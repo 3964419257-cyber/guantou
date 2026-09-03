@@ -1,8 +1,12 @@
 import re
+import uuid
 from datetime import timedelta
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
+from django.db.models import F
+from django.db.models.functions import Greatest
 from django.utils import timezone
 from rest_framework.exceptions import APIException
 
@@ -433,14 +437,12 @@ def remove_collect(user, item_type, item_id):
 
 
 def _bump_collect(item_type, item_id, delta):
-    if item_type == ItemType.THEME:
-        item = ThemeItem.objects.filter(theme_id=item_id).first()
-    else:
-        item = DecorationItem.objects.filter(decoration_id=item_id).first()
-    if not item:
-        return
-    item.collect_count = max(0, int(item.collect_count or 0) + delta)
-    item.save(update_fields=["collect_count"])
+    queryset = (
+        ThemeItem.objects.filter(theme_id=item_id)
+        if item_type == ItemType.THEME
+        else DecorationItem.objects.filter(decoration_id=item_id)
+    )
+    queryset.update(collect_count=Greatest(F("collect_count") + delta, 0))
 
 
 def mix_signature(theme_id, decoration_map, overlay):
@@ -478,7 +480,7 @@ def create_mix(user, payload):
             409, "已达到最大保存数量，请删除旧搭配方案后再保存", "mix_cap"
         )
     name = clean_mix_name(payload.get("mix_name"))
-    mix_id = str(payload.get("mix_id") or f"mix-{int(timezone.now().timestamp())}")
+    mix_id = str(payload.get("mix_id") or f"mix-{uuid.uuid4().hex[:12]}")
     theme_id = str(payload.get("global_theme_id") or "default")
     if not ThemeItem.objects.filter(theme_id=theme_id).exists():
         raise NotFoundException("装扮不存在或已下架")
@@ -495,15 +497,21 @@ def create_mix(user, payload):
     overlay = parse_mix_overlay(payload)
     if mix_is_duplicate(user, theme_id, decoration_map, overlay):
         raise ThemeAPIError(409, "该搭配方案已保存，请勿重复添加", "mix_dup")
-    return UserThemeMix.objects.create(
-        mix_id=mix_id[:64],
-        user=user,
-        mix_name=name,
-        global_theme_id=theme_id,
-        decoration_map=decoration_map,
-        decoration_ids=[str(item) for item in ids][:20],
-        is_cover_local_decoration=overlay,
-    )
+    if UserThemeMix.objects.filter(user=user, mix_id=mix_id[:64]).exists():
+        raise ThemeAPIError(409, "该搭配方案已保存，请勿重复添加", "mix_dup")
+    try:
+        with transaction.atomic():
+            return UserThemeMix.objects.create(
+                mix_id=mix_id[:64],
+                user=user,
+                mix_name=name,
+                global_theme_id=theme_id,
+                decoration_map=decoration_map,
+                decoration_ids=[str(item) for item in ids][:20],
+                is_cover_local_decoration=overlay,
+            )
+    except IntegrityError as error:
+        raise ThemeAPIError(409, "该搭配方案已保存，请勿重复添加", "mix_dup") from error
 
 
 def rename_mix(user, mix_id, name):

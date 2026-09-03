@@ -41,6 +41,7 @@
       scroll-y
       class="shell-content shell-scroll"
       :class="contentClass"
+      @scroll="onScroll"
       @scrolltolower="$emit('scrolltolower')"
     >
       <slot />
@@ -97,7 +98,7 @@ export default {
       default: false,
     },
   },
-  emits: ['action', 'back', 'scrolltolower'],
+  emits: ['action', 'back', 'scroll', 'scrolltolower'],
   data() {
     return {
       resolvedTheme: 'light',
@@ -121,6 +122,10 @@ export default {
       this.resolvedTheme = theme?.resolved || 'light';
       this.accent = theme?.accent || getAccentPreference();
       this.syncOutfitVars();
+    },
+    onScroll(event) {
+      const top = event?.detail?.scrollTop ?? event?.scrollTop ?? 0;
+      this.$emit('scroll', { scrollTop: Number(top) || 0 });
     },
     handleBack() {
       this.$emit('back');

@@ -104,4 +104,16 @@ describe('PageShell', () => {
     expect(uni.reLaunch).not.toHaveBeenCalled();
     wrapper.unmount();
   });
+
+  it('forwards inner scroll-view motion to the page', () => {
+    const wrapper = mount(PageShell, {
+      props: { title: '主题中心' },
+      global: {
+        stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
+      },
+    });
+    wrapper.vm.onScroll({ detail: { scrollTop: 180 } });
+    expect(wrapper.emitted('scroll')[0][0]).toEqual({ scrollTop: 180 });
+    wrapper.unmount();
+  });
 });

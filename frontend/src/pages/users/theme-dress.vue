@@ -2,6 +2,7 @@
   <PageShell
     :title="group ? group.name : '局部装扮'"
     :back-fallback="ROUTES.themeCenter"
+    @scroll="onShellScroll"
   >
     <view
       v-if="!group"
@@ -541,17 +542,6 @@ export default {
   onShow() {
     this.refresh();
   },
-  onPageScroll(event) {
-    const top = event?.scrollTop || 0;
-    if (this.scrollTimer) clearTimeout(this.scrollTimer);
-    this.scrollTimer = setTimeout(() => {
-      trackThemeListScroll({
-        itemIds: this.items.map((item) => item.id),
-        scrollTop: top,
-        query: { sort: this.dressSort },
-      });
-    }, 400);
-  },
   onShareAppMessage() {
     if (this.shareTarget?.item?.available) {
       return themeSharePayload(this.shareTarget.kind, this.shareTarget.item);
@@ -564,6 +554,17 @@ export default {
       this.overlay = getOverlayLocalDress();
       this.appliedId = getLocalDressMap()[this.groupId] || '';
       this.socialTick += 1;
+    },
+    onShellScroll(event) {
+      const top = event?.scrollTop || 0;
+      if (this.scrollTimer) clearTimeout(this.scrollTimer);
+      this.scrollTimer = setTimeout(() => {
+        trackThemeListScroll({
+          itemIds: this.items.map((item) => item.id),
+          scrollTop: top,
+          query: { sort: this.dressSort },
+        });
+      }, 400);
     },
     statsOf(item) {
       return socialStats('dress', item, this.socialTick);
@@ -666,8 +667,10 @@ export default {
       return src;
     },
     onPreviewImgError(key) {
+      if (this.coverFailed[key]) return;
+      const firstFail = !Object.keys(this.coverFailed).length;
       this.coverFailed = { ...this.coverFailed, [key]: true };
-      notify({ title: THEME_FAULT_TOAST.resource });
+      if (firstFail) notify({ title: THEME_FAULT_TOAST.resource });
     },
     openZoom() {
       if (!this.detailItem) return;

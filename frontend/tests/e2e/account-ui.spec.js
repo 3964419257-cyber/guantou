@@ -118,7 +118,6 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.locator('.sheet').getByText('实时预览')).toBeVisible();
   await expect(page.getByText('预览仅为模拟效果，不会修改你的界面')).toBeVisible();
   await expect(page.getByText('首页罐头流').first()).toBeVisible();
-  await expect(page.getByText('微信小程序：原生导航栏、底部Tab栏受微信限制，部分样式无法生效')).toBeVisible();
   await expect(page.getByText('会修改的元素')).toBeVisible();
   await expect(page.getByText('该主题暂未开放，敬请期待')).toBeVisible();
   await expect(page.locator('.sheet').getByText('取消')).toBeVisible();
@@ -140,7 +139,6 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('导航栏底色与图标')).toBeVisible();
   await expect(page.getByText('罐头卡片').first()).toBeVisible();
   await expect(page.getByText('江南吴语头像框')).toBeVisible();
-  await expect(page.getByText('装扮素材即将上线').first()).toBeVisible();
   await expect(page.getByText('去设置').first()).toBeVisible();
 
   await page.locator('.tab', { hasText: '我的装扮' }).click();

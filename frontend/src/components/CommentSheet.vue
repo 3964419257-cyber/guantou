@@ -18,8 +18,12 @@
           'comment-sheet__panel--active': active,
           'comment-sheet__panel--full': mode === 'full',
         }"
-        :style="panelStyle"
+        :style="[panelStyle, outfitVars]"
       >
+        <view
+          class="comment-sheet__grain"
+          aria-hidden="true"
+        />
         <view
           class="comment-sheet__grip"
           @touchstart="onDragStart"
@@ -89,6 +93,7 @@ import {
   registerCommentSheetHost,
   unregisterCommentSheetHost,
 } from '@/services/commentSheet';
+import { getAppliedOutfitVars } from '@/services/themeSchema';
 
 // 与下方 .comment-sheet__mask / __panel 的 transition 时长（0.28s）同步，改动需两边一致（#257）。
 const CLOSE_MS = 280;
@@ -115,6 +120,7 @@ export default {
       submitting: false,
       replyTarget: null,
       lastSubmitAt: 0,
+      outfitVars: {},
     };
   },
   computed: {
@@ -140,13 +146,19 @@ export default {
     },
   },
   mounted() {
+    uni.$on('theme-change', this.syncOutfitVars);
+    this.syncOutfitVars();
     registerCommentSheetHost(this);
   },
   beforeUnmount() {
+    uni.$off('theme-change', this.syncOutfitVars);
     unregisterCommentSheetHost(this);
     if (this.closeTimer) clearTimeout(this.closeTimer);
   },
   methods: {
+    syncOutfitVars() {
+      this.outfitVars = getAppliedOutfitVars();
+    },
     open({ targetType, targetId, theme = 'default' }) {
       if (this.closeTimer) {
         clearTimeout(this.closeTimer);
@@ -319,6 +331,16 @@ export default {
   pointer-events: none;
 }
 
+.comment-sheet__grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--dress-grain-opacity, 0);
+  background-image: var(--dress-grain-image, var(--grain-dot));
+  background-size: var(--dress-grain-size, 46rpx 46rpx);
+}
+
 .comment-sheet__panel--active {
   transform: translateY(0);
   pointer-events: auto;
@@ -331,6 +353,8 @@ export default {
 
 /* 拖拽命中区：一整条扁平长条（比可见小横条大得多），便于一次命中上拉/下拉 */
 .comment-sheet__grip {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   height: 56rpx;
   display: flex;
@@ -346,6 +370,8 @@ export default {
 }
 
 .comment-sheet__scroll {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   /* 关键：uni-scroll-view 默认 height:100% 会撑满整个面板、挤掉底部输入框并破坏滚动，
@@ -359,6 +385,8 @@ export default {
 
 /* 底部固定发表评论/回复框：横向输入 + 小发送键，占位小 */
 .comment-sheet__composer {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   padding: 0 24rpx calc(16rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid var(--border-color);

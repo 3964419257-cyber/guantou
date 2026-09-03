@@ -2,6 +2,7 @@
   <view
     class="immersive-shell home-page"
     :class="[`accent-${accent}`]"
+    :style="outfitVars"
   >
     <!-- 氛围光与肌理（沉浸壳自绘背景） -->
     <view
@@ -92,6 +93,7 @@ import {
   resolveTheme,
 } from '@/services/theme';
 import { hydrateOutfitStyle } from '@/services/themeCenter';
+import { getAppliedOutfitVars } from '@/services/themeSchema';
 
 /* 常驻 feed 数量上限：只保留最近访问的 2 个 tab，超出者从头部卸载，
  * 回访时按首次进入的懒加载流程重建，限制内存与并发请求 */
@@ -114,6 +116,7 @@ export default {
       feedRevision: 0,
       accent: getAccentPreference(),
       sheetActive: false,
+      outfitVars: {},
     };
   },
   created() {
@@ -176,12 +179,17 @@ export default {
   methods: {
     handleThemeChange(theme) {
       this.accent = theme?.accent || getAccentPreference();
+      this.syncOutfitVars();
       this.paintImmersiveWindow();
     },
     syncChrome() {
       hydrateOutfitStyle();
       this.accent = getAccentPreference();
+      this.syncOutfitVars();
       this.paintImmersiveWindow();
+    },
+    syncOutfitVars() {
+      this.outfitVars = getAppliedOutfitVars();
     },
     paintImmersiveWindow() {
       paintNativeChrome({

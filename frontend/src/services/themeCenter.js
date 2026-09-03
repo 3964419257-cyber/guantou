@@ -4005,8 +4005,14 @@ export function listDressGroupsByCategory(category = 'all', { isMiniProgram = fa
   const source = !category || category === 'all'
     ? LOCAL_DRESS_GROUPS
     : LOCAL_DRESS_GROUPS.filter((item) => item.category === category);
-  if (!isMiniProgram) return source;
-  return source.filter((item) => !item.mpBlocked);
+  const visible = isMiniProgram ? source.filter((item) => !item.mpBlocked) : source;
+  return visible.map((group) => {
+    const items = LOCAL_DRESS_ITEMS.filter((item) => item.group === group.id);
+    return {
+      ...group,
+      hasLive: items.some((item) => item.available),
+    };
+  });
 }
 
 export function getDressGroup(groupId) {

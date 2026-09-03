@@ -98,6 +98,8 @@ describe('HomeTopBar', () => {
     expect(source).toMatch(/accent-\$\{accent\}/);
     expect(source).toContain('paintNativeChrome');
     expect(source).toContain('hydrateOutfitStyle');
+    expect(source).toContain('getAppliedOutfitVars');
+    expect(source).toContain(':style="outfitVars"');
     expect(source).toContain('immersive: true');
   });
 });

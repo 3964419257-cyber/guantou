@@ -6,6 +6,7 @@
     :intercept-back="navInterceptBack"
     @action="onSearch"
     @back="onThemeNavBack"
+    @scroll="onShellScroll"
   >
     <view class="center">
       <view class="search-bar">
@@ -689,7 +690,10 @@
             >
               {{ group.blocked ? '小程序暂不支持该组件装扮' : (group.mpBlocked ? '仅H5可用' : '可用') }}
             </view>
-            <view class="soon-line">
+            <view
+              v-if="!group.hasLive"
+              class="soon-line"
+            >
               装扮素材即将上线
             </view>
             <view
@@ -822,9 +826,6 @@
           <view class="current-copy">
             <view class="kicker">
               当前正在使用：{{ activeTheme.name }}
-            </view>
-            <view class="current-name">
-              {{ activeTheme.name }}
             </view>
             <view class="muted">
               全局主题会统一修改整套界面风格
@@ -1216,39 +1217,43 @@
       </view>
 
       <view
-        v-for="line in accessFooter"
-        :key="line"
-        class="foot-note"
+        v-if="!catalogFail && !searching && tab === 'global'"
       >
-        {{ line }}
-      </view>
-      <view
-        v-for="line in socialFooter"
-        :key="line"
-        class="foot-note"
-      >
-        {{ line }}
-      </view>
-      <view
-        v-for="line in historyFooter"
-        :key="line"
-        class="foot-note"
-      >
-        {{ line }}
-      </view>
-      <view
-        v-for="line in filterFooter"
-        :key="line"
-        class="foot-note"
-      >
-        {{ line }}
-      </view>
-      <view
-        v-for="line in previewFooter"
-        :key="line"
-        class="foot-note"
-      >
-        {{ line }}
+        <view
+          v-for="line in accessFooter"
+          :key="line"
+          class="foot-note"
+        >
+          {{ line }}
+        </view>
+        <view
+          v-for="line in socialFooter"
+          :key="line"
+          class="foot-note"
+        >
+          {{ line }}
+        </view>
+        <view
+          v-for="line in historyFooter"
+          :key="line"
+          class="foot-note"
+        >
+          {{ line }}
+        </view>
+        <view
+          v-for="line in filterFooter"
+          :key="line"
+          class="foot-note"
+        >
+          {{ line }}
+        </view>
+        <view
+          v-for="line in previewFooter"
+          :key="line"
+          class="foot-note"
+        >
+          {{ line }}
+        </view>
       </view>
     </view>
 
@@ -1386,10 +1391,16 @@
         >
           {{ themeAccess(detailTheme).hint }}
         </view>
-        <view class="hint-row">
+        <view
+          v-if="!isMiniProgram"
+          class="hint-row"
+        >
           H5网页版：该主题全部样式完整生效
         </view>
-        <view class="hint-row warn">
+        <view
+          v-else
+          class="hint-row warn"
+        >
           微信小程序：原生导航栏、底部Tab栏受微信限制，部分样式无法生效
         </view>
         <view class="feature-title">
@@ -1966,11 +1977,6 @@ export default {
     themeListEmptyScene() {
       return this.hasExtraFilters ? 'filter' : 'catalog';
     },
-    themeListEmptyTitle() {
-      return this.themeListEmptyScene === 'filter'
-        ? '当前筛选条件下暂无可用装扮'
-        : '暂无可用主题，更多方言主题正在制作中';
-    },
     filterSummary() {
       const bits = [];
       if (this.accessFilter !== 'all') {
@@ -2101,13 +2107,6 @@ export default {
   },
   onHide() {
     trackThemeCenterLeave();
-  },
-  onPageScroll(event) {
-    const top = event?.scrollTop || 0;
-    if (this.scrollTimer) clearTimeout(this.scrollTimer);
-    this.scrollTimer = setTimeout(() => {
-      this.reportThemeListScroll(top);
-    }, 400);
   },
   watch: {
     favoriteFilter() {
@@ -2270,6 +2269,13 @@ export default {
         scrollTop,
         query: this.catalogQuery,
       });
+    },
+    onShellScroll(event) {
+      const top = event?.scrollTop || 0;
+      if (this.scrollTimer) clearTimeout(this.scrollTimer);
+      this.scrollTimer = setTimeout(() => {
+        this.reportThemeListScroll(top);
+      }, 400);
     },
     isItemFav(kind, id) {
       return this.socialTick >= 0 && isFavorited(kind, id);
@@ -2636,8 +2642,10 @@ export default {
       return src;
     },
     onPreviewImgError(key) {
+      if (this.coverFailed[key]) return;
+      const firstFail = !Object.keys(this.coverFailed).length;
       this.coverFailed = { ...this.coverFailed, [key]: true };
-      notify({ title: THEME_FAULT_TOAST.resource });
+      if (firstFail) notify({ title: THEME_FAULT_TOAST.resource });
     },
     openZoom() {
       if (!this.detailTheme) return;
@@ -3737,10 +3745,20 @@ export default {
 }
 
 .shot-home {
+  position: relative;
   background-color: var(--page-color);
+  letter-spacing: var(--dress-letter-spacing, 0em);
+}
+
+.shot-home::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: var(--dress-grain-opacity, 0);
   background-image: var(--dress-grain-image, none);
   background-size: var(--dress-grain-size, 46rpx 46rpx);
-  letter-spacing: var(--dress-letter-spacing, 0em);
 }
 
 .shot-nav,
@@ -3748,6 +3766,8 @@ export default {
 .shot-feed,
 .shot-line,
 .shot-avatar {
+  position: relative;
+  z-index: 1;
   border-radius: var(--radius-sm);
   background: var(--accent-color);
 }

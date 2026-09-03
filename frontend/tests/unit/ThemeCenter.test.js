@@ -963,7 +963,7 @@ describe('Theme center page', () => {
     wrapper.vm.openDetail(GLOBAL_THEMES[0]);
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('H5网页版：该主题全部样式完整生效');
-    expect(wrapper.text()).toContain('微信小程序：原生导航栏、底部Tab栏受微信限制，部分样式无法生效');
+    expect(wrapper.text()).not.toContain('微信小程序：原生导航栏、底部Tab栏受微信限制，部分样式无法生效');
     expect(wrapper.text()).toContain('会修改的元素');
     expect(wrapper.text()).toContain('导航栏配色');
     expect(wrapper.text()).toContain('实时预览');
@@ -1115,7 +1115,7 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('头像框&装饰挂件');
     expect(wrapper.text()).toContain('评论气泡样式');
     expect(wrapper.text()).toContain('方言话题卡片');
-    expect(wrapper.text()).toContain('装扮素材即将上线');
+    expect(wrapper.text()).not.toContain('装扮素材即将上线');
     expect(wrapper.text()).toContain('我的装扮');
     expect(wrapper.text()).toContain('导航栏');
     expect(wrapper.text()).toContain('交互按钮');
@@ -1154,6 +1154,10 @@ describe('Theme center page', () => {
     expect(wrapper.text()).toContain('罐头卡片');
     expect(wrapper.text()).not.toContain('小程序暂不支持该组件装扮');
     expect(wrapper.text()).not.toContain('导航栏底色与图标');
+    wrapper.vm.openDetail(GLOBAL_THEMES[0]);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain('微信小程序：原生导航栏、底部Tab栏受微信限制，部分样式无法生效');
+    expect(wrapper.text()).not.toContain('H5网页版：该主题全部样式完整生效');
   });
 
   it('summarizes the live outfit, preview, and reset on the mine tab', async () => {
@@ -1586,5 +1590,21 @@ describe('Theme center page', () => {
     expect(uni.navigateTo).toHaveBeenCalledWith({
       url: `${ROUTES.themeCenter}?searching=1&q=${encodeURIComponent('川渝')}`,
     });
+  });
+
+  it('reports shell scroll and toasts a broken cover only once', () => {
+    vi.useFakeTimers();
+    const wrapper = mountPage();
+    const spy = vi.spyOn(wrapper.vm, 'reportThemeListScroll');
+    wrapper.vm.onShellScroll({ scrollTop: 160 });
+    vi.advanceTimersByTime(400);
+    expect(spy).toHaveBeenCalledWith(160);
+    wrapper.vm.onPreviewImgError('paper');
+    wrapper.vm.onPreviewImgError('nightferry');
+    expect(notify).toHaveBeenCalledWith({ title: THEME_FAULT_TOAST.resource });
+    expect(notify.mock.calls.filter((call) => (
+      call[0]?.title === THEME_FAULT_TOAST.resource
+    ))).toHaveLength(1);
+    vi.useRealTimers();
   });
 });

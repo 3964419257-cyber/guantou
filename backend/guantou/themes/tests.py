@@ -440,6 +440,20 @@ class ThemeApiTests(TestCase):
         self.assertEqual(different_overlay.status_code, 201)
         self.assertTrue(different_overlay.json()["is_cover_local_decoration"])
 
+        collide = self.client.post(
+            "/users/theme/mixes/",
+            data={
+                "mix_id": "mix-overlay",
+                "mix_name": "同名不同装",
+                "global_theme_id": "default",
+                "decoration_map": {"avatar": "avatar-plain"},
+            },
+            content_type="application/json",
+            **self.auth(),
+        )
+        self.assertEqual(collide.status_code, 409)
+        self.assertEqual(collide.json()["data"]["reason"], "mix_dup")
+
     def test_put_keeps_locked_layers_in_map(self):
         stripped = self.client.put(
             "/users/theme/config/",
