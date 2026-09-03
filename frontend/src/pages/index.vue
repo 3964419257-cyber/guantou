@@ -234,6 +234,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  letter-spacing: var(--dress-letter-spacing, 0em);
   /* 深色渐变跟随当前配色色相，不随明暗主题翻转 */
   background: linear-gradient(
     165deg,
@@ -275,8 +276,8 @@ export default {
   inset: 0;
   pointer-events: none;
   opacity: var(--dress-grain-opacity, 0.16);
-  background-image: radial-gradient(var(--immersive-border-color) 1rpx, transparent 1rpx);
-  background-size: 46rpx 46rpx;
+  background-image: var(--dress-grain-image, var(--grain-dot));
+  background-size: var(--dress-grain-size, 46rpx 46rpx);
 }
 
 .home-page__top {

@@ -181,6 +181,20 @@ const CAMEL_TO_VAR = {
   navBorder: '--dress-nav-bar-border-color',
   tabBackground: '--dress-tab-bar-background',
   grainOpacity: '--dress-grain-opacity',
+  grainImage: '--dress-grain-image',
+  grainSize: '--dress-grain-size',
+  commentBorderWidth: '--dress-comment-bubble-border-width',
+  inputBackground: '--dress-input-box-background',
+  inputBorderRadius: '--dress-input-box-border-radius',
+  inputBorderColor: '--dress-input-box-border-color',
+  inputBorderWidth: '--dress-input-box-border-width',
+  topicBackground: '--dress-topic-card-background',
+  topicBorderRadius: '--dress-topic-card-border-radius',
+  topicBorderColor: '--dress-topic-card-border-color',
+  topicBorderWidth: '--dress-topic-card-border-width',
+  buttonRadius: '--dress-button-border-radius',
+  letterSpacing: '--dress-letter-spacing',
+  cardPadding: '--dress-card-padding',
 };
 
 function isSafeCssValue(value) {

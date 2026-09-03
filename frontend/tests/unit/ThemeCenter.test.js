@@ -330,6 +330,8 @@ describe('themeCenter catalog', () => {
     expect(GLOBAL_THEMES.find((item) => item.id === 'paper').style_json).toMatchObject({
       cardBorderRadius: '4px',
       cardBackground: 'var(--page-color)',
+      grainImage: 'var(--grain-paper)',
+      letterSpacing: '0.06em',
     });
     expect(GLOBAL_THEMES.find((item) => item.id === 'nightferry').style_json).toMatchObject({
       cardBorderRadius: '6px',
@@ -350,11 +352,15 @@ describe('themeCenter catalog', () => {
       ));
       expect(pack?.style_json?.cardBorderRadius).toBeTruthy();
       expect(pack?.style_json?.grainOpacity).toBeTruthy();
+      expect(pack?.style_json?.grainImage).toBeTruthy();
+      expect(pack?.style_json?.letterSpacing).toBeTruthy();
       return [
         pack.style_json.cardBorderRadius,
         pack.style_json.cardBorderWidth,
         pack.style_json.cardShadow,
         pack.style_json.grainOpacity,
+        pack.style_json.grainImage,
+        pack.style_json.letterSpacing,
       ].join('|');
     });
     expect(new Set(familyMarks).size).toBe(styleLabels.length);
@@ -537,6 +543,7 @@ describe('themeCenter catalog', () => {
     expect(getAppliedOutfitVars()).toMatchObject({
       '--dress-card-border-radius': '6px',
       '--dress-card-border-color': 'var(--text-color)',
+      '--dress-grain-image': 'var(--grain-grid)',
     });
     await persistLocalDress('cards', 'cards-paper');
     hydrateOutfitStyle();

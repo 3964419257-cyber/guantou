@@ -136,7 +136,7 @@ export default {
 
 <style scoped>
 .base-button {
-  --td-button-border-radius: var(--radius-pill);
+  --td-button-border-radius: var(--dress-button-border-radius, var(--radius-pill));
 }
 
 .base-button :deep(.t-button__content) {

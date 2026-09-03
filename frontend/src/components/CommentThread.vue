@@ -450,9 +450,9 @@ export default {
   flex-direction: column;
   gap: 18rpx;
   padding: 24rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
+  border: var(--dress-input-box-border-width, 1rpx) solid var(--dress-input-box-border-color, var(--border-color));
+  border-radius: var(--dress-input-box-border-radius, var(--radius-lg));
+  background: var(--dress-input-box-background, var(--surface-color));
 }
 
 .comment-thread__rule {
@@ -538,7 +538,7 @@ export default {
   white-space: pre-wrap;
   background: var(--dress-comment-bubble-background, transparent);
   border-radius: var(--dress-comment-bubble-border-radius, 0px);
-  border: 1px solid var(--dress-comment-bubble-border-color, transparent);
+  border: var(--dress-comment-bubble-border-width, 1px) solid var(--dress-comment-bubble-border-color, transparent);
   box-sizing: border-box;
 }
 

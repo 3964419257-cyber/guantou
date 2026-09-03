@@ -3737,7 +3737,10 @@ export default {
 }
 
 .shot-home {
-  background: var(--page-color);
+  background-color: var(--page-color);
+  background-image: var(--dress-grain-image, none);
+  background-size: var(--dress-grain-size, 46rpx 46rpx);
+  letter-spacing: var(--dress-letter-spacing, 0em);
 }
 
 .shot-nav,

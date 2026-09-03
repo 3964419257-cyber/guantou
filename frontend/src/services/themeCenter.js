@@ -1697,13 +1697,33 @@ export const GLOBAL_THEMES = [
   ...EXTRA_FREE_THEMES,
 ];
 
+const GRAIN_KINDS = {
+  dot: { image: 'var(--grain-dot)', size: '46rpx 46rpx' },
+  paper: { image: 'var(--grain-paper)', size: '14rpx 14rpx' },
+  fiber: { image: 'var(--grain-fiber)', size: '18rpx 18rpx' },
+  grid: { image: 'var(--grain-grid)', size: '24rpx 24rpx' },
+  rain: { image: 'var(--grain-rain)', size: '16rpx 16rpx' },
+  mist: { image: 'var(--grain-mist)', size: '32rpx 32rpx' },
+  seal: { image: 'var(--grain-seal)', size: '36rpx 36rpx' },
+  glow: { image: 'var(--grain-glow)', size: '28rpx 28rpx' },
+  ink: { image: 'var(--grain-ink)', size: '22rpx 22rpx' },
+};
+
 function packSurface(overrides = {}) {
   const out = {};
+  if (overrides.grainKind) {
+    const grain = GRAIN_KINDS[overrides.grainKind];
+    if (grain) {
+      out.grainImage = grain.image;
+      out.grainSize = grain.size;
+    }
+  }
   if (overrides.radius != null) out.cardBorderRadius = overrides.radius;
   if (overrides.cardBg != null) out.cardBackground = overrides.cardBg;
   if (overrides.cardBorder != null) out.cardBorderColor = overrides.cardBorder;
   if (overrides.cardWidth != null) out.cardBorderWidth = overrides.cardWidth;
   if (overrides.cardShadow != null) out.cardShadow = overrides.cardShadow;
+  if (overrides.cardPad != null) out.cardPadding = overrides.cardPad;
   if (overrides.profileBg != null) out.profileBackground = overrides.profileBg;
   if (overrides.profileColor != null) out.profileColor = overrides.profileColor;
   if (overrides.avatarWidth != null) out.avatarBorderWidth = overrides.avatarWidth;
@@ -1711,11 +1731,24 @@ function packSurface(overrides = {}) {
   if (overrides.commentRadius != null) out.commentBorderRadius = overrides.commentRadius;
   if (overrides.commentBg != null) out.commentBackground = overrides.commentBg;
   if (overrides.commentBorder != null) out.commentBorderColor = overrides.commentBorder;
+  if (overrides.commentWidth != null) out.commentBorderWidth = overrides.commentWidth;
   if (overrides.navBg != null) out.navBackground = overrides.navBg;
   if (overrides.navColor != null) out.navColor = overrides.navColor;
   if (overrides.navBorder != null) out.navBorder = overrides.navBorder;
   if (overrides.tabBg != null) out.tabBackground = overrides.tabBg;
   if (overrides.grain != null) out.grainOpacity = overrides.grain;
+  if (overrides.grainImage != null) out.grainImage = overrides.grainImage;
+  if (overrides.grainSize != null) out.grainSize = overrides.grainSize;
+  if (overrides.inputBg != null) out.inputBackground = overrides.inputBg;
+  if (overrides.inputRadius != null) out.inputBorderRadius = overrides.inputRadius;
+  if (overrides.inputBorder != null) out.inputBorderColor = overrides.inputBorder;
+  if (overrides.inputWidth != null) out.inputBorderWidth = overrides.inputWidth;
+  if (overrides.topicBg != null) out.topicBackground = overrides.topicBg;
+  if (overrides.topicRadius != null) out.topicBorderRadius = overrides.topicRadius;
+  if (overrides.topicBorder != null) out.topicBorderColor = overrides.topicBorder;
+  if (overrides.topicWidth != null) out.topicBorderWidth = overrides.topicWidth;
+  if (overrides.buttonRadius != null) out.buttonRadius = overrides.buttonRadius;
+  if (overrides.letter != null) out.letterSpacing = overrides.letter;
   return out;
 }
 
@@ -1726,6 +1759,7 @@ function styleFamily(overrides = {}) {
     cardBorderColor: 'var(--border-color)',
     cardBorderWidth: '1px',
     cardShadow: 'none',
+    cardPadding: '24rpx',
     profileBackground: 'transparent',
     profileColor: 'var(--text-color)',
     avatarBorderWidth: '2px',
@@ -1733,11 +1767,24 @@ function styleFamily(overrides = {}) {
     commentBorderRadius: '12px',
     commentBackground: 'var(--surface-subtle-color)',
     commentBorderColor: 'transparent',
+    commentBorderWidth: '0px',
     navBackground: 'var(--accent-subtle-color)',
     navColor: 'var(--text-color)',
     navBorder: 'var(--accent-color)',
     tabBackground: 'var(--immersive-veil-color)',
     grainOpacity: '0.14',
+    grainImage: 'var(--grain-dot)',
+    grainSize: '46rpx 46rpx',
+    inputBackground: 'var(--surface-color)',
+    inputBorderRadius: '12px',
+    inputBorderColor: 'var(--border-color)',
+    inputBorderWidth: '1px',
+    topicBackground: 'var(--surface-subtle-color)',
+    topicBorderRadius: '12px',
+    topicBorderColor: 'var(--border-color)',
+    topicBorderWidth: '1px',
+    buttonRadius: '999rpx',
+    letterSpacing: '0em',
     ...packSurface(overrides),
   };
 }
@@ -1747,6 +1794,13 @@ const STYLE_FAMILIES = {
     radius: '12px',
     cardWidth: '1px',
     grain: '0.1',
+    grainKind: 'dot',
+    letter: '0em',
+    buttonRadius: '14px',
+    commentWidth: '0px',
+    inputRadius: '12px',
+    topicRadius: '12px',
+    cardPad: '24rpx',
   }),
   dialect: styleFamily({
     radius: '14px',
@@ -1755,6 +1809,15 @@ const STYLE_FAMILIES = {
     commentRadius: '16px',
     avatarWidth: '0px',
     grain: '0.16',
+    grainKind: 'mist',
+    letter: '0.02em',
+    buttonRadius: '16px',
+    navBg: 'var(--page-color)',
+    inputBg: 'var(--page-color)',
+    inputWidth: '0px',
+    topicBg: 'var(--page-color)',
+    topicWidth: '0px',
+    cardPad: '28rpx',
   }),
   retro: styleFamily({
     radius: '2px',
@@ -1763,6 +1826,18 @@ const STYLE_FAMILIES = {
     commentRadius: '2px',
     avatarWidth: '1px',
     grain: '0.18',
+    grainKind: 'paper',
+    letter: '0.08em',
+    buttonRadius: '2px',
+    commentWidth: '1px',
+    commentBorder: 'var(--text-color)',
+    navBg: 'var(--page-color)',
+    navBorder: 'var(--text-color)',
+    inputRadius: '2px',
+    inputBorder: 'var(--text-color)',
+    topicRadius: '2px',
+    topicBorder: 'var(--text-color)',
+    cardPad: '20rpx',
   }),
   cyber: styleFamily({
     radius: '0px',
@@ -1771,6 +1846,18 @@ const STYLE_FAMILIES = {
     cardShadow: '0 0 22rpx var(--accent-subtle-color)',
     commentRadius: '0px',
     grain: '0.2',
+    grainKind: 'grid',
+    letter: '0.1em',
+    buttonRadius: '0px',
+    commentWidth: '1px',
+    commentBorder: 'var(--accent-color)',
+    navBg: 'var(--page-color)',
+    tabBg: 'var(--page-color)',
+    inputRadius: '0px',
+    inputBorder: 'var(--accent-color)',
+    topicRadius: '0px',
+    topicBorder: 'var(--accent-color)',
+    cardPad: '18rpx',
   }),
   guofeng: styleFamily({
     radius: '8px',
@@ -1780,12 +1867,28 @@ const STYLE_FAMILIES = {
     avatarWidth: '3px',
     avatarColor: 'var(--gilt-color)',
     grain: '0.12',
+    grainKind: 'seal',
+    letter: '0.14em',
+    buttonRadius: '8px',
+    commentWidth: '1px',
+    commentBorder: 'var(--gilt-color)',
+    navBorder: 'var(--gilt-color)',
+    inputBorder: 'var(--gilt-color)',
+    topicBorder: 'var(--gilt-color)',
+    cardPad: '22rpx',
   }),
   street: styleFamily({
     radius: '10px',
     cardShadow: '0 10rpx 24rpx var(--border-color)',
     commentRadius: '10px',
     grain: '0.14',
+    grainKind: 'fiber',
+    letter: '0.04em',
+    buttonRadius: '10px',
+    navBg: 'var(--accent-subtle-color)',
+    inputBg: 'var(--surface-subtle-color)',
+    topicBg: 'var(--accent-subtle-color)',
+    cardPad: '24rpx',
   }),
   festival: styleFamily({
     radius: '16px',
@@ -1794,6 +1897,14 @@ const STYLE_FAMILIES = {
     commentRadius: '16px',
     avatarColor: 'var(--gilt-color)',
     grain: '0.1',
+    grainKind: 'glow',
+    letter: '0.1em',
+    buttonRadius: '16px',
+    commentWidth: '1px',
+    commentBorder: 'var(--gilt-color)',
+    tabBg: 'var(--accent-subtle-color)',
+    topicBorder: 'var(--gilt-color)',
+    cardPad: '26rpx',
   }),
   folk: styleFamily({
     radius: '12px',
@@ -1802,6 +1913,16 @@ const STYLE_FAMILIES = {
     cardShadow: '0 8rpx 20rpx var(--accent-subtle-color)',
     commentRadius: '12px',
     grain: '0.15',
+    grainKind: 'paper',
+    letter: '0.06em',
+    buttonRadius: '8px',
+    commentWidth: '2px',
+    commentBorder: 'var(--accent-color)',
+    inputWidth: '2px',
+    inputBorder: 'var(--accent-color)',
+    topicWidth: '2px',
+    topicBorder: 'var(--accent-color)',
+    cardPad: '22rpx',
   }),
   season: styleFamily({
     radius: '18px',
@@ -1810,6 +1931,14 @@ const STYLE_FAMILIES = {
     commentRadius: '18px',
     avatarWidth: '1px',
     grain: '0.13',
+    grainKind: 'mist',
+    letter: '0.04em',
+    buttonRadius: '18px',
+    inputBg: 'var(--page-color)',
+    inputWidth: '0px',
+    topicBg: 'var(--page-color)',
+    topicWidth: '0px',
+    cardPad: '28rpx',
   }),
   anime: styleFamily({
     radius: '6px',
@@ -1818,6 +1947,16 @@ const STYLE_FAMILIES = {
     commentRadius: '8px',
     avatarWidth: '3px',
     grain: '0.12',
+    grainKind: 'dot',
+    grainSize: '20rpx 20rpx',
+    letter: '0.08em',
+    buttonRadius: '8px',
+    commentWidth: '2px',
+    commentBorder: 'var(--text-color)',
+    inputWidth: '2px',
+    topicWidth: '2px',
+    topicBorder: 'var(--text-color)',
+    cardPad: '20rpx',
   }),
   dark: styleFamily({
     radius: '8px',
@@ -1825,6 +1964,15 @@ const STYLE_FAMILIES = {
     cardWidth: '1px',
     commentRadius: '8px',
     grain: '0.18',
+    grainKind: 'ink',
+    letter: '0.06em',
+    buttonRadius: '8px',
+    commentWidth: '1px',
+    commentBorder: 'var(--border-color)',
+    navBg: 'var(--page-color)',
+    inputBg: 'var(--page-color)',
+    topicBg: 'var(--page-color)',
+    cardPad: '22rpx',
   }),
 };
 
@@ -2405,6 +2553,211 @@ const PACK_SURFACES = {
     grain: '0.11',
   }),
 };
+
+const PACK_GRAIN_KIND = {
+  paper: 'paper',
+  mistpad: 'mist',
+  inkline: 'ink',
+  claypad: 'fiber',
+  teanote: 'paper',
+  fieldfresh: 'mist',
+  mistfill: 'mist',
+  giltedge: 'seal',
+  wuyu: 'mist',
+  wuyubridge: 'mist',
+  wuyurain: 'rain',
+  yue: 'seal',
+  yueporch: 'fiber',
+  yuewindow: 'seal',
+  minnan: 'seal',
+  minnanharbor: 'mist',
+  minnantemple: 'seal',
+  mimeograph: 'paper',
+  teaslip: 'paper',
+  ledger: 'paper',
+  oldnews: 'paper',
+  kilnslip: 'fiber',
+  teapress: 'paper',
+  rustwash: 'fiber',
+  ledgergold: 'seal',
+  mistclassic: 'mist',
+  nightferry: 'grid',
+  signalbooth: 'grid',
+  gridlamp: 'grid',
+  nightgrid: 'grid',
+  coldlamp: 'glow',
+  coppernet: 'grid',
+  teaterminal: 'grid',
+  goldwire: 'seal',
+  voidpulse: 'glow',
+  qingshan: 'mist',
+  sealpaper: 'seal',
+  inkscroll: 'ink',
+  pinewash: 'mist',
+  inkseal: 'seal',
+  claywash: 'fiber',
+  giltfan: 'seal',
+  teascroll: 'paper',
+  mistshan: 'mist',
+  teahouse: 'fiber',
+  nightstall: 'glow',
+  lanternalley: 'glow',
+  stalltea: 'fiber',
+  alleyink: 'ink',
+  bricklamp: 'glow',
+  pinealley: 'fiber',
+  miststall: 'mist',
+  goldstall: 'seal',
+  midautumn: 'glow',
+  duanwu: 'fiber',
+  lanternyear: 'glow',
+  springpine: 'seal',
+  teafest: 'paper',
+  mistlantern: 'mist',
+  inkyear: 'ink',
+  clayfresh: 'mist',
+  osmanfill: 'seal',
+  pixelbooth: 'grid',
+  starglyph: 'glow',
+  comicstrip: 'paper',
+  pixelfill: 'grid',
+  starsoft: 'mist',
+  comicoutline: 'paper',
+  inkpixel: 'grid',
+  teacomic: 'paper',
+  pineglyph: 'seal',
+  inknight: 'ink',
+  voidgrid: 'grid',
+  coalnook: 'ink',
+  inkfill: 'ink',
+  teacontrast: 'ink',
+  claydark: 'ink',
+  osmandark: 'seal',
+  pinevoid: 'grid',
+  mistfog: 'mist',
+  templefair: 'paper',
+  paperhorse: 'paper',
+  drumlane: 'fiber',
+  riverlantern: 'glow',
+  wheatrite: 'seal',
+  kilnrite: 'fiber',
+  boatbless: 'paper',
+  beamred: 'fiber',
+  nightwatch: 'glow',
+  springthaw: 'mist',
+  summerlotus: 'mist',
+  autumngrain: 'seal',
+  winterhearth: 'fiber',
+  rainstart: 'rain',
+  grainrain: 'rain',
+  heatwave: 'glow',
+  frostfall: 'mist',
+  snownook: 'paper',
+  'member-pine': 'fiber',
+  'event-lantern': 'glow',
+  'event-spring': 'seal',
+  'creator-tile': 'paper',
+};
+
+const PACK_FINISH = {
+  paper: packSurface({
+    letter: '0.06em',
+    commentWidth: '1px',
+    commentBorder: 'var(--border-color)',
+    inputRadius: '4px',
+    topicRadius: '4px',
+    navBg: 'var(--page-color)',
+    buttonRadius: '4px',
+    cardPad: '18rpx',
+  }),
+  mistpad: packSurface({
+    letter: '0.02em',
+    inputWidth: '0px',
+    inputBg: 'var(--surface-subtle-color)',
+    topicWidth: '0px',
+    navBg: 'var(--surface-subtle-color)',
+    buttonRadius: '16px',
+  }),
+  inkline: packSurface({
+    letter: '0.06em',
+    commentWidth: '1px',
+    inputBorder: 'var(--text-color)',
+    topicBorder: 'var(--text-color)',
+    navBorder: 'var(--text-color)',
+    buttonRadius: '8px',
+  }),
+  giltedge: packSurface({
+    letter: '0.12em',
+    commentWidth: '1px',
+    inputBorder: 'var(--gilt-color)',
+    topicBorder: 'var(--gilt-color)',
+    navBorder: 'var(--gilt-color)',
+    buttonRadius: '8px',
+  }),
+  yue: packSurface({
+    letter: '0.08em',
+    commentWidth: '2px',
+    commentBorder: 'var(--accent-color)',
+    inputWidth: '2px',
+    inputBorder: 'var(--accent-color)',
+    buttonRadius: '4px',
+  }),
+  wuyurain: packSurface({
+    letter: '0.04em',
+    inputBg: 'var(--page-color)',
+    topicBg: 'var(--page-color)',
+    navBg: 'var(--page-color)',
+  }),
+  nightferry: packSurface({
+    letter: '0.12em',
+    commentWidth: '1px',
+    inputRadius: '0px',
+    topicRadius: '0px',
+    buttonRadius: '0px',
+    navBg: 'var(--page-color)',
+  }),
+  ledger: packSurface({
+    letter: '0.1em',
+    commentWidth: '2px',
+    inputRadius: '0px',
+    topicRadius: '0px',
+    buttonRadius: '0px',
+    cardPad: '16rpx',
+  }),
+  pixelbooth: packSurface({
+    letter: '0.12em',
+    commentWidth: '2px',
+    inputRadius: '0px',
+    topicRadius: '0px',
+    buttonRadius: '0px',
+    cardPad: '16rpx',
+  }),
+  midautumn: packSurface({
+    letter: '0.12em',
+    commentWidth: '1px',
+    commentBorder: 'var(--gilt-color)',
+    inputBorder: 'var(--gilt-color)',
+    topicBorder: 'var(--gilt-color)',
+    buttonRadius: '16px',
+  }),
+  springthaw: packSurface({
+    letter: '0.03em',
+    inputWidth: '0px',
+    topicWidth: '0px',
+    buttonRadius: '20px',
+    cardPad: '30rpx',
+  }),
+};
+
+Object.entries(PACK_GRAIN_KIND).forEach(([id, kind]) => {
+  PACK_SURFACES[id] = {
+    ...packSurface({ grainKind: kind }),
+    ...(PACK_SURFACES[id] || {}),
+  };
+});
+Object.entries(PACK_FINISH).forEach(([id, finish]) => {
+  PACK_SURFACES[id] = { ...(PACK_SURFACES[id] || {}), ...finish };
+});
 
 GLOBAL_THEMES.forEach((item) => {
   const family = STYLE_FAMILIES[item.category] || STYLE_FAMILIES.simple;

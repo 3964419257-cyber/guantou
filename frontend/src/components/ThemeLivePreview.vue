@@ -44,6 +44,10 @@
         :style="model.vars"
       >
         <view
+          class="mock-grain"
+          aria-hidden="true"
+        />
+        <view
           class="mock-nav"
           :class="{ locked: model.nativeLocked }"
         >
@@ -95,6 +99,10 @@
         :class="model.shotClass"
         :style="model.vars"
       >
+        <view
+          class="mock-grain"
+          aria-hidden="true"
+        />
         <view class="mock-profile">
           <view class="mock-avatar" />
           <view class="mock-name">
@@ -124,6 +132,10 @@
         :style="model.vars"
       >
         <view
+          class="mock-grain"
+          aria-hidden="true"
+        />
+        <view
           v-for="row in model.sample.comments"
           :key="row.name"
           class="mock-bubble"
@@ -149,6 +161,10 @@
         :class="model.shotClass"
         :style="model.vars"
       >
+        <view
+          class="mock-grain"
+          aria-hidden="true"
+        />
         <view
           v-for="topic in model.sample.topics"
           :key="topic"
@@ -297,18 +313,32 @@ export default {
 }
 
 .mock-phone {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-2);
   padding: var(--space-2);
+  overflow: hidden;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--page-color);
+  letter-spacing: var(--dress-letter-spacing, 0em);
+}
+
+.mock-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--dress-grain-opacity, 0.12);
+  background-image: var(--dress-grain-image, var(--grain-dot));
+  background-size: var(--dress-grain-size, 46rpx 46rpx);
 }
 
 .mock-nav,
 .mock-tab {
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   padding: var(--space-1) var(--space-2);
@@ -330,7 +360,9 @@ export default {
 }
 
 .mock-can {
-  padding: var(--space-2);
+  position: relative;
+  z-index: 1;
+  padding: var(--dress-card-padding, var(--space-2));
   border-radius: var(--dress-card-border-radius, var(--radius-md));
   background: var(--dress-card-background, var(--surface-color));
   border: var(--dress-card-border-width, 1px) solid var(--dress-card-border-color, var(--border-color));
@@ -382,6 +414,8 @@ export default {
 }
 
 .mock-profile {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -421,21 +455,31 @@ export default {
 }
 
 .mock-bubble {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: var(--space-2);
   border-radius: var(--dress-comment-bubble-border-radius, var(--radius-md));
   background: var(--dress-comment-bubble-background, var(--accent-subtle-color));
-  border: 1px solid var(--dress-comment-bubble-border-color, transparent);
+  border: var(--dress-comment-bubble-border-width, 1px) solid var(--dress-comment-bubble-border-color, transparent);
   color: var(--text-color);
 }
 
 .mock-input {
-  border-radius: var(--radius-md);
+  position: relative;
+  z-index: 1;
+  border-radius: var(--dress-input-box-border-radius, var(--radius-md));
   color: var(--muted-color);
+  background: var(--dress-input-box-background, var(--accent-subtle-color));
+  border: var(--dress-input-box-border-width, 0px) solid var(--dress-input-box-border-color, transparent);
 }
 
 .mock-topic {
-  border-radius: var(--radius-md);
+  position: relative;
+  z-index: 1;
+  border-radius: var(--dress-topic-card-border-radius, var(--radius-md));
+  background: var(--dress-topic-card-background, var(--accent-subtle-color));
+  border: var(--dress-topic-card-border-width, 0px) solid var(--dress-topic-card-border-color, transparent);
 }
 
 .sheet-actions {

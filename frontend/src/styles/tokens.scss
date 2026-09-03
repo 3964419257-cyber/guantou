@@ -84,6 +84,18 @@
   --radius-lg: 20rpx;
   --radius-pill: 999rpx;
 
+  /* 皮肤肌理：换皮只改 --dress-grain-image，不在页面写死图案 */
+  --grain-ink-color: var(--immersive-border-color, var(--border-color));
+  --grain-dot: radial-gradient(var(--grain-ink-color) 1rpx, transparent 1.2rpx);
+  --grain-paper: repeating-linear-gradient(-18deg, var(--grain-ink-color) 0 1rpx, transparent 1rpx 12rpx);
+  --grain-fiber: repeating-linear-gradient(90deg, var(--grain-ink-color) 0 1rpx, transparent 1rpx 18rpx);
+  --grain-grid: linear-gradient(var(--grain-ink-color) 1rpx, transparent 1rpx), linear-gradient(90deg, var(--grain-ink-color) 1rpx, transparent 1rpx);
+  --grain-rain: repeating-linear-gradient(118deg, var(--grain-ink-color) 0 1rpx, transparent 1rpx 14rpx);
+  --grain-mist: radial-gradient(var(--grain-ink-color) 0.7rpx, transparent 1.8rpx);
+  --grain-seal: radial-gradient(var(--gilt-color) 1rpx, transparent 2.2rpx);
+  --grain-glow: radial-gradient(var(--accent-subtle-color) 2rpx, transparent 3.4rpx);
+  --grain-ink: repeating-linear-gradient(0deg, var(--text-color) 0 1rpx, transparent 1rpx 26rpx);
+
   /* 配色预览：个人中心色点，不随明暗翻转 */
   --accent-preview-pine: #1f5c43;
   --accent-preview-tea: #8b5a2b;

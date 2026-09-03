@@ -250,9 +250,13 @@ describe('themeSchema contract', () => {
     expect(flattenStyleJson({
       cardBackground: 'var(--page-color)',
       cardBorderRadius: '4px',
+      grainImage: 'var(--grain-paper)',
+      letterSpacing: '0.06em',
     }).vars).toMatchObject({
       '--dress-card-background': 'var(--page-color)',
       '--dress-card-border-radius': '4px',
+      '--dress-grain-image': 'var(--grain-paper)',
+      '--dress-letter-spacing': '0.06em',
     });
     const coveredSkin = resolveOutfitStyle({
       theme: {

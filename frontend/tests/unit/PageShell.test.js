@@ -79,6 +79,8 @@ describe('PageShell', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/components/PageShell.vue'), 'utf8');
     expect(source).toContain('var(--dress-nav-bar-background, var(--accent-subtle-color))');
     expect(source).toContain('var(--dress-nav-bar-border-color, var(--accent-color))');
+    expect(source).toContain('shell-grain');
+    expect(source).toContain('var(--dress-grain-image, var(--grain-dot))');
   });
 
   it('skips stack back when interceptBack is set', async () => {

@@ -62,7 +62,7 @@ export default {
   border: var(--dress-card-border-width, 1px) solid var(--dress-card-border-color, var(--border-color));
   border-radius: var(--dress-card-border-radius, var(--radius-md));
   box-shadow: var(--dress-card-shadow, none);
-  padding: var(--space-3);
+  padding: var(--dress-card-padding, var(--space-3));
   margin-bottom: 18rpx;
   box-sizing: border-box;
 }

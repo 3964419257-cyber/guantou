@@ -4,6 +4,10 @@
     :class="[`theme-${resolvedTheme}`, `accent-${accent}`]"
     :style="outfitVars"
   >
+    <view
+      class="shell-grain"
+      aria-hidden="true"
+    />
     <view class="shell-topbar">
       <text
         v-if="showBack"
@@ -130,12 +134,26 @@ export default {
 <style scoped>
 /* 颜色 Token 来自全局 styles/tokens.scss；暗色由 .theme-dark 全局规则覆盖子树 */
 .page-shell {
+  position: relative;
   min-height: 100vh;
   background: var(--page-color);
   color: var(--text-color);
+  letter-spacing: var(--dress-letter-spacing, 0em);
+}
+
+.shell-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--dress-grain-opacity, 0);
+  background-image: var(--dress-grain-image, var(--grain-dot));
+  background-size: var(--dress-grain-size, 46rpx 46rpx);
 }
 
 .shell-topbar {
+  position: relative;
+  z-index: 1;
   height: 96rpx;
   display: grid;
   grid-template-columns: 56rpx 1fr auto;
@@ -175,6 +193,8 @@ export default {
 }
 
 .shell-content {
+  position: relative;
+  z-index: 1;
   min-height: calc(100vh - 96rpx);
   padding: 28rpx;
   box-sizing: border-box;

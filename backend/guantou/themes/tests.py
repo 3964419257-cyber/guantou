@@ -745,6 +745,8 @@ class ThemeApiTests(TestCase):
         paper = ThemeItem.objects.get(theme_id="paper")
         self.assertEqual(paper.style_json.get("cardBorderRadius"), "4px")
         self.assertEqual(paper.style_json.get("cardBackground"), "var(--page-color)")
+        self.assertEqual(paper.style_json.get("grainImage"), "var(--grain-paper)")
+        self.assertEqual(paper.style_json.get("letterSpacing"), "0.06em")
         nightferry = ThemeItem.objects.get(theme_id="nightferry")
         self.assertEqual(nightferry.style_json.get("cardBorderRadius"), "6px")
         self.assertEqual(
@@ -782,6 +784,8 @@ class ThemeApiTests(TestCase):
             self.assertGreaterEqual(len(matched), 9, tag)
             sample = matched[0].style_json or {}
             self.assertTrue(sample.get("cardBorderRadius"), tag)
+            self.assertTrue(sample.get("grainImage"), tag)
+            self.assertTrue(sample.get("letterSpacing"), tag)
             fingerprints.append(
                 "|".join(
                     [
@@ -789,6 +793,8 @@ class ThemeApiTests(TestCase):
                         str(sample.get("cardBorderWidth")),
                         str(sample.get("cardShadow")),
                         str(sample.get("grainOpacity")),
+                        str(sample.get("grainImage")),
+                        str(sample.get("letterSpacing")),
                     ]
                 )
             )

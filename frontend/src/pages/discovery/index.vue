@@ -283,9 +283,9 @@ export default {
 .topic-card {
   margin-bottom: var(--space-2);
   padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--surface-subtle-color);
+  border: var(--dress-topic-card-border-width, 1px) solid var(--dress-topic-card-border-color, var(--border-color));
+  border-radius: var(--dress-topic-card-border-radius, var(--radius-md));
+  background: var(--dress-topic-card-background, var(--surface-subtle-color));
 }
 
 .topic-title {
