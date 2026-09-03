@@ -1,18 +1,36 @@
 <template>
   <view class="comment-thread">
-    <view class="comment-thread__composer">
+    <!-- 独立评论页（无 CommentSheet 宿主）时启用内置 composer，恢复顶层发表与回复能力（#289）。
+         半屏面板场景由 CommentSheet 底部输入框承接，此处不渲染，避免双输入框。 -->
+    <view
+      v-if="standalone"
+      class="comment-thread__composer"
+    >
+      <view
+        v-if="replyTarget"
+        class="comment-thread__reply-hint"
+      >
+        <text class="comment-thread__reply-hint-text">
+          回复 @{{ replyTarget.nickname }}
+        </text>
+        <text
+          class="comment-thread__reply-cancel"
+          @tap="cancelReply"
+        >
+          取消
+        </text>
+      </view>
       <BaseField
         v-model="draft"
         name="comment"
         type="textarea"
         :maxlength="500"
-        placeholder="说说你的依据、读法或补充……"
-        indicator
-        autosize
+        :placeholder="replyTarget ? '回复……' : '说说你的依据、读法或补充……'"
+        :autosize="{ minHeight: 36, maxHeight: 160 }"
       />
       <BaseButton
         block
-        text="发表评论"
+        :text="replyTarget ? '发送回复' : '发表评论'"
         :loading="submitting"
         @click="submit"
       />
@@ -169,38 +187,6 @@
             @click="loadReplies(comment)"
           />
         </view>
-
-        <!-- 回复输入：挂在所属一级评论下 -->
-        <view
-          v-if="replyTarget && replyTarget.parentId === comment.id"
-          class="comment-reply-composer"
-        >
-          <view class="comment-reply-composer__hint">
-            回复 @{{ replyTarget.nickname }}
-            <text
-              class="comment-reply-composer__cancel"
-              @tap="cancelReply"
-            >
-              取消
-            </text>
-          </view>
-          <BaseField
-            v-model="replyDraft"
-            name="reply"
-            type="textarea"
-            :maxlength="500"
-            placeholder="回复……"
-            indicator
-            autosize
-          />
-          <BaseButton
-            block
-            size="small"
-            text="发表回复"
-            :loading="replySubmitting"
-            @click="submitReply"
-          />
-        </view>
       </view>
       <BaseButton
         v-if="hasMore"
@@ -250,19 +236,25 @@ export default {
       type: [Number, String],
       required: true,
     },
+    /* 独立评论页模式：渲染内置 composer 并内部承接回复意图；
+     * 半屏面板（CommentSheet）不设此值，仍由宿主底部输入框承接。 */
+    standalone: {
+      type: Boolean,
+      default: false,
+    },
   },
+  emits: ['created', 'reply'],
   data() {
     return {
-      draft: '',
       comments: [],
       page: 0,
       hasMore: true,
       loading: false,
-      submitting: false,
       errorMessage: '',
+      draft: '',
+      submitting: false,
       replyTarget: null,
-      replyDraft: '',
-      replySubmitting: false,
+      lastSubmitAt: 0,
     };
   },
   mounted() {
@@ -311,25 +303,25 @@ export default {
     async retry() {
       await this.loadMore();
     },
-    async submit() {
-      const content = String(this.draft || '').trim();
-      if (!content) {
+    /*
+     * 顶层评论的输入框已上移到 CommentSheet 底部（问题 2），此处只保留提交逻辑：
+     * 由外部（CommentSheet）传入正文，校验/鉴权/创建/前置后返回新评论；
+     * 返回 null 表示未提交（空内容或被鉴权拦截），供调用方决定是否清空草稿。
+     */
+    async submitComment(content) {
+      const trimmed = String(content || '').trim();
+      if (!trimmed) {
         uni.showToast({ title: '先写下评论', icon: 'none' });
-        return;
+        return null;
       }
       const action = this.targetType === 'nameplate' ? 'nameplate_comment' : 'comment';
-      if (!requireAuth(action, this.authContext())) return;
-      this.submitting = true;
-      try {
-        const comment = this.targetType === 'nameplate'
-          ? await createNameplateComment(this.targetId, content)
-          : await createCanComment(this.targetId, content);
-        this.comments = [this.normalizeComment(comment), ...this.comments];
-        this.draft = '';
-        this.$emit('created', comment);
-      } finally {
-        this.submitting = false;
-      }
+      if (!requireAuth(action, this.authContext())) return null;
+      const comment = this.targetType === 'nameplate'
+        ? await createNameplateComment(this.targetId, trimmed)
+        : await createCanComment(this.targetId, trimmed);
+      this.comments = [this.normalizeComment(comment), ...this.comments];
+      this.$emit('created', comment);
+      return comment;
     },
     updateComment(commentId, updater) {
       this.comments = this.comments.map((item) => {
@@ -376,39 +368,73 @@ export default {
     },
     startReply(item) {
       const isReply = Boolean(item.parent_id);
-      this.replyTarget = {
+      const payload = {
         parentId: isReply ? item.parent_id : item.id,
         replyToId: item.id,
         nickname: item.author?.nickname || item.author?.username || '',
       };
-      this.replyDraft = '';
+      // 独立评论页：内部承接回复意图；半屏面板：上抛给 CommentSheet 底部输入框（问题 2）
+      if (this.standalone) {
+        this.replyTarget = payload;
+        this.draft = '';
+      } else {
+        this.$emit('reply', payload);
+      }
     },
     cancelReply() {
       this.replyTarget = null;
-      this.replyDraft = '';
+      this.draft = '';
     },
-    async submitReply() {
-      const content = String(this.replyDraft || '').trim();
-      if (!content) {
+    /* 独立评论页内置 composer 的提交入口：与 CommentSheet 一致地防连点，再路由到
+     * 顶层评论或回复的提交逻辑（空内容/鉴权拦截由各自方法返回 null 兜底）。 */
+    async submit() {
+      const now = Date.now();
+      if (this.submitting || (this.lastSubmitAt && now - this.lastSubmitAt < 500)) return;
+      this.lastSubmitAt = now;
+      this.submitting = true;
+      try {
+        if (this.replyTarget) {
+          const reply = await this.submitReply({
+            replyToId: this.replyTarget.replyToId,
+            parentId: this.replyTarget.parentId,
+            content: this.draft,
+          });
+          if (reply) {
+            this.draft = '';
+            this.replyTarget = null;
+          }
+        } else {
+          const comment = await this.submitComment(this.draft);
+          if (comment) this.draft = '';
+        }
+      } finally {
+        this.submitting = false;
+      }
+    },
+    /*
+     * 回复提交：由 CommentSheet 底部输入框调用。校验/鉴权/创建后挂到所属一级评论，
+     * 返回新回复；返回 null 表示未提交（空内容或被鉴权拦截）。
+     */
+    async submitReply({ replyToId, parentId, content }) {
+      const trimmed = String(content || '').trim();
+      if (!trimmed) {
         uni.showToast({ title: '先写下回复', icon: 'none' });
-        return;
+        return null;
       }
       const action = this.targetType === 'nameplate' ? 'nameplate_comment' : 'comment';
-      if (!requireAuth(action, this.authContext())) return;
-      this.replySubmitting = true;
-      try {
-        const reply = await replyToComment(this.replyTarget.replyToId, content);
-        const parent = this.comments.find((item) => item.id === this.replyTarget.parentId);
-        if (parent) {
+      if (!requireAuth(action, this.authContext())) return null;
+      const reply = await replyToComment(replyToId, trimmed);
+      const parent = this.comments.find((item) => item.id === parentId);
+      if (parent) {
+        // 仅当回复列表已加载（已展开）时才本地追加，立即展示；未加载时只累加回复数，
+        // 等展开时由 loadReplies 从服务端一次性拉取——避免「本地追加 + 重新拉取」造成同一条回复重复。
+        if (parent.repliesLoaded) {
           parent.replies = parent.replies.concat(reply);
-          parent.reply_count = Number(parent.reply_count || 0) + 1;
         }
-        this.replyTarget = null;
-        this.replyDraft = '';
-        this.$emit('created', reply);
-      } finally {
-        this.replySubmitting = false;
+        parent.reply_count = Number(parent.reply_count || 0) + 1;
       }
+      this.$emit('created', reply);
+      return reply;
     },
     async toggleLike(comment) {
       const action = this.targetType === 'nameplate' ? 'nameplate_comment' : 'comment_like';
@@ -446,13 +472,30 @@ export default {
 
 <style scoped>
 .comment-thread__composer {
+  padding: 0 0 20rpx;
+  margin-bottom: 8rpx;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.comment-thread__composer .base-field {
+  --td-form-item-vertical-padding: 0;
+}
+
+.comment-thread__reply-hint {
   display: flex;
-  flex-direction: column;
-  gap: 18rpx;
-  padding: 24rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-color);
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0 12rpx;
+}
+
+.comment-thread__reply-hint-text {
+  color: var(--accent-color);
+  font-size: 22rpx;
+}
+
+.comment-thread__reply-cancel {
+  color: var(--muted-color);
+  font-size: 22rpx;
 }
 
 .comment-thread__rule {
@@ -619,26 +662,4 @@ export default {
   font-size: 20rpx;
 }
 
-.comment-reply-composer {
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
-  margin: 0 0 20rpx 76rpx;
-  padding: 20rpx;
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--surface-color);
-}
-
-.comment-reply-composer__hint {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--text-secondary-color);
-  font-size: 22rpx;
-}
-
-.comment-reply-composer__cancel {
-  color: var(--muted-color);
-}
 </style>
