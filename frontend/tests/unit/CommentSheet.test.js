@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/navigation', () => ({
@@ -14,6 +14,9 @@ import {
 } from '@/services/commentSheet';
 import { goCanComments, goNameplateComments, goNotFound } from '@/services/navigation';
 
+const submitComment = vi.fn(() => Promise.resolve({ id: 1 }));
+const submitReply = vi.fn(() => Promise.resolve({ id: 2, parent_id: 1 }));
+
 function mountSheet() {
   return mount(CommentSheet, {
     global: {
@@ -21,6 +24,7 @@ function mountSheet() {
         CommentThread: {
           props: ['targetType', 'targetId'],
           template: '<div class="thread-stub" :data-type="targetType" :data-id="targetId" />',
+          methods: { submitComment, submitReply },
         },
         // uni-app 原生滚动容器在 jsdom 中不可解析，静默其解析告警；透传默认插槽以保留 CommentThread
         'scroll-view': {
@@ -102,6 +106,19 @@ describe('CommentSheet (Issue #219 后续)', () => {
       wrapper.unmount();
     });
 
+    it('面板开合时发射 active-change（用于锁定底层滑动）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await flushPromises();
+      expect(wrapper.emitted('active-change').slice(-1)[0]).toEqual([true]);
+
+      wrapper.vm.close();
+      await flushPromises();
+      expect(wrapper.emitted('active-change').slice(-1)[0]).toEqual([false]);
+
+      wrapper.unmount();
+    });
+
     it('isCommentSheetActive 反映面板激活态（#255）', async () => {
       const wrapper = mountSheet();
       expect(isCommentSheetActive()).toBe(false);
@@ -134,7 +151,7 @@ describe('CommentSheet (Issue #219 后续)', () => {
       vi.useRealTimers();
     });
 
-    it('拖拽超过阈值关闭面板，未达阈值回弹（#257）', async () => {
+    it('半屏时下拉超过阈值关闭面板（问题1）', async () => {
       vi.useFakeTimers();
       const wrapper = mountSheet();
       openCommentSheet({ targetType: 'can', targetId: 12 });
@@ -142,9 +159,6 @@ describe('CommentSheet (Issue #219 后续)', () => {
 
       const grip = wrapper.find('.comment-sheet__grip');
       await grip.trigger('touchstart', { touches: [{ clientY: 100 }] });
-      // 向上位移不跟随（交给 scroll-view 滚动）
-      await grip.trigger('touchmove', { touches: [{ clientY: 40 }] });
-      expect(wrapper.vm.dragDelta).toBe(0);
       // 向下位移跟手
       await grip.trigger('touchmove', { touches: [{ clientY: 300 }] });
       expect(wrapper.vm.dragDelta).toBe(200);
@@ -156,6 +170,78 @@ describe('CommentSheet (Issue #219 后续)', () => {
 
       wrapper.unmount();
       vi.useRealTimers();
+    });
+
+    it('上拉进入全屏，全屏下拉退回半屏（问题1）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.mode).toBe('half');
+
+      const grip = wrapper.find('.comment-sheet__grip');
+      // 上拉 → 全屏
+      await grip.trigger('touchstart', { touches: [{ clientY: 300 }] });
+      await grip.trigger('touchmove', { touches: [{ clientY: 100 }] });
+      expect(wrapper.vm.dragDelta).toBe(-200);
+      await grip.trigger('touchend');
+      expect(wrapper.vm.mode).toBe('full');
+      expect(wrapper.find('.comment-sheet__panel').classes()).toContain('comment-sheet__panel--full');
+
+      // 全屏下拉 → 回半屏
+      await grip.trigger('touchstart', { touches: [{ clientY: 100 }] });
+      await grip.trigger('touchmove', { touches: [{ clientY: 300 }] });
+      await grip.trigger('touchend');
+      expect(wrapper.vm.mode).toBe('half');
+      expect(wrapper.vm.active).toBe(true);
+
+      wrapper.unmount();
+    });
+
+    it('底部评论框：提交成功清空草稿（问题2）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+
+      wrapper.vm.draft = '  你好  ';
+      await wrapper.vm.submit();
+
+      expect(submitComment).toHaveBeenCalledWith('  你好  ');
+      expect(wrapper.vm.draft).toBe('');
+
+      wrapper.unmount();
+    });
+
+    it('快速连点只提交一次（防抖，避免回复重复发送）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+
+      wrapper.vm.draft = '你好';
+      await wrapper.vm.submit();
+      // 第二次提交落在 500ms 防抖窗口内，应被拦截
+      await wrapper.vm.submit();
+
+      expect(submitComment).toHaveBeenCalledTimes(1);
+      wrapper.unmount();
+    });
+
+    it('回复模式：onReply 设置目标，submit 走 submitReply 并清空（问题2）', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+
+      wrapper.vm.onReply({ parentId: 1, replyToId: 2, nickname: '昵称2' });
+      expect(wrapper.vm.replyTarget).toEqual({ parentId: 1, replyToId: 2, nickname: '昵称2' });
+
+      wrapper.vm.draft = '回复内容';
+      await wrapper.vm.submit();
+
+      expect(submitReply).toHaveBeenCalledWith({ replyToId: 2, parentId: 1, content: '回复内容' });
+      expect(submitComment).not.toHaveBeenCalled();
+      expect(wrapper.vm.draft).toBe('');
+      expect(wrapper.vm.replyTarget).toBeNull();
+
+      wrapper.unmount();
     });
 
     it('手势取消时复位状态且不关闭（#257）', async () => {

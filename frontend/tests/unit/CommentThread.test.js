@@ -19,6 +19,7 @@ vi.mock('@/services/canSocial', () => ({
 import CommentThread from '@/components/CommentThread.vue';
 import { requireAuth } from '@/services/authGuard';
 import {
+  createCanComment,
   deleteCanComment,
   listCanComments,
   listCommentReplies,
@@ -117,20 +118,65 @@ describe('CommentThread 二级评论', () => {
     expect(wrapper.text()).toContain('回复 @昵称2');
   });
 
-  it('回复一级评论时以该评论为 reply_to 并累加回复数', async () => {
+  it('startReply 上抛回复意图；submitReply 未加载时只累加回复数、不本地追加', async () => {
     listCanComments.mockResolvedValue({ results: [topComment()], next: null });
     replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1, content: '新回复' }));
     const wrapper = mountThread();
     await flush();
 
     wrapper.vm.startReply(wrapper.vm.comments[0]);
-    wrapper.vm.replyDraft = '新回复';
-    await wrapper.vm.submitReply();
+    expect(wrapper.emitted('reply')[0]).toEqual([{
+      parentId: 1,
+      replyToId: 1,
+      nickname: '昵称1',
+    }]);
+
+    const result = await wrapper.vm.submitReply({
+      replyToId: 1,
+      parentId: 1,
+      content: '  新回复  ',
+    });
     await flush();
 
     expect(replyToComment).toHaveBeenCalledWith(1, '新回复');
+    expect(result).toBeTruthy();
+    // 未加载过回复：不本地追加，只累加回复数（展开时由 loadReplies 拉取，避免重复）
+    expect(wrapper.vm.comments[0].replies).toHaveLength(0);
+    expect(wrapper.vm.comments[0].reply_count).toBe(3);
+  });
+
+  it('submitReply 已加载回复时本地追加并立即展示', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1, content: '新回复' }));
+    const wrapper = mountThread();
+    await flush();
+
+    wrapper.vm.comments[0].repliesLoaded = true;
+    await wrapper.vm.submitReply({ replyToId: 1, parentId: 1, content: '新回复' });
+    await flush();
+
     expect(wrapper.vm.comments[0].replies.map((item) => item.id)).toContain(9);
     expect(wrapper.vm.comments[0].reply_count).toBe(3);
+  });
+
+  it('回复后再展开回复列表不重复展示（修复重复发送）', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1, content: '新回复' }));
+    listCommentReplies.mockResolvedValue({ results: [reply({ id: 9, parent_id: 1 })], next: null });
+    const wrapper = mountThread();
+    await flush();
+
+    // 未展开时回复：不本地追加
+    await wrapper.vm.submitReply({ replyToId: 1, parentId: 1, content: '新回复' });
+    await flush();
+    expect(wrapper.vm.comments[0].replies).toHaveLength(0);
+
+    // 展开：从服务端拉取（含这条新回复），只出现一次
+    await wrapper.vm.toggleReplies(wrapper.vm.comments[0]);
+    await flush();
+
+    expect(wrapper.vm.comments[0].replies).toHaveLength(1);
+    expect(wrapper.vm.comments[0].replies[0].id).toBe(9);
   });
 
   it('回复某条回复时以该回复为 reply_to、根评论为父级', async () => {
@@ -142,8 +188,13 @@ describe('CommentThread 二级评论', () => {
     await flush();
 
     wrapper.vm.startReply(reply({ id: 2, parent_id: 1 }));
-    wrapper.vm.replyDraft = '再回复';
-    await wrapper.vm.submitReply();
+    expect(wrapper.emitted('reply')[0]).toEqual([{
+      parentId: 1,
+      replyToId: 2,
+      nickname: '昵称2',
+    }]);
+
+    await wrapper.vm.submitReply({ replyToId: 2, parentId: 1, content: '再回复' });
     await flush();
 
     expect(replyToComment).toHaveBeenCalledWith(2, '再回复');
@@ -203,6 +254,24 @@ describe('CommentThread 二级评论', () => {
     expect(wrapper.vm.comments[0].replies).toHaveLength(2);
   });
 
+  it('submitComment 创建并前置新评论，空内容返回 null（#问题2）', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    createCanComment.mockResolvedValue(topComment({ id: 99, content: '新评论' }));
+    const wrapper = mountThread();
+    await flush();
+
+    const comment = await wrapper.vm.submitComment('  新评论  ');
+    await flush();
+
+    expect(createCanComment).toHaveBeenCalledWith(12, '新评论');
+    expect(comment).toBeTruthy();
+    expect(wrapper.vm.comments[0].id).toBe(99);
+
+    const empty = await wrapper.vm.submitComment('   ');
+    expect(empty).toBeNull();
+    expect(createCanComment).toHaveBeenCalledTimes(1);
+  });
+
   it('删除一条回复会从所属一级评论移除并减回复数', async () => {
     listCanComments.mockResolvedValue({ results: [topComment({ reply_count: 1 })], next: null });
     deleteCanComment.mockResolvedValue({});
@@ -218,5 +287,71 @@ describe('CommentThread 二级评论', () => {
     expect(deleteCanComment).toHaveBeenCalledWith(2);
     expect(wrapper.vm.comments[0].replies).toHaveLength(0);
     expect(wrapper.vm.comments[0].reply_count).toBe(0);
+  });
+});
+
+describe('CommentThread standalone（独立评论页内置 composer，#289）', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    requireAuth.mockReturnValue(true);
+    setupUni();
+  });
+
+  function mountStandalone() {
+    return mount(CommentThread, {
+      props: { targetType: 'can', targetId: 12, standalone: true },
+    });
+  }
+
+  it('standalone 渲染内置 composer，非 standalone 不渲染', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+
+    const standalone = mountStandalone();
+    await flush();
+    expect(standalone.find('.comment-thread__composer').exists()).toBe(true);
+
+    const embedded = mountThread();
+    await flush();
+    expect(embedded.find('.comment-thread__composer').exists()).toBe(false);
+  });
+
+  it('standalone 时 startReply 内部承接回复意图、不上抛 reply 事件', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    const wrapper = mountStandalone();
+    await flush();
+
+    wrapper.vm.startReply(wrapper.vm.comments[0]);
+
+    expect(wrapper.emitted('reply')).toBeUndefined();
+    expect(wrapper.vm.replyTarget).toEqual({ parentId: 1, replyToId: 1, nickname: '昵称1' });
+  });
+
+  it('standalone 非回复态 submit 走顶层评论并清空草稿', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    createCanComment.mockResolvedValue(topComment({ id: 99, content: '新评论' }));
+    const wrapper = mountStandalone();
+    await flush();
+
+    wrapper.vm.draft = '  新评论  ';
+    await wrapper.vm.submit();
+
+    expect(createCanComment).toHaveBeenCalledWith(12, '新评论');
+    expect(replyToComment).not.toHaveBeenCalled();
+    expect(wrapper.vm.draft).toBe('');
+  });
+
+  it('standalone 回复态 submit 走 submitReply 并清空目标与草稿', async () => {
+    listCanComments.mockResolvedValue({ results: [topComment()], next: null });
+    replyToComment.mockResolvedValue(reply({ id: 9, parent_id: 1 }));
+    const wrapper = mountStandalone();
+    await flush();
+
+    wrapper.vm.startReply(wrapper.vm.comments[0]);
+    wrapper.vm.draft = '  回复内容  ';
+    await wrapper.vm.submit();
+
+    expect(replyToComment).toHaveBeenCalledWith(1, '回复内容');
+    expect(wrapper.vm.replyTarget).toBeNull();
+    expect(wrapper.vm.draft).toBe('');
   });
 });

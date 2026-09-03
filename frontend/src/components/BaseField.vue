@@ -9,37 +9,39 @@
     label-align="top"
   >
     <view class="base-field-control">
-      <t-textarea
-        v-if="type === 'textarea'"
-        :value="modelValue"
-        :placeholder="placeholder"
-        :maxlength="maxlength"
-        :disabled="disabled"
-        :readonly="readonly"
-        :autosize="resolvedAutosize"
-        :indicator="indicator"
-        bordered
-        @change="handleChange"
-        @blur="$emit('blur', $event)"
-        @focus="$emit('focus', $event)"
-      />
-      <t-input
-        v-else
-        :value="modelValue"
-        :type="inputType"
-        :placeholder="placeholder"
-        :maxlength="maxlength"
-        :disabled="disabled"
-        :readonly="readonly"
-        :confirm-type="confirmType"
-        :clearable="clearable"
-        :status="error ? 'error' : 'default'"
-        borderless
-        @change="handleChange"
-        @confirm="handleConfirm"
-        @blur="$emit('blur', $event)"
-        @focus="$emit('focus', $event)"
-      />
+      <slot>
+        <t-textarea
+          v-if="type === 'textarea'"
+          :value="modelValue"
+          :placeholder="placeholder"
+          :maxlength="maxlength"
+          :disabled="disabled"
+          :readonly="readonly"
+          :autosize="resolvedAutosize"
+          :indicator="indicator"
+          bordered
+          @change="handleChange"
+          @blur="$emit('blur', $event)"
+          @focus="$emit('focus', $event)"
+        />
+        <t-input
+          v-else
+          :value="modelValue"
+          :type="inputType"
+          :placeholder="placeholder"
+          :maxlength="maxlength"
+          :disabled="disabled"
+          :readonly="readonly"
+          :confirm-type="confirmType"
+          :clearable="clearable"
+          :status="error ? 'error' : 'default'"
+          borderless
+          @change="handleChange"
+          @confirm="handleConfirm"
+          @blur="$emit('blur', $event)"
+          @focus="$emit('focus', $event)"
+        />
+      </slot>
     </view>
     <view
       v-if="error"
