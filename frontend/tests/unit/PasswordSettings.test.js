@@ -34,10 +34,14 @@ vi.mock('@/services/feedback', () => ({
   notifySuccess: vi.fn(),
 }));
 
-vi.mock('@/services/theme', () => ({
-  applyTheme: vi.fn(() => ({ preference: 'light', resolved: 'light' })),
-  getThemePreference: vi.fn(() => 'light'),
-}));
+vi.mock('@/services/theme', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    applyTheme: vi.fn(() => ({ preference: 'light', resolved: 'light' })),
+    getThemePreference: vi.fn(() => 'light'),
+  };
+});
 
 import { goBack, goLogin, goLoginForget } from '@/services/navigation';
 import { notify, notifySuccess } from '@/services/feedback';

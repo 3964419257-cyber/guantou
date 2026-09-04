@@ -13,6 +13,7 @@ from guantou.models import (
     Package,
     Shelf,
 )
+from themes.models import DecorationItem, ThemeItem
 from utils.exceptions.payload import request_id
 
 from .context import get_current_request
@@ -27,12 +28,16 @@ TRACKED_MODELS = (
     Dialect,
     Shelf,
     NameplateSupport,
+    ThemeItem,
+    DecorationItem,
 )
 
 # Can status transitions are audited by guantou.CanTransition; skip the
 # redundant generic ObjectChangeLog snapshot for the transition-only save.
 IGNORED_UPDATE_FIELDS = {
     Can: {"views", "updated_at", "transition_log", "status", "verifier"},
+    ThemeItem: {"like_count", "collect_count", "share_count"},
+    DecorationItem: {"like_count", "collect_count", "share_count"},
 }
 
 SNAPSHOT_ATTR = "_audit_original_snapshot"

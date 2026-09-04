@@ -129,6 +129,10 @@ pages/*.vue
 
 `src/colorui/` 为历史遗留样式库，新页面不要新增 `cu-*` 类名引用，待存量页面迁移后移除。
 
+## 主题中心
+
+产品总览、模块、风险与分阶段验收见 [`THEME_CENTER.md`](THEME_CENTER.md)。全局主题底座见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮底座见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。覆盖开关见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)。我的装扮汇总见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。三层预览见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。最近使用见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)。搜索筛选见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。收藏分享热度见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。全链路数据埋点（独立拆分）见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)（`themeAnalytics.js`，无 PII）。容错见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)（`themeFault.js`）。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。目录/云端请求见 `themeApi.js`（`App.vue` `bindThemeAdapters`）。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。跳转见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。后台运营管理体系（独立拆分）见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。性能见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。全链路安全风控（独立拆分）见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。用户投稿与创作者自制（独立拆分，三期）见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)。三期商业化与生态拓展（独立拆分）见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)。权限 `free|member|activity|creator`，终端 `h5|miniprogram`；样式只注入 JSON，不写死配色；完整 `style_json` 不要进本地存储；预览只用沙盒。
+
 ## 组件沉淀规则
 
 不要一开始就为了一个页面抽很多组件。满足下面任意一条时，再放进 `frontend/src/components/`：

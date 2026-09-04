@@ -15,6 +15,7 @@ backend/guantou/
   siteconfig/      站点配置。
   files/           文件上传和公开文件访问。
   inbox/           通知/站内信。
+  themes/          主题装扮目录、当前配置、收藏、搭配与权益。
   utils/           跨 app 工具，包含全局异常类型和中间件。
 ```
 
@@ -30,6 +31,7 @@ backend/guantou/
 - 通知：`inbox`
 - 公告：`announcements`
 - 站点配置：`siteconfig`
+- 主题装扮：`themes`
 - 材料处理和迁移脚本：`tools/materials/`
 
 方言点统一使用 `guantou.Dialect` 的按需关系树。用户资料的默认方言也通过 `primary_dialect_id` 引用这棵树；迁移前县镇文本只保存在不可编辑的 `legacy_location` 中用于追溯，不再作为业务分类依据。
@@ -100,7 +102,7 @@ DRF 默认配置在 `config/settings.py`：
 
 匿名游客由 `audit.AnonymousVisitor` 追踪。后端读取或生成 `X-Visitor-ID`，挂到 `request.visitor`，并在响应头回写同名 header。游客只用于访问/审计归因，不创建 Django `User`，也不能绕过写接口登录要求。
 
-对象审计由 `audit.ObjectChangeLog` 自动记录 `guantou` 核心模型的 create/update/delete。访问行为由 `audit.VisitorEvent` 记录；`Can.views` 这类读取计数更新不会写入对象变更审计。
+对象审计由 `audit.ObjectChangeLog` 自动记录 `guantou` 核心模型的 create/update/delete。访问行为由 `audit.VisitorEvent` 记录；`Can.views` 这类读取计数更新不会写入对象变更审计。主题装扮 C 端字段、枚举与模型见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)（标准化数据结构，独立拆分）。运营后台的 Django Admin 校验、活动窗校正、staff 角色与 `/manage/` 路径见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)（完整中台三期）。局部装扮一期范围与 `DecorationItem` 终端约束见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。覆盖开关不得清空 `decoration_map`，见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)。我的装扮汇总只读用户私有配置，见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。C 端预览不写用户配置，见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。最近使用 `recent_use_list` 随用户配置隔离，见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)。目录检索 query 见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)。四维权限与 `UserThemeEntitlement` 见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。收藏、分享与热度计数见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。历史搭配 `UserThemeMix` 见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。C 端空态不配运营文案，见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。游客只本地、登录后 `PUT /users/theme/config/` 全量覆盖与换号清缓存见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。主题中心启用/收藏/搭配的服务端校验、限流与越权日志见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。用户投稿草稿与审核队列见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)（三期；现网无 `/users/theme/submissions/`）。积分碎片账本、公开搭配复刻见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)（三期；现网无 credits/fragments/ranks）。
 
 ## 全局异常行为
 
@@ -180,8 +182,8 @@ python manage.py makemigrations --check --dry-run
 cd backend/guantou
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py test guantou announcements user siteconfig files inbox audit
-black --check announcements guantou user siteconfig files inbox audit utils config
+python manage.py test guantou announcements user siteconfig files inbox audit themes
+black --check announcements guantou user siteconfig files inbox audit utils config themes
 ```
 
 ## 什么时候先写方案

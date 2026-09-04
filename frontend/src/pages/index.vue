@@ -1,5 +1,9 @@
 <template>
-  <view class="immersive-shell home-page">
+  <view
+    class="immersive-shell home-page"
+    :class="[`accent-${accent}`]"
+    :style="outfitVars"
+  >
     <!-- 氛围光与肌理（沉浸壳自绘背景） -->
     <view
       class="home-page__glow home-page__glow--top"
@@ -83,6 +87,13 @@ import { ROUTES } from '@/services/navigation';
 import { SHARE_TITLE } from '@/const/branding';
 import { canSharePayload } from '@/utils/shareCan';
 import { stopAudio } from '@/utils/audio';
+import {
+  getAccentPreference,
+  paintNativeChrome,
+  resolveTheme,
+} from '@/services/theme';
+import { hydrateOutfitStyle } from '@/services/themeCenter';
+import { getAppliedOutfitVars } from '@/services/themeSchema';
 
 /* 常驻 feed 数量上限：只保留最近访问的 2 个 tab，超出者从头部卸载，
  * 回访时按首次进入的懒加载流程重建，限制内存与并发请求 */
@@ -103,7 +114,9 @@ export default {
       userSelectedTab: false,
       pendingShareCan: null,
       feedRevision: 0,
+      accent: getAccentPreference(),
       sheetActive: false,
+      outfitVars: {},
     };
   },
   created() {
@@ -111,6 +124,13 @@ export default {
     this.ensureTabVisited(this.activeTab);
     /* 记录首次可见时的登录态指纹（非响应式），供 onShow 比对 */
     this.lastFeedFingerprint = this.feedFingerprint();
+  },
+  mounted() {
+    uni.$on('theme-change', this.handleThemeChange);
+    this.syncChrome();
+  },
+  beforeUnmount() {
+    uni.$off('theme-change', this.handleThemeChange);
   },
   onShareAppMessage() {
     if (this.pendingShareCan) return canSharePayload(this.pendingShareCan);
@@ -120,6 +140,7 @@ export default {
     };
   },
   onShow() {
+    this.syncChrome();
     /*
      * 刷新触发条件（且仅限以下两种，普通从详情页等浏览返回不重建
      * feed，保留滚动位置与已加载数据）：
@@ -152,9 +173,31 @@ export default {
     return false;
   },
   onUnload() {
+    uni.$off('theme-change', this.handleThemeChange);
     stopAudio();
   },
   methods: {
+    handleThemeChange(theme) {
+      this.accent = theme?.accent || getAccentPreference();
+      this.syncOutfitVars();
+      this.paintImmersiveWindow();
+    },
+    syncChrome() {
+      hydrateOutfitStyle();
+      this.accent = getAccentPreference();
+      this.syncOutfitVars();
+      this.paintImmersiveWindow();
+    },
+    syncOutfitVars() {
+      this.outfitVars = getAppliedOutfitVars();
+    },
+    paintImmersiveWindow() {
+      paintNativeChrome({
+        resolved: resolveTheme(),
+        accent: this.accent,
+        immersive: true,
+      });
+    },
     /*
      * feed 重建指纹：登录态（token 有无）+ 主方言。
      * 依赖的 storage / globalData 均非响应式，故用方法而非 computed，
@@ -208,7 +251,8 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* 固定深色渐变，不随明暗主题翻转 */
+  letter-spacing: var(--dress-letter-spacing, 0em);
+  /* 深色渐变跟随当前配色色相，不随明暗主题翻转 */
   background: linear-gradient(
     165deg,
     var(--immersive-bg-strong-color) 0%,
@@ -248,9 +292,9 @@ export default {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.16;
-  background-image: radial-gradient(var(--immersive-border-color) 1rpx, transparent 1rpx);
-  background-size: 46rpx 46rpx;
+  opacity: var(--dress-grain-opacity, 0.16);
+  background-image: var(--dress-grain-image, var(--grain-dot));
+  background-size: var(--dress-grain-size, 46rpx 46rpx);
 }
 
 .home-page__top {

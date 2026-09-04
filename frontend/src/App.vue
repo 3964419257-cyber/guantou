@@ -6,7 +6,9 @@ import {
   ensureDialectOnboarding,
   ONBOARDING_REASONS,
 } from '@/services/dialectOnboarding';
+import { bindThemeAdapters, pullThemeCloudState } from '@/services/themeApi';
 import { applyTheme } from '@/services/theme';
+import { hydrateOutfitStyle } from '@/services/themeCenter';
 import pagesJson from '@/pages.json';
 
 export default {
@@ -14,7 +16,9 @@ export default {
     return {};
   },
   async onLaunch() {
+    bindThemeAdapters();
     applyTheme();
+    hydrateOutfitStyle();
     if (!this.globalData.id) {
       const token = uni.getStorageSync('token');
       const storedId = uni.getStorageSync('id');
@@ -48,6 +52,11 @@ export default {
     });
     const loggedIn = await getLoginStatus();
     if (loggedIn) {
+      try {
+        await pullThemeCloudState();
+      } catch {
+        // Local outfit stays until the next successful sync.
+      }
       ensureDialectOnboarding(
         this.globalData.userInfo,
         ONBOARDING_REASONS.MISSING_DIALECT,

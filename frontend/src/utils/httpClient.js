@@ -12,6 +12,7 @@ const DEFAULT_OPTIONS = {
   redirectOnUnauthorized: true,
   loading: true,
   loadingTitle: '加载中',
+  timeout: 0,
 };
 
 const TOKEN_STORAGE_KEY = 'token';
@@ -103,13 +104,16 @@ export function request(method = 'GET', url = '', data = {}, options = {}) {
   const resolvedOptions = resolveOptions(options);
   showLoading(resolvedOptions);
   return new Promise((resolve, reject) => {
-    uni.request({
+    const payload = {
       method,
       url: BASE_URL + url,
       data,
       header: buildHeaders(resolvedOptions),
       dataType: 'json',
-    }).then((res) => {
+    };
+    const timeout = Number(resolvedOptions.timeout) || 0;
+    if (timeout > 0) payload.timeout = timeout;
+    uni.request(payload).then((res) => {
       persistVisitorId(res);
       hideLoading(resolvedOptions);
       if (res.statusCode >= 200 && res.statusCode < 300) {

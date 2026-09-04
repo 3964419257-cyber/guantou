@@ -49,6 +49,8 @@ tags:
     description: 本人的站内通知与管理员发送操作。
   - name: Comments
     description: 录音证据与资料铭牌上的讨论评论（二级评论层级）。
+  - name: Themes
+    description: 公开主题目录，以及当前用户的装扮配置、收藏、搭配与权益。
 
 paths:
   /login/:
@@ -1624,6 +1626,364 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /themes/:
+    get:
+      tags: [Themes]
+      operationId: listThemes
+      summary: 获取全局主题目录
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/ThemeKeyword" }
+        - { $ref: "#/components/parameters/ThemePrivilege" }
+        - { $ref: "#/components/parameters/ThemeStyleTag" }
+        - { $ref: "#/components/parameters/ThemeDialectTag" }
+        - { $ref: "#/components/parameters/ThemeStatus" }
+        - { $ref: "#/components/parameters/ThemeSort" }
+        - { $ref: "#/components/parameters/ThemeTerminal" }
+        - { $ref: "#/components/parameters/ThemePage" }
+        - { $ref: "#/components/parameters/ThemePageSize" }
+      responses:
+        "200":
+          description: 不含 style_json 的分页主题目录
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ThemeCatalogPage" }
+
+  /themes/{theme_id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ThemeId" }
+    get:
+      tags: [Themes]
+      operationId: getTheme
+      summary: 获取全局主题详情
+      security: []
+      responses:
+        "200":
+          description: 包含 style_json 的主题详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ThemeItemDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /decorations/:
+    get:
+      tags: [Themes]
+      operationId: listDecorations
+      summary: 获取局部装扮目录
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/ThemeKeyword" }
+        - { $ref: "#/components/parameters/ThemePrivilege" }
+        - { $ref: "#/components/parameters/ThemeStyleTag" }
+        - { $ref: "#/components/parameters/ThemeDialectTag" }
+        - { $ref: "#/components/parameters/ThemeStatus" }
+        - { $ref: "#/components/parameters/ThemeSort" }
+        - { $ref: "#/components/parameters/ThemeTerminal" }
+        - { $ref: "#/components/parameters/ThemeComponentType" }
+        - { $ref: "#/components/parameters/ThemePage" }
+        - { $ref: "#/components/parameters/ThemePageSize" }
+      responses:
+        "200":
+          description: 不含 style_json 的分页装扮目录
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DecorationCatalogPage" }
+
+  /decorations/{decoration_id}/:
+    parameters:
+      - { $ref: "#/components/parameters/DecorationId" }
+    get:
+      tags: [Themes]
+      operationId: getDecoration
+      summary: 获取局部装扮详情
+      security: []
+      responses:
+        "200":
+          description: 包含 style_json 的装扮详情
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DecorationItemDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /users/theme/config/:
+    get:
+      tags: [Themes]
+      operationId: getUserThemeConfig
+      summary: 获取当前用户的生效装扮配置
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 当前配置
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserThemeConfig" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    put:
+      tags: [Themes]
+      operationId: replaceUserThemeConfig
+      summary: 全量更新当前用户的装扮配置
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: "#/components/parameters/ThemePlatform" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserThemeConfigWrite" }
+      responses:
+        "200":
+          description: 服务端按目录、终端与权益清洗后的配置
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserThemeConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /users/theme/apply/:
+    post:
+      tags: [Themes]
+      operationId: applyThemeItem
+      summary: 应用一件全局主题或局部装扮
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: "#/components/schemas/ThemeItemSelection" }
+                - type: object
+                  properties:
+                    platform: { $ref: "#/components/schemas/ThemePlatform" }
+      responses:
+        "200":
+          description: 应用后的完整配置
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserThemeConfig" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /users/theme/collects/:
+    get:
+      tags: [Themes]
+      operationId: listThemeCollects
+      summary: 获取当前用户的装扮收藏
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 收藏列表
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collect_list]
+                properties:
+                  collect_list:
+                    type: array
+                    items: { $ref: "#/components/schemas/UserThemeCollect" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Themes]
+      operationId: createThemeCollect
+      summary: 收藏一件主题或装扮
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ThemeItemSelection" }
+      responses:
+        "201":
+          description: 收藏已存在或已创建
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserThemeCollect" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /users/theme/collects/{item_id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ThemeItemId" }
+    delete:
+      tags: [Themes]
+      operationId: deleteThemeCollect
+      summary: 取消收藏
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: item_type
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/ThemeItemType" }
+      responses:
+        "204": { description: 收藏已取消；不存在时同样幂等返回 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /users/theme/mixes/:
+    get:
+      tags: [Themes]
+      operationId: listThemeMixes
+      summary: 获取当前用户保存的搭配
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 搭配列表，最多十套
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 10
+                items: { $ref: "#/components/schemas/UserThemeMix" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Themes]
+      operationId: createThemeMix
+      summary: 保存一套搭配
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserThemeMixWrite" }
+      responses:
+        "201":
+          description: 搭配已创建
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserThemeMix" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /users/theme/mixes/{mix_id}/:
+    parameters:
+      - { $ref: "#/components/parameters/ThemeMixId" }
+    patch:
+      tags: [Themes]
+      operationId: renameThemeMix
+      summary: 重命名保存的搭配
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mix_name]
+              properties:
+                mix_name: { type: string, minLength: 1, maxLength: 20 }
+      responses:
+        "200":
+          description: 已重命名的搭配
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserThemeMix" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Themes]
+      operationId: deleteThemeMix
+      summary: 删除保存的搭配
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: 搭配已删除 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /users/theme/events/:
+    post:
+      tags: [Themes]
+      operationId: recordThemeEvent
+      summary: 记录主题中心服务端事件
+      description: 可匿名调用；服务端从 token 或 X-Visitor-ID 归因，客户端不得提交用户标识。
+      security: []
+      parameters:
+        - name: X-Visitor-ID
+          in: header
+          required: false
+          schema: { type: string, maxLength: 64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event]
+              properties:
+                event: { type: string, minLength: 1, maxLength: 64 }
+                item_id: { type: string, maxLength: 64 }
+      responses:
+        "202":
+          description: 事件已受理
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /users/theme/entitlement/:
+    get:
+      tags: [Themes]
+      operationId: getThemeEntitlement
+      summary: 获取当前用户的主题权益
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 当前权益
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserThemeEntitlement" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Themes]
+      operationId: claimThemeEntitlement
+      summary: 领取活动或创作者装扮
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ThemeItemSelection" }
+      responses:
+        "200":
+          description: 更新后的权益
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserThemeEntitlement" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1697,6 +2057,70 @@ components:
       in: path
       required: true
       schema: { type: integer }
+    ThemeId:
+      name: theme_id
+      in: path
+      required: true
+      schema: { type: string, maxLength: 64 }
+    DecorationId:
+      name: decoration_id
+      in: path
+      required: true
+      schema: { type: string, maxLength: 64 }
+    ThemeItemId:
+      name: item_id
+      in: path
+      required: true
+      schema: { type: string, maxLength: 64 }
+    ThemeMixId:
+      name: mix_id
+      in: path
+      required: true
+      schema: { type: string, maxLength: 64 }
+    ThemeKeyword:
+      name: keyword
+      in: query
+      schema: { type: string, maxLength: 64 }
+    ThemePrivilege:
+      name: privilege_type
+      in: query
+      schema: { $ref: "#/components/schemas/ThemePrivilegeType" }
+    ThemeStyleTag:
+      name: style_tag
+      in: query
+      schema: { type: string }
+    ThemeDialectTag:
+      name: dialect_tag
+      in: query
+      schema: { type: string }
+    ThemeStatus:
+      name: status
+      in: query
+      schema: { $ref: "#/components/schemas/ThemeItemStatus" }
+    ThemeSort:
+      name: sort
+      in: query
+      schema: { type: string, enum: [newest, heat, free, name] }
+    ThemeTerminal:
+      name: support_terminal
+      in: query
+      schema: { $ref: "#/components/schemas/ThemePlatform" }
+    ThemePlatform:
+      name: platform
+      in: query
+      schema: { $ref: "#/components/schemas/ThemePlatform" }
+    ThemeComponentType:
+      name: component_type
+      in: query
+      schema: { $ref: "#/components/schemas/ThemeComponentType" }
+    ThemePage:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    ThemePageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
 
   responses:
     BadRequest:
@@ -1788,6 +2212,221 @@ components:
         count: { type: integer, minimum: 0 }
         next: { type: [string, "null"], format: uri-reference }
         previous: { type: [string, "null"], format: uri-reference }
+
+    ThemePlatform:
+      type: string
+      enum: [h5, miniprogram]
+    ThemePrivilegeType:
+      type: string
+      enum: [free, member, activity, creator]
+    ThemeItemStatus:
+      type: string
+      enum: [available, coming, deprecated]
+    ThemeItemType:
+      type: string
+      enum: [theme, decoration]
+    ThemeComponentType:
+      type: string
+      enum:
+        - nav_bar
+        - tab_bar
+        - button
+        - card
+        - home_bg
+        - avatar_frame
+        - comment_bubble
+        - topic_card
+        - input_box
+    ThemeItemSelection:
+      type: object
+      required: [item_type, item_id]
+      properties:
+        item_type: { $ref: "#/components/schemas/ThemeItemType" }
+        item_id: { type: string, minLength: 1, maxLength: 64 }
+    ThemeCatalogFields:
+      type: object
+      required:
+        - name
+        - desc
+        - cover_img
+        - detail_img
+        - poster_img
+        - style_tags
+        - dialect_tags
+        - privilege_type
+        - get_condition
+        - status
+        - support_terminal
+        - activity_start_at
+        - activity_end_at
+        - like_count
+        - collect_count
+        - share_count
+        - create_time
+      properties:
+        name: { type: string, maxLength: 80 }
+        desc: { type: string }
+        cover_img: { type: string, maxLength: 255 }
+        detail_img: { type: string, maxLength: 255 }
+        poster_img: { type: string, maxLength: 255 }
+        style_tags:
+          type: array
+          items: { type: string }
+        dialect_tags:
+          type: array
+          items: { type: string }
+        privilege_type: { $ref: "#/components/schemas/ThemePrivilegeType" }
+        get_condition: { type: string, maxLength: 200 }
+        status: { $ref: "#/components/schemas/ThemeItemStatus" }
+        support_terminal:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/ThemePlatform" }
+        activity_start_at: { type: [string, "null"], format: date-time }
+        activity_end_at: { type: [string, "null"], format: date-time }
+        like_count: { type: integer, minimum: 0, readOnly: true }
+        collect_count: { type: integer, minimum: 0, readOnly: true }
+        share_count: { type: integer, minimum: 0, readOnly: true }
+        create_time: { type: string, format: date-time, readOnly: true }
+    ThemeItem:
+      allOf:
+        - { $ref: "#/components/schemas/ThemeCatalogFields" }
+        - type: object
+          required: [theme_id]
+          properties:
+            theme_id: { type: string, maxLength: 64 }
+    ThemeItemDetail:
+      allOf:
+        - { $ref: "#/components/schemas/ThemeItem" }
+        - type: object
+          required: [style_json]
+          properties:
+            style_json:
+              type: object
+              additionalProperties: true
+    DecorationItem:
+      allOf:
+        - { $ref: "#/components/schemas/ThemeCatalogFields" }
+        - type: object
+          required: [decoration_id, component_type, group]
+          properties:
+            decoration_id: { type: string, maxLength: 64 }
+            component_type: { $ref: "#/components/schemas/ThemeComponentType" }
+            group: { type: string, maxLength: 64 }
+    DecorationItemDetail:
+      allOf:
+        - { $ref: "#/components/schemas/DecorationItem" }
+        - type: object
+          required: [style_json]
+          properties:
+            style_json:
+              type: object
+              additionalProperties: true
+    ThemeCatalogPage:
+      allOf:
+        - { $ref: "#/components/schemas/PageBase" }
+        - type: object
+          required: [catalog_version]
+          properties:
+            catalog_version: { type: integer, minimum: 1 }
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/ThemeItem" }
+    DecorationCatalogPage:
+      allOf:
+        - { $ref: "#/components/schemas/PageBase" }
+        - type: object
+          required: [catalog_version]
+          properties:
+            catalog_version: { type: integer, minimum: 1 }
+            results:
+              type: array
+              items: { $ref: "#/components/schemas/DecorationItem" }
+    ThemeRecentUse:
+      type: object
+      required: [item_id, item_type, use_time]
+      properties:
+        item_id: { type: string, maxLength: 64 }
+        item_type: { $ref: "#/components/schemas/ThemeItemType" }
+        use_time: { type: integer, minimum: 0 }
+    UserThemeConfig:
+      type: object
+      required:
+        - global_theme_id
+        - decoration_map
+        - is_cover_local_decoration
+        - recent_use_list
+      properties:
+        global_theme_id: { type: string, maxLength: 64 }
+        decoration_map:
+          type: object
+          additionalProperties: { type: string, maxLength: 64 }
+        is_cover_local_decoration: { type: boolean }
+        recent_use_list:
+          type: array
+          maxItems: 8
+          items: { $ref: "#/components/schemas/ThemeRecentUse" }
+    UserThemeConfigWrite:
+      allOf:
+        - { $ref: "#/components/schemas/UserThemeConfig" }
+        - type: object
+          properties:
+            platform: { $ref: "#/components/schemas/ThemePlatform" }
+    UserThemeCollect:
+      type: object
+      required: [item_id, item_type, collect_time]
+      properties:
+        item_id: { type: string, maxLength: 64 }
+        item_type: { $ref: "#/components/schemas/ThemeItemType" }
+        collect_time: { type: string, format: date-time, readOnly: true }
+    UserThemeMix:
+      type: object
+      required:
+        - mix_id
+        - mix_name
+        - global_theme_id
+        - decoration_ids
+        - decoration_map
+        - is_cover_local_decoration
+        - create_time
+      properties:
+        mix_id: { type: string, maxLength: 64 }
+        mix_name: { type: string, minLength: 1, maxLength: 20 }
+        global_theme_id: { type: string, maxLength: 64 }
+        decoration_ids:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 64 }
+        decoration_map:
+          type: object
+          additionalProperties: { type: string, maxLength: 64 }
+        is_cover_local_decoration: { type: boolean }
+        create_time: { type: string, format: date-time, readOnly: true }
+    UserThemeMixWrite:
+      type: object
+      required: [mix_name, global_theme_id]
+      properties:
+        mix_id: { type: string, maxLength: 64 }
+        mix_name: { type: string, minLength: 1, maxLength: 20 }
+        global_theme_id: { type: string, maxLength: 64 }
+        decoration_ids:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 64 }
+        decoration_map:
+          type: object
+          additionalProperties: { type: string, maxLength: 64 }
+        is_cover_local_decoration: { type: boolean, default: true }
+    UserThemeEntitlement:
+      type: object
+      required: [is_member, creator_unlocked, activity_ids]
+      properties:
+        is_member: { type: boolean, readOnly: true }
+        creator_unlocked: { type: boolean, readOnly: true }
+        activity_ids:
+          type: array
+          uniqueItems: true
+          items: { type: string, maxLength: 64 }
 
     UserRef:
       type: object

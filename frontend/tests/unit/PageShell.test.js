@@ -1,4 +1,6 @@
 import { mount } from '@vue/test-utils';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -14,6 +16,7 @@ describe('PageShell', () => {
       $off: vi.fn(),
       $on: vi.fn(),
       getStorageSync: vi.fn(() => 'light'),
+      setStorageSync: vi.fn(),
       getSystemInfoSync: vi.fn(() => ({ theme: 'light' })),
       navigateBack: vi.fn(),
     };
@@ -63,11 +66,54 @@ describe('PageShell', () => {
       },
     });
 
-    wrapper.vm.handleThemeChange({ preference: 'dark', resolved: 'dark' });
+    wrapper.vm.handleThemeChange({ preference: 'dark', resolved: 'dark', accent: 'tea' });
     await wrapper.vm.$nextTick();
 
     expect(wrapper.classes()).toContain('theme-dark');
+    expect(wrapper.classes()).toContain('accent-tea');
     wrapper.unmount();
     expect(uni.$off).toHaveBeenCalled();
+  });
+
+  it('tints the top bar with the active accent tokens', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/PageShell.vue'), 'utf8');
+    expect(source).toContain('var(--dress-nav-bar-background, var(--accent-subtle-color))');
+    expect(source).toContain('var(--dress-nav-bar-border-color, var(--accent-color))');
+    expect(source).toContain('shell-grain');
+    expect(source).toContain('var(--dress-grain-image, var(--grain-dot))');
+  });
+
+  it('skips stack back when interceptBack is set', async () => {
+    global.getCurrentPages = () => [
+      { route: 'pages/users/me' },
+      { route: 'pages/users/theme-center' },
+    ];
+    uni.reLaunch = vi.fn();
+    const wrapper = mount(PageShell, {
+      props: {
+        title: '主题中心',
+        interceptBack: true,
+      },
+      global: {
+        stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
+      },
+    });
+    await wrapper.find('.shell-back').trigger('tap');
+    expect(wrapper.emitted('back')).toHaveLength(1);
+    expect(uni.navigateBack).not.toHaveBeenCalled();
+    expect(uni.reLaunch).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('forwards inner scroll-view motion to the page', () => {
+    const wrapper = mount(PageShell, {
+      props: { title: '主题中心' },
+      global: {
+        stubs: { 'scroll-view': { template: '<div><slot /></div>' } },
+      },
+    });
+    wrapper.vm.onScroll({ detail: { scrollTop: 180 } });
+    expect(wrapper.emitted('scroll')[0][0]).toEqual({ scrollTop: 180 });
+    wrapper.unmount();
   });
 });

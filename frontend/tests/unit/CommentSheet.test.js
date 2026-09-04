@@ -38,7 +38,10 @@ function mountSheet() {
 describe('CommentSheet (Issue #219 后续)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.uni = {};
+    globalThis.uni = {
+      $on: vi.fn(),
+      $off: vi.fn(),
+    };
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   });
 
@@ -409,6 +412,14 @@ describe('CommentSheet (Issue #219 后续)', () => {
       expect(wrapper.vm.dragDelta).toBe(0);
       expect(wrapper.vm.active).toBe(true);
 
+      wrapper.unmount();
+    });
+
+    it('inherits outfit grain onto the panel', async () => {
+      const wrapper = mountSheet();
+      openCommentSheet({ targetType: 'can', targetId: 12 });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find('.comment-sheet__grain').exists()).toBe(true);
       wrapper.unmount();
     });
   });

@@ -1,62 +1,65 @@
 <template>
-  <t-form-item
-    class="base-field"
-    :name="name"
-    :label="label"
-    :help="help"
-    :required-mark="required"
-    :rules="rules"
-    label-align="top"
-  >
-    <view class="base-field-control">
-      <slot>
-        <t-textarea
-          v-if="type === 'textarea'"
-          :value="modelValue"
-          :placeholder="placeholder"
-          :maxlength="maxlength"
-          :disabled="disabled"
-          :readonly="readonly"
-          :focus="focus"
-          :confirm-type="confirmType"
-          :autosize="resolvedAutosize"
-          :indicator="indicator"
-          bordered
-          @change="handleChange"
-          @blur="$emit('blur', $event)"
-          @focus="$emit('focus', $event)"
-          @enter="handleEnter"
-        />
-        <t-input
-          v-else
-          :value="modelValue"
-          :aria-role="ariaRole || undefined"
-          :aria-label="ariaLabel || undefined"
-          :type="inputType"
-          :placeholder="placeholder"
-          :maxlength="maxlength"
-          :disabled="disabled"
-          :readonly="readonly"
-          :focus="focus"
-          :confirm-type="confirmType"
-          :clearable="clearable"
-          :status="error ? 'error' : status"
-          :suffix-icon="suffixIcon"
-          borderless
-          @change="handleChange"
-          @blur="$emit('blur', $event)"
-          @focus="$emit('focus', $event)"
-          @enter="handleEnter"
-        />
-      </slot>
-    </view>
+  <view class="base-field">
+    <t-form-item
+      class="base-field-item"
+      :name="name"
+      :label="label"
+      :help="help"
+      :required-mark="required"
+      :rules="rules"
+      label-align="top"
+    >
+      <view class="base-field-control">
+        <slot>
+          <t-textarea
+            v-if="type === 'textarea'"
+            :value="modelValue"
+            :placeholder="placeholder"
+            :maxlength="maxlength"
+            :disabled="disabled"
+            :readonly="readonly"
+            :focus="focus"
+            :confirm-type="confirmType"
+            :autosize="resolvedAutosize"
+            :indicator="indicator"
+            bordered
+            @change="handleChange"
+            @blur="$emit('blur', $event)"
+            @focus="$emit('focus', $event)"
+            @enter="handleEnter"
+          />
+          <t-input
+            v-else
+            :value="modelValue"
+            :aria-role="ariaRole || undefined"
+            :aria-label="ariaLabel || undefined"
+            :type="inputType"
+            :placeholder="placeholder"
+            :maxlength="maxlength"
+            :disabled="disabled"
+            :readonly="readonly"
+            :focus="focus"
+            :confirm-type="confirmType"
+            :clearable="clearable"
+            :status="error ? 'error' : status"
+            :suffix-icon="suffixIcon"
+            borderless
+            @change="handleChange"
+            @confirm="handleConfirm"
+            @blur="$emit('blur', $event)"
+            @focus="$emit('focus', $event)"
+            @enter="handleEnter"
+          />
+        </slot>
+      </view>
+    </t-form-item>
     <view
       v-if="error"
       class="base-field-error"
     >
       {{ error }}
     </view>
-  </t-form-item>
+  </view>
 </template>
 
 <script>
@@ -120,6 +123,10 @@ export default {
       this.$emit('change', value);
       this.$emit('input', value);
     },
+    handleConfirm(event) {
+      const value = event?.detail?.value ?? event?.value ?? this.modelValue;
+      this.$emit('confirm', value);
+    },
     handleEnter(event) {
       this.$emit('enter', event);
       this.$emit('confirm', event);
@@ -130,23 +137,32 @@ export default {
 
 <style scoped>
 .base-field {
+  width: 100%;
+}
+
+.base-field-item {
   --td-form-item-border-color: transparent;
   --td-form-item-horizontal-padding: 0;
   --td-form-item-vertical-padding: var(--space-2);
-  --td-input-bg-color: var(--surface-color);
+  --td-input-bg-color: var(--dress-input-box-background, var(--surface-color));
   --td-input-vertical-padding: var(--space-2) var(--space-3);
-  --td-textarea-background-color: var(--surface-color);
+  --td-textarea-background-color: var(--dress-input-box-background, var(--surface-color));
   --td-textarea-padding: var(--space-2) var(--space-3);
+}
+
+.base-field-control {
+  width: 100%;
+  min-width: 0;
+  border:
+    var(--dress-input-box-border-width, 0px)
+    solid var(--dress-input-box-border-color, transparent);
+  border-radius: var(--dress-input-box-border-radius, var(--radius-md));
+  overflow: hidden;
 }
 
 .base-field-error {
   margin-top: var(--space-1);
   color: var(--danger-color);
   font-size: var(--font-size-xs);
-}
-
-.base-field-control {
-  width: 100%;
-  min-width: 0;
 }
 </style>

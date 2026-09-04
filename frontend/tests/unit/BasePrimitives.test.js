@@ -11,6 +11,15 @@ import EmptyState from '@/components/EmptyState.vue';
 import confirmDialog from '@/components/ConfirmDialog';
 
 describe('BaseButton', () => {
+  beforeEach(() => {
+    global.uni = {
+      $emit: vi.fn(),
+      $on: vi.fn(),
+      $off: vi.fn(),
+      getStorageSync: vi.fn(() => ''),
+    };
+  });
+
   it('forwards recording action icons explicitly on both platforms', () => {
     const wrapper = mount(BaseButton, { props: { icon: 'refresh' } });
     expect(wrapper.getComponent({ name: 'TDesignStub' }).props('icon')).toBe('refresh');
@@ -80,6 +89,52 @@ describe('BaseButton', () => {
     await loading.vm.$nextTick();
     expect(loading.emitted('click')).toBeUndefined();
   });
+
+  it('applies user-selected looks and effects to primary and ghost only', async () => {
+    const wrapper = mount(BaseButton, { slots: { default: '装一罐' } });
+    wrapper.vm.handleThemeChange({
+      primaryLook: 'outline',
+      ghostLook: 'soft',
+      effect: 'glow',
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.getComponent({ name: 'TDesignStub' }).props('variant')).toBe('outline');
+    expect(wrapper.vm.rootClass).toEqual(expect.arrayContaining([
+      'base-button--primary',
+      'base-button--look-outline',
+      'base-button--effect-glow',
+    ]));
+
+    const ghost = mount(BaseButton, { props: { variant: 'ghost' } });
+    ghost.vm.handleThemeChange({
+      primaryLook: 'classic',
+      ghostLook: 'filled',
+      effect: 'lift',
+    });
+    await ghost.vm.$nextTick();
+    expect(ghost.getComponent({ name: 'TDesignStub' }).props('variant')).toBe('base');
+    expect(ghost.vm.rootClass).toEqual(expect.arrayContaining([
+      'base-button--ghost',
+      'base-button--look-filled',
+      'base-button--effect-lift',
+    ]));
+
+    const danger = mount(BaseButton, { props: { variant: 'danger', text: '退出' } });
+    danger.vm.handleThemeChange({
+      buttonStyle: 'outline',
+      primaryLook: 'outline',
+      effect: 'glow',
+    });
+    await danger.vm.$nextTick();
+    expect(danger.getComponent({ name: 'TDesignStub' }).props()).toMatchObject({
+      theme: 'danger',
+      variant: 'base',
+    });
+    expect(danger.vm.rootClass).not.toEqual(expect.arrayContaining([
+      'base-button--look-outline',
+      'base-button--effect-glow',
+    ]));
+  });
 });
 
 describe('BaseField', () => {
@@ -147,6 +202,16 @@ describe('BaseField', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted('update:modelValue')[0]).toEqual(['罐头释义']);
     expect(wrapper.emitted('input')[0]).toEqual(['罐头释义']);
+  });
+
+  it('forwards confirm from the text input', async () => {
+    const wrapper = mount(BaseField, {
+      props: { name: 'keyword', modelValue: '川渝', confirmType: 'search' },
+    });
+    const input = wrapper.findAllComponents({ name: 'TDesignStub' })[1];
+    input.vm.$emit('confirm', { detail: { value: '川渝' } });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('confirm')[0]).toEqual(['川渝']);
   });
 
   it('forwards TDesign enter events while keeping confirm compatibility', async () => {

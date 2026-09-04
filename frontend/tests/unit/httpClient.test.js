@@ -75,6 +75,22 @@ describe('httpClient compatibility wrappers', () => {
     expect(uni.showLoading).not.toHaveBeenCalled();
   });
 
+  it('forwards a request timeout to uni.request', async () => {
+    uni.request.mockResolvedValue({
+      statusCode: 200,
+      data: { ok: true },
+    });
+    await expect(httpClient.request('GET', '/users/theme/config/', {}, {
+      auth: true,
+      silent: true,
+      loading: false,
+      timeout: 15000,
+    })).resolves.toEqual({ ok: true });
+    expect(uni.request).toHaveBeenCalledWith(expect.objectContaining({
+      timeout: 15000,
+    }));
+  });
+
   it('request wrapper redirects on visible 401 errors', async () => {
     vi.useFakeTimers();
     uni.request.mockResolvedValue({

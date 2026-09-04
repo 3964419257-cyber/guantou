@@ -5,18 +5,20 @@
  * - 浅色为默认主题，定义在 page（小程序）与 :root/page（H5）上；
  * - 暗色通过 html[data-theme='dark']（H5，由 services/theme.js 写入）
  *   与 .theme-dark（PageShell/页面根元素）覆盖，两者均只覆盖颜色类 Token；
+ * - 配色通过 html[data-accent] 与 .accent-* 覆盖强调色和相衬底色，松绿为默认；
  * - 间距/圆角/字号与主题无关，只定义一次。
  *
  * 命名约定：
  * - 颜色：--page-color（页面底色）/--surface-color（卡片等浮层）/--text-color（正文）
  *   /--muted-color（次要文字）/--border-color（描边）/--accent-color（品牌强调）
  *   /--danger-color / --warning-color / --success-color（语义色）
- *   /--on-accent-color（强调色背景上的文字/图标）
+ *   /--on-accent-color（强调色背景上的文字/图标）/--gilt-color（金线/金边）
  * - 派生色：--text-secondary-color（正文与次要文字之间）/--surface-subtle-color（弱底色，
  *   如按钮/禁用态背景）/--accent-subtle-color（强调色浅底，如徽章）
  *   /--danger-subtle-color（危险色浅底）/--on-danger-color（危险色实心背景上的文字）
- * - 沉浸式场景（--immersive-* / --on-immersive-*）：首页沉浸罐头流专用，固定深色、
- *   不随明暗主题翻转；仅在 .immersive-shell 子树内消费，见文末 immersive 区块。
+ * - 沉浸式场景（--immersive-* / --on-immersive-*）：首页/底栏/顶栏深色壳，不随
+ *   明暗主题翻转，但色相跟随当前配色（html[data-accent] / .accent-*）；
+ *   仅在 .immersive-shell 子树内消费，见文末 immersive 区块。
  * - 字号：--font-size-xs..xl；间距：--space-1..5；圆角：--radius-sm/md/lg/pill
  */
 
@@ -36,6 +38,7 @@
   --on-danger-color: #ffffff;
   --warning-color: #ed7b2f;
   --success-color: #2ba471;
+  --gilt-color: #c4a35a;
   /* 全屏浮层遮罩（如半屏评论面板）：中性深色，深浅主题通用 */
   --veil-color: rgba(0, 0, 0, 0.5);
 }
@@ -56,6 +59,7 @@
   --on-danger-color: #2b1010;
   --warning-color: #f5a56c;
   --success-color: #5fce9f;
+  --gilt-color: #e0c56a;
   --veil-color: rgba(0, 0, 0, 0.5);
 }
 
@@ -79,6 +83,27 @@
   --radius-md: 14rpx;
   --radius-lg: 20rpx;
   --radius-pill: 999rpx;
+
+  /* 皮肤肌理：换皮只改 --dress-grain-image，不在页面写死图案 */
+  --grain-ink-color: var(--immersive-border-color, var(--border-color));
+  --grain-dot: radial-gradient(var(--grain-ink-color) 1rpx, transparent 1.2rpx);
+  --grain-paper: repeating-linear-gradient(-18deg, var(--grain-ink-color) 0 1rpx, transparent 1rpx 12rpx);
+  --grain-fiber: repeating-linear-gradient(90deg, var(--grain-ink-color) 0 1rpx, transparent 1rpx 18rpx);
+  --grain-grid: linear-gradient(var(--grain-ink-color) 1rpx, transparent 1rpx), linear-gradient(90deg, var(--grain-ink-color) 1rpx, transparent 1rpx);
+  --grain-rain: repeating-linear-gradient(118deg, var(--grain-ink-color) 0 1rpx, transparent 1rpx 14rpx);
+  --grain-mist: radial-gradient(var(--grain-ink-color) 0.7rpx, transparent 1.8rpx);
+  --grain-seal: radial-gradient(var(--gilt-color) 1rpx, transparent 2.2rpx);
+  --grain-glow: radial-gradient(var(--accent-subtle-color) 2rpx, transparent 3.4rpx);
+  --grain-ink: repeating-linear-gradient(0deg, var(--text-color) 0 1rpx, transparent 1rpx 26rpx);
+
+  /* 配色预览：个人中心色点，不随明暗翻转 */
+  --accent-preview-pine: #1f5c43;
+  --accent-preview-tea: #8b5a2b;
+  --accent-preview-ink: #2c4a6e;
+  --accent-preview-clay: #b85c38;
+  --accent-preview-mist: #4a6b6c;
+  --accent-preview-osmanthus: #b8860b;
+  --gilt-color: #c4a35a;
 }
 
 /* 小程序与 App 端：page 是页面根元素 */
@@ -183,11 +208,215 @@ page {
 /* #endif */
 
 /*
+ * 用户可选配色（个人中心 ThemeSwitcher）。只覆盖强调色与相衬的底/边，
+ * 正文与危险/警告/成功语义色保持不变。松绿是默认品牌，无需额外规则。
+ * H5 写在 html[data-accent]；小程序写在 PageShell/AppShell 的 .accent-*。
+ */
+$accent-palettes: (
+  tea: (
+    light: (
+      page-color: #f7f3ee,
+      surface-color: #fffaf6,
+      surface-subtle-color: #f3ebe3,
+      border-color: #e6d9cc,
+      accent-color: #8b5a2b,
+      accent-subtle-color: #f4ebe1,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #8b5a2b,
+    ),
+    dark: (
+      page-color: #191410,
+      surface-color: #262019,
+      surface-subtle-color: #2f2820,
+      border-color: #3f352c,
+      accent-color: #d4a574,
+      accent-subtle-color: #3a2c20,
+      on-accent-color: #1a120c,
+      td-brand-color-6: #d4a574,
+    ),
+  ),
+  ink: (
+    light: (
+      page-color: #f3f5f8,
+      surface-color: #fbfcfe,
+      surface-subtle-color: #e8edf3,
+      border-color: #d7dee7,
+      accent-color: #2c4a6e,
+      accent-subtle-color: #e6eef6,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #2c4a6e,
+    ),
+    dark: (
+      page-color: #12161c,
+      surface-color: #1c232c,
+      surface-subtle-color: #252d38,
+      border-color: #344050,
+      accent-color: #8fb0d4,
+      accent-subtle-color: #243044,
+      on-accent-color: #10151c,
+      td-brand-color-6: #8fb0d4,
+    ),
+  ),
+  clay: (
+    light: (
+      page-color: #f8f2ed,
+      surface-color: #fffaf7,
+      surface-subtle-color: #f3e8e1,
+      border-color: #ead9ce,
+      accent-color: #b85c38,
+      accent-subtle-color: #f6e6dc,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #b85c38,
+    ),
+    dark: (
+      page-color: #1a1411,
+      surface-color: #271e1a,
+      surface-subtle-color: #322621,
+      border-color: #45342d,
+      accent-color: #e8a07a,
+      accent-subtle-color: #3d2a22,
+      on-accent-color: #1a100c,
+      td-brand-color-6: #e8a07a,
+    ),
+  ),
+  mist: (
+    light: (
+      page-color: #f3f6f6,
+      surface-color: #f9fbfb,
+      surface-subtle-color: #e7eeee,
+      border-color: #d4e0e0,
+      accent-color: #4a6b6c,
+      accent-subtle-color: #e4efef,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #4a6b6c,
+    ),
+    dark: (
+      page-color: #121918,
+      surface-color: #1c2727,
+      surface-subtle-color: #253333,
+      border-color: #334242,
+      accent-color: #8fbfc0,
+      accent-subtle-color: #243636,
+      on-accent-color: #0e1616,
+      td-brand-color-6: #8fbfc0,
+    ),
+  ),
+  osmanthus: (
+    light: (
+      page-color: #f8f5ea,
+      surface-color: #fffdf6,
+      surface-subtle-color: #f3edd8,
+      border-color: #e8dfc4,
+      accent-color: #b8860b,
+      accent-subtle-color: #f6edd0,
+      on-accent-color: #ffffff,
+      td-brand-color-6: #b8860b,
+    ),
+    dark: (
+      page-color: #18160f,
+      surface-color: #252318,
+      surface-subtle-color: #302c1e,
+      border-color: #433c28,
+      accent-color: #e0c56a,
+      accent-subtle-color: #3a341c,
+      on-accent-color: #1a1608,
+      td-brand-color-6: #e0c56a,
+    ),
+  ),
+);
+
+@mixin apply-token-map($tokens) {
+  @each $key, $value in $tokens {
+    --#{$key}: #{$value};
+  }
+}
+
+/* 深色壳色相：顶栏/底栏/首页沉浸底跟随配色，保持深色不随浅色页翻转 */
+$accent-immersive: (
+  tea: (
+    immersive-bg-color: #140f0c,
+    immersive-bg-soft-color: #241c16,
+    immersive-bg-strong-color: #6b4320,
+    immersive-glow-color: rgba(212, 165, 116, 0.28),
+    immersive-veil-color: rgba(14, 10, 8, 0.5),
+    immersive-border-color: rgba(247, 239, 230, 0.16),
+    immersive-accent-color: #d4a574,
+    immersive-wave-active-color: #e0b888,
+  ),
+  ink: (
+    immersive-bg-color: #0c1016,
+    immersive-bg-soft-color: #161d28,
+    immersive-bg-strong-color: #2c4a6e,
+    immersive-glow-color: rgba(143, 176, 212, 0.28),
+    immersive-veil-color: rgba(8, 12, 18, 0.5),
+    immersive-border-color: rgba(230, 238, 246, 0.16),
+    immersive-accent-color: #8fb0d4,
+    immersive-wave-active-color: #a6c4e0,
+  ),
+  clay: (
+    immersive-bg-color: #140e0c,
+    immersive-bg-soft-color: #241814,
+    immersive-bg-strong-color: #8a4028,
+    immersive-glow-color: rgba(232, 160, 122, 0.28),
+    immersive-veil-color: rgba(16, 10, 8, 0.5),
+    immersive-border-color: rgba(247, 230, 220, 0.16),
+    immersive-accent-color: #e8a07a,
+    immersive-wave-active-color: #f0b494,
+  ),
+  mist: (
+    immersive-bg-color: #0c1414,
+    immersive-bg-soft-color: #162020,
+    immersive-bg-strong-color: #3a5556,
+    immersive-glow-color: rgba(143, 191, 192, 0.28),
+    immersive-veil-color: rgba(8, 14, 14, 0.5),
+    immersive-border-color: rgba(228, 239, 239, 0.16),
+    immersive-accent-color: #8fbfc0,
+    immersive-wave-active-color: #a8d0d1,
+  ),
+  osmanthus: (
+    immersive-bg-color: #14120a,
+    immersive-bg-soft-color: #221e12,
+    immersive-bg-strong-color: #8a6608,
+    immersive-glow-color: rgba(224, 197, 106, 0.28),
+    immersive-veil-color: rgba(16, 14, 8, 0.5),
+    immersive-border-color: rgba(246, 237, 208, 0.16),
+    immersive-accent-color: #e0c56a,
+    immersive-wave-active-color: #ead58a,
+  ),
+);
+
+@each $name, $modes in $accent-palettes {
+  .accent-#{$name} {
+    @include apply-token-map(map-get($modes, light));
+    @include apply-token-map(map-get($accent-immersive, $name));
+  }
+
+  .theme-dark.accent-#{$name} {
+    @include apply-token-map(map-get($modes, dark));
+  }
+}
+
+/* #ifdef H5 */
+@each $name, $modes in $accent-palettes {
+  html[data-accent='#{$name}'],
+  html[data-accent='#{$name}'] page {
+    @include apply-token-map(map-get($modes, light));
+    @include apply-token-map(map-get($accent-immersive, $name));
+  }
+
+  html[data-theme='dark'][data-accent='#{$name}'],
+  html[data-theme='dark'][data-accent='#{$name}'] page {
+    @include apply-token-map(map-get($modes, dark));
+  }
+}
+/* #endif */
+
+/*
  * 沉浸式场景 Token（首页罐头流 Issue #192）
  *
- * 以品牌深绿为中心的固定深色渐变系，永远保持深色，不随明暗主题翻转；
- * 只由 .immersive-shell（pages/index.vue 根节点）子树消费，新代码一律
- * 使用 --immersive-* / --on-immersive-* 系列，不得在组件内新增 hex 字面量。
+ * 以当前配色为中心的固定深色渐变系，永远保持深色，不随明暗主题翻转；
+ * 色相由上方 $accent-immersive 覆盖。只由 .immersive-shell 子树消费，
+ * 新代码一律使用 --immersive-* / --on-immersive-*，不得在组件内新增 hex。
  */
 @mixin immersive-color-tokens {
   /* 深绿渐变底（三档：深底 / 中调 / 品牌深绿） */

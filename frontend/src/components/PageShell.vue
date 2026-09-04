@@ -1,8 +1,13 @@
 <template>
   <view
     class="page-shell"
-    :class="`theme-${resolvedTheme}`"
+    :class="[`theme-${resolvedTheme}`, `accent-${accent}`]"
+    :style="outfitVars"
   >
+    <view
+      class="shell-grain"
+      aria-hidden="true"
+    />
     <view class="shell-topbar">
       <text
         v-if="showBack"
@@ -36,6 +41,7 @@
       scroll-y
       class="shell-content shell-scroll"
       :class="contentClass"
+      @scroll="onScroll"
       @scrolltolower="$emit('scrolltolower')"
     >
       <slot />
@@ -52,7 +58,9 @@
 </template>
 
 <script>
-import { applyTheme, getThemePreference } from '@/services/theme';
+import { getAccentPreference } from '@/services/theme';
+import { hydrateOutfitStyle } from '@/services/themeCenter';
+import { getAppliedOutfitVars } from '@/services/themeSchema';
 import { goBack, ROUTES } from '@/services/navigation';
 import BaseButton from '@/components/BaseButton.vue';
 import FeedbackHost from '@/components/FeedbackHost.vue';
@@ -85,26 +93,43 @@ export default {
       type: String,
       default: ROUTES.home,
     },
+    interceptBack: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['action', 'back', 'scrolltolower'],
+  emits: ['action', 'back', 'scroll', 'scrolltolower'],
   data() {
     return {
       resolvedTheme: 'light',
+      accent: getAccentPreference(),
+      outfitVars: {},
     };
   },
   mounted() {
-    this.handleThemeChange(applyTheme(getThemePreference()));
     uni.$on('theme-change', this.handleThemeChange);
+    hydrateOutfitStyle();
+    this.syncOutfitVars();
   },
   beforeUnmount() {
     uni.$off('theme-change', this.handleThemeChange);
   },
   methods: {
+    syncOutfitVars() {
+      this.outfitVars = getAppliedOutfitVars();
+    },
     handleThemeChange(theme) {
       this.resolvedTheme = theme?.resolved || 'light';
+      this.accent = theme?.accent || getAccentPreference();
+      this.syncOutfitVars();
+    },
+    onScroll(event) {
+      const top = event?.detail?.scrollTop ?? event?.scrollTop ?? 0;
+      this.$emit('scroll', { scrollTop: Number(top) || 0 });
     },
     handleBack() {
       this.$emit('back');
+      if (this.interceptBack) return;
       goBack(this.backFallback);
     },
   },
@@ -114,20 +139,35 @@ export default {
 <style scoped>
 /* 颜色 Token 来自全局 styles/tokens.scss；暗色由 .theme-dark 全局规则覆盖子树 */
 .page-shell {
+  position: relative;
   min-height: 100vh;
   background: var(--page-color);
   color: var(--text-color);
+  letter-spacing: var(--dress-letter-spacing, 0em);
+}
+
+.shell-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--dress-grain-opacity, 0);
+  background-image: var(--dress-grain-image, var(--grain-dot));
+  background-size: var(--dress-grain-size, 46rpx 46rpx);
 }
 
 .shell-topbar {
+  position: relative;
+  z-index: 1;
   height: 96rpx;
   display: grid;
   grid-template-columns: 56rpx 1fr auto;
   align-items: center;
   gap: 16rpx;
   padding: 0 28rpx;
-  background: var(--surface-color);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--dress-nav-bar-background, var(--accent-subtle-color));
+  border-bottom: 1px solid var(--dress-nav-bar-border-color, var(--accent-color));
+  color: var(--dress-nav-bar-color, var(--text-color));
   box-sizing: border-box;
 }
 
@@ -158,6 +198,8 @@ export default {
 }
 
 .shell-content {
+  position: relative;
+  z-index: 1;
   min-height: calc(100vh - 96rpx);
   padding: 28rpx;
   box-sizing: border-box;

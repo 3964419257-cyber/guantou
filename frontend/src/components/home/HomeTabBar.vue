@@ -136,7 +136,7 @@ export default {
   right: 0;
   bottom: 0;
   z-index: 30;
-  background: var(--immersive-veil-color);
+  background: var(--dress-tab-bar-background, var(--immersive-veil-color));
   border-top: 1rpx solid var(--immersive-border-color);
   backdrop-filter: blur(18rpx);
   padding-bottom: env(safe-area-inset-bottom);

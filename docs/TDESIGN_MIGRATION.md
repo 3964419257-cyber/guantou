@@ -41,6 +41,11 @@
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
 | `pages/users/me` / `details` | queued | 开放能力与关注交互分别迁移 |
 | `pages/users/recommend-follow` | done | [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseButton、统一加载/空态/重试及关注结果反馈 |
+| `pages/users/theme-center` | done | 总览 THEME_CENTER.md。分期 ROADMAP：一期核心切换；二期搜索收藏预览权限；三期不在本页做投稿社区。跳转 NAV |
+| `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
+| `pages/users/theme-acquire` | done | 装扮获取聚合：会员、活动、创作任务与方言主题福利 |
+| `pages/users/theme-member` | done | 开通会员，权益 H5/小程序同步 |
+| `pages/users/theme-event` | done | 活动领取与已绝版提示 |
 | `pages/mails/index` / `details` | queued | Cell、加载和通用操作 |
 
 ## 装罐页 #232 验收记录

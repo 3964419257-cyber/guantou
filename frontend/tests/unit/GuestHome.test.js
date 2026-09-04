@@ -81,6 +81,8 @@ function setupUni(token = '') {
     removeStorageSync: vi.fn(),
     navigateTo: vi.fn(),
     showToast: vi.fn(),
+    $on: vi.fn(),
+    $off: vi.fn(),
   };
   globalThis.getCurrentPages = vi.fn(() => []);
   globalThis.getApp = vi.fn(() => ({ globalData: {} }));
@@ -166,6 +168,8 @@ describe('immersive home (Issue #192)', () => {
     expect(resolveDefaultTab).toHaveBeenCalled();
     expect(wrapper.find('.home-feed-stub').attributes('data-tab')).toBe('recommended');
     expect(wrapper.find('.home-top-bar-stub').attributes('data-active')).toBe('recommended');
+    expect(wrapper.find('.home-page').exists()).toBe(true);
+    expect(wrapper.vm.outfitVars['--dress-grain-image']).toBeTruthy();
   });
 
   it('user with a primary dialect lands on the dialect feed', () => {

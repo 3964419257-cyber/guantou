@@ -31,6 +31,10 @@ vi.mock('@/services/dialectOnboarding', () => ({
   toDialectOnboarding: vi.fn(),
 }));
 
+vi.mock('@/services/themeApi', () => ({
+  afterThemeLogin: vi.fn(async () => ({ merge: null })),
+}));
+
 vi.mock('@/utils/rawRequest', () => ({
   default: {
     get: vi.fn(),

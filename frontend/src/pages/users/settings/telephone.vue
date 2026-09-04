@@ -97,9 +97,9 @@ export default {
       this.error = '';
       this.saving = true;
       try {
-        const userInfo = await getUserInfo(app.globalData.id, true);
+        const userInfo = await getUserInfo(resolveSessionUserId(), true);
         userInfo.user.telephone = telephone;
-        await changeUserInfo(app.globalData.id, userInfo.user);
+        await changeUserInfo(resolveSessionUserId(), userInfo.user);
         app.globalData.userInfo.telephone = telephone;
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);

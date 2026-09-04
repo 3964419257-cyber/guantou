@@ -62,10 +62,23 @@ def drf_exception_handler(exc, context):
         "请求参数校验失败" if isinstance(exc, exceptions.ValidationError) else str(exc)
     )
     message = normalize_message(response.data, default_message)
+    payload_data = normalize_data(response.data, exc)
     response.data = api_error_payload(
         message=message,
         status_code=response.status_code,
-        data=normalize_data(response.data, exc),
+        data=payload_data,
         rid=rid,
     )
+    if response.status_code in {403, 429} and exc.__class__.__name__ == "ThemeAPIError":
+        request = context.get("request")
+        user = getattr(request, "user", None) if request else None
+        reason = payload_data.get("reason") if isinstance(payload_data, dict) else ""
+        logger.warning(
+            "theme_risk reason=%s status=%s path=%s user=%s request_id=%s",
+            reason or "",
+            response.status_code,
+            getattr(request, "path", ""),
+            getattr(user, "pk", None) or "",
+            rid,
+        )
     return response

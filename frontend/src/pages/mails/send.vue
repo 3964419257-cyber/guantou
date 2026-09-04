@@ -125,6 +125,10 @@ export default {
   },
   onLoad(options = {}) {
     this.applyRecipient(options.id);
+    if (options.title) this.Notification.title = decodeURIComponent(options.title);
+    if (options.content) {
+      this.Notification.content = decodeURIComponent(options.content);
+    }
   },
   methods: {
     applyRecipient(id) {
