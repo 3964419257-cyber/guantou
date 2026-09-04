@@ -133,6 +133,9 @@ export default {
       },
     };
   },
+  onLoad(query) {
+    this.username = String(query?.username || '').trim();
+  },
   methods: {
     clearFieldError(field) {
       this.errors[field] = '';

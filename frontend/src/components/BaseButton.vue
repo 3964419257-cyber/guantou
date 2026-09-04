@@ -2,6 +2,9 @@
   <t-button
     class="base-button"
     :class="rootClass"
+    role="button"
+    :tabindex="disabled ? -1 : 0"
+    :aria-disabled="disabled || loading ? 'true' : 'false'"
     :theme="tdTheme"
     :variant="tdVariant"
     :size="size"
@@ -11,7 +14,7 @@
     :disabled="disabled"
     :loading="loading"
     :type="type || undefined"
-    :aria-label="ariaLabel || text"
+    v-bind="buttonA11y"
     @click="handleClick"
   >
     <slot>{{ text }}</slot>
@@ -67,6 +70,12 @@ export default {
         `base-button--${this.size}`,
         { 'base-button--block': this.block },
       ];
+    },
+    resolvedAriaLabel() {
+      return this.ariaLabel || this.text || undefined;
+    },
+    buttonA11y() {
+      return this.resolvedAriaLabel ? { 'aria-label': this.resolvedAriaLabel } : {};
     },
   },
   methods: {
