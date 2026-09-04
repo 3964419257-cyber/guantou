@@ -17,6 +17,7 @@
           <BaseField
             v-model="searchForm.keyword"
             name="keyword"
+            aria-label="搜索主题、装扮名称、方言风格"
             placeholder="搜索主题、装扮名称、方言风格"
             clearable
             :maxlength="64"

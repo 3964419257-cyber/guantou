@@ -138,6 +138,9 @@ export default {
 <style scoped>
 .base-field {
   width: 100%;
+}
+
+.base-field-item {
   --td-form-item-border-color: transparent;
   --td-form-item-horizontal-padding: 0;
   --td-form-item-vertical-padding: var(--space-2);
