@@ -102,13 +102,13 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
 
   await page.locator('.hot-scroll .chip', { hasText: '川渝烟火' }).click();
   await expect(page.getByText('川渝烟火').first()).toBeVisible();
-  await expect(page.getByText('返回列表')).toBeVisible();
+  await expect(page.getByText('返回列表').first()).toBeVisible();
   const searchBox = page.locator('.search-bar input').first();
   await searchBox.scrollIntoViewIfNeeded();
   await searchBox.fill('xyz-not-a-skin');
   await page.locator('.search-go').click({ force: true });
   await expect(page.getByText('没有找到相关主题或装扮，换个关键词试试')).toBeVisible();
-  await page.getByText('返回列表').click({ force: true });
+  await page.getByRole('button', { name: '返回列表' }).first().click({ force: true });
   await expect(page.locator('.tab.active', { hasText: '全局主题' })).toBeVisible();
 
   await page.getByText('装扮获取').click();
