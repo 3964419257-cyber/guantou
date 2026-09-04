@@ -23,13 +23,18 @@ import {
   flushThemeConfig,
   pullThemeCloudState,
 } from '@/services/themeApi';
+import {
+  resetThemeFaultAdapters,
+  setThemeCloudFlusher,
+} from '@/services/themeFault';
 import { THEME_API_PATHS } from '@/services/themeSchema';
 
 describe('themeApi', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetThemeFaultAdapters();
     global.uni = {
-      getStorageSync: vi.fn(() => 'token'),
+      getStorageSync: vi.fn((key) => (key === 'token' ? 'token' : '')),
       setStorageSync: vi.fn(),
       removeStorageSync: vi.fn(),
     };
@@ -181,6 +186,7 @@ describe('themeApi', () => {
       outfits: [],
     });
     expect(result.ok).toBe(true);
+    expect(result.syncFailed).toBe(true);
     expect(request).toHaveBeenCalledWith(
       'PUT',
       THEME_API_PATHS.config,
@@ -190,6 +196,48 @@ describe('themeApi', () => {
         platform: 'h5',
       }),
       expect.objectContaining({ silent: true, timeout: 15000 }),
+    );
+  });
+
+  it('does not overwrite local pending changes when their flush fails', async () => {
+    const store = {
+      token: 'token',
+      ui_theme_pack_cloud: { themeId: 'paper' },
+    };
+    uni.getStorageSync.mockImplementation((key) => store[key] ?? '');
+    setThemeCloudFlusher(() => Promise.reject(new Error('offline')));
+    const result = await pullThemeCloudState();
+    expect(result).toEqual({ ok: false, reason: 'sync-pending' });
+    expect(request).not.toHaveBeenCalledWith(
+      'GET',
+      THEME_API_PATHS.config,
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('retries a locally renamed saved mix during cloud flush', async () => {
+    request.mockImplementation((method, url) => {
+      if (method === 'PUT' && url === THEME_API_PATHS.config) return Promise.resolve({});
+      if (method === 'GET' && url === THEME_API_PATHS.mixes) {
+        return Promise.resolve([{ mix_id: 'outfit-1', mix_name: '旧名称' }]);
+      }
+      return Promise.resolve({});
+    });
+    await flushThemeConfig({
+      themeId: 'default',
+      outfits: [{
+        id: 'outfit-1',
+        name: '新名称',
+        themeId: 'default',
+        localDress: {},
+      }],
+    });
+    expect(request).toHaveBeenCalledWith(
+      'PATCH',
+      `${THEME_API_PATHS.mixes}outfit-1/`,
+      { mix_name: '新名称' },
+      expect.objectContaining({ silent: true }),
     );
   });
 

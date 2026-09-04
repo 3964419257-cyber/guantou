@@ -29,6 +29,7 @@ import {
   getActiveTheme,
   getDressGroup,
   getDressItem,
+  getFavoriteMap,
   getLocalDressMap,
   getOverlayLocalDress,
   getRecentRaw,
@@ -51,6 +52,7 @@ import {
   LOCAL_DRESS_GROUPS,
   LOCAL_DRESS_ITEMS,
   mergeRemoteCatalog,
+  mergeGuestThemeSnapshot,
   persistActiveTheme,
   persistLocalDress,
   P1_DRESS_GROUP_IDS,
@@ -512,6 +514,66 @@ describe('themeCenter catalog', () => {
     });
     expect(result).toMatchObject({ ok: false, reason: 'corrupt' });
     expect(uni.getStorageSync(THEME_PACK_STORAGE_KEY)).toBe('paper');
+  });
+
+  it('clears stale local recents when the cloud list is empty', () => {
+    const store = memoryStore({
+      [THEME_RECENT_STORAGE_KEY]: [{ kind: 'theme', id: 'paper', usedAt: 1 }],
+    });
+    const result = hydrateFromCloudConfig({
+      global_theme_id: 'default',
+      decoration_map: {},
+      is_cover_local_decoration: true,
+      recent_use_list: [],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[THEME_RECENT_STORAGE_KEY]).toEqual([]);
+  });
+
+  it('merges guest data into cloud state while keeping cloud conflicts', () => {
+    const store = memoryStore({
+      token: 'token',
+      [THEME_PACK_STORAGE_KEY]: 'paper',
+      ui_local_dress: { cards: 'cards-plain' },
+      [THEME_OVERLAY_STORAGE_KEY]: '1',
+      [THEME_FAVORITE_STORAGE_KEY]: { themes: ['default'], dresses: [] },
+      [THEME_RECENT_STORAGE_KEY]: [{ kind: 'theme', id: 'default', usedAt: 10 }],
+      [THEME_OUTFIT_STORAGE_KEY]: [{
+        id: 'cloud-outfit',
+        name: '云端搭配',
+        themeId: 'paper',
+        localDress: { cards: 'cards-plain' },
+      }],
+    });
+    const result = mergeGuestThemeSnapshot({
+      themeId: 'default',
+      overlay: false,
+      localDress: { cards: 'cards-accent', avatar: 'avatar-plain' },
+      favorites: { themes: ['paper'], dresses: ['cards-plain'] },
+      recent: [{ kind: 'theme', id: 'paper', usedAt: 20 }],
+      outfits: [{
+        id: 'guest-outfit',
+        name: '本地搭配',
+        themeId: 'default',
+        localDress: { avatar: 'avatar-plain' },
+      }],
+    });
+    expect(result.ok).toBe(true);
+    expect(store[THEME_PACK_STORAGE_KEY]).toBe('paper');
+    expect(store[THEME_OVERLAY_STORAGE_KEY]).toBe('1');
+    expect(getLocalDressMap()).toEqual({
+      cards: 'cards-plain',
+      avatar: 'avatar-plain',
+    });
+    expect(getFavoriteMap()).toEqual({
+      themes: ['default', 'paper'],
+      dresses: ['cards-plain'],
+    });
+    expect(getRecentRaw().map((row) => row.id)).toEqual(['paper', 'default']);
+    expect(getSavedOutfits().map((row) => row.id)).toEqual([
+      'cloud-outfit',
+      'guest-outfit',
+    ]);
   });
 
   it('enables the second free pack and shows style plus status tags', async () => {

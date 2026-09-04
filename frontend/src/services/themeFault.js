@@ -357,11 +357,26 @@ export async function flushThemeCloudQueue() {
   if (!isLoggedIn()) return { ok: true, skipped: 'guest' };
   const payload = readThemeStorage('ui_theme_pack_cloud');
   if (!payload) return { ok: true, skipped: 'empty' };
-  const flusher = cloudFlusher || (async () => ({ ok: true, skipped: 'local' }));
+  if (!cloudFlusher) {
+    return { ok: false, reason: 'unbound', kind: THEME_FAULT_KIND.NETWORK };
+  }
   try {
-    const result = await flusher(payload);
-    if (result?.ok === false) {
-      return { ok: false, kind: THEME_FAULT_KIND.NETWORK };
+    const serialized = JSON.stringify(payload);
+    const result = await cloudFlusher(payload);
+    if (result?.ok === false || result?.syncFailed) {
+      return {
+        ok: false,
+        syncFailed: Boolean(result?.syncFailed),
+        kind: THEME_FAULT_KIND.NETWORK,
+      };
+    }
+    const current = readThemeStorage('ui_theme_pack_cloud');
+    if (JSON.stringify(current) === serialized) {
+      try {
+        uni.removeStorageSync('ui_theme_pack_cloud');
+      } catch {
+        // A completed sync remains harmless if queue cleanup is unavailable.
+      }
     }
     return { ok: true };
   } catch {
@@ -434,9 +449,13 @@ export function guestThemeSnapshot() {
   const saved = readThemeStorage(THEME_GUEST_SNAP_KEY);
   if (!saved || typeof saved !== 'object') return null;
   const dressCount = Object.keys(saved.localDress || {}).length;
+  const favoriteCount = Object.values(saved.favorites || {})
+    .reduce((total, rows) => total + (Array.isArray(rows) ? rows.length : 0), 0);
   const dirty = (saved.themeId && saved.themeId !== 'default')
     || dressCount > 0
-    || (saved.outfits || []).length > 0;
+    || (saved.outfits || []).length > 0
+    || (saved.recent || []).length > 0
+    || favoriteCount > 0;
   return dirty ? saved : null;
 }
 
@@ -481,31 +500,51 @@ export async function handleThemeAccountLogin(userId) {
 
 export async function applyThemeMergeChoice(choice, snapshot) {
   const {
+    mergeGuestThemeSnapshot,
     persistActiveTheme,
     persistLocalDress,
     setOverlayLocalDress,
     DEFAULT_THEME_ID,
   } = await import('@/services/themeCenter');
-  if (choice === 'cloud') {
+  if (choice === 'cloud' || choice === 'merge') {
     writeThemeStorage(THEME_GUEST_SNAP_KEY, '');
     try {
       const { pullThemeCloudState } = await import('@/services/themeApi');
-      await pullThemeCloudState();
-    } catch {
-      // Keep defaults if cloud config cannot be loaded.
+      const pulled = await pullThemeCloudState();
+      if (!pulled?.ok) throw new Error(pulled?.reason || 'cloud');
+      if (choice === 'merge') {
+        const merged = mergeGuestThemeSnapshot(snapshot);
+        if (!merged.ok) throw new Error(merged.reason || 'merge');
+      }
+    } catch (error) {
+      writeThemeStorage(THEME_GUEST_SNAP_KEY, snapshot || {});
+      return {
+        ok: false,
+        choice,
+        reason: error?.message || 'network',
+        kind: THEME_FAULT_KIND.NETWORK,
+      };
     }
     return { ok: true, choice };
   }
-  if (choice === 'local' || choice === 'merge') {
+  if (choice === 'local') {
     setOverlayLocalDress(false);
     const themeId = snapshot?.themeId || DEFAULT_THEME_ID;
-    await persistActiveTheme(themeId);
-    await Promise.all(
+    const themeResult = await persistActiveTheme(themeId);
+    const dressResults = await Promise.all(
       Object.entries(snapshot?.localDress || {}).map(([groupId, itemId]) => (
         persistLocalDress(groupId, itemId)
       )),
     );
-    if (choice === 'local') setOverlayLocalDress(Boolean(snapshot?.overlay));
+    if (!themeResult?.ok || dressResults.some((result) => !result?.ok)) {
+      return {
+        ok: false,
+        choice,
+        reason: 'apply',
+        kind: THEME_FAULT_KIND.USER,
+      };
+    }
+    setOverlayLocalDress(Boolean(snapshot?.overlay));
     writeThemeStorage(THEME_GUEST_SNAP_KEY, '');
     return { ok: true, choice };
   }

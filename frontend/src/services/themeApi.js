@@ -2,6 +2,7 @@ import { isLoggedIn } from '@/services/authGuard';
 import {
   bindThemeNetworkFlush,
   clearThemeLocalState,
+  flushThemeCloudQueue,
   guestThemeSnapshot,
   handleThemeAccountLogin,
   setThemeCatalogFetcher,
@@ -122,11 +123,23 @@ async function syncMixes(outfits) {
   const local = outfits.map((outfit) => toSavedMix(outfit)).filter(Boolean);
   const remote = await request('GET', THEME_API_PATHS.mixes, {}, silent);
   const remoteList = Array.isArray(remote) ? remote : [];
+  const remoteById = new Map(remoteList.map((row) => [row.mix_id, row]));
   const remoteIds = new Set(remoteList.map((row) => row.mix_id));
   const localIds = new Set(local.map((row) => row.mix_id));
   await Promise.all(local
     .filter((row) => !remoteIds.has(row.mix_id))
     .map((row) => request('POST', THEME_API_PATHS.mixes, row, silent)));
+  await Promise.all(local
+    .filter((row) => (
+      remoteById.has(row.mix_id)
+      && remoteById.get(row.mix_id)?.mix_name !== row.mix_name
+    ))
+    .map((row) => request(
+      'PATCH',
+      `${THEME_API_PATHS.mixes}${row.mix_id}/`,
+      { mix_name: row.mix_name },
+      silent,
+    )));
   await Promise.all(remoteList
     .filter((row) => !localIds.has(row.mix_id))
     .map((row) => request('DELETE', `${THEME_API_PATHS.mixes}${row.mix_id}/`, {}, silent)));
@@ -143,18 +156,21 @@ export async function flushThemeConfig(payload = {}) {
     ...body,
     platform: currentTerminal(),
   }, silent);
+  let syncFailed = false;
   try {
     await syncCollects(payload.favorites);
     await syncMixes(payload.outfits);
   } catch {
-    // Social lists are best-effort; the current outfit is already on the server.
+    syncFailed = true;
   }
-  return { ok: true };
+  return { ok: true, syncFailed };
 }
 
 export async function pullThemeCloudState() {
   if (!isLoggedIn()) return { ok: false, reason: 'guest' };
   if (guestThemeSnapshot()) return { ok: false, reason: 'merge-pending' };
+  const pending = await flushThemeCloudQueue();
+  if (!pending.ok) return { ok: false, reason: 'sync-pending' };
   const config = await fetchThemeConfig();
   const themeCenter = await import('@/services/themeCenter');
   themeCenter.hydrateFromCloudConfig(config);

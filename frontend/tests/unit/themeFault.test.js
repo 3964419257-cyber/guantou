@@ -9,6 +9,7 @@ import {
   THEME_PACK_STORAGE_KEY,
 } from '@/services/themeCenter';
 import {
+  applyThemeMergeChoice,
   beginThemeApply,
   bindThemeNetworkFlush,
   flushThemeCloudQueue,
@@ -26,9 +27,11 @@ import {
   THEME_CATALOG_VERSION_KEY,
   THEME_FAULT_KIND,
   THEME_FAULT_TOAST,
+  THEME_GUEST_SNAP_KEY,
   themeResourceHealth,
   writeThemeStorage,
 } from '@/services/themeFault';
+import * as themeApi from '@/services/themeApi';
 
 vi.mock('@/services/feedback', () => ({
   notify: vi.fn(),
@@ -162,6 +165,30 @@ describe('themeFault', () => {
     expect(guestThemeSnapshot().themeId).toBe('member-pine');
   });
 
+  it('treats guest-only favorites as mergeable state', () => {
+    uni.setStorageSync(THEME_GUEST_SNAP_KEY, {
+      themeId: 'default',
+      localDress: {},
+      outfits: [],
+      favorites: { themes: ['paper'], dresses: [] },
+    });
+    expect(guestThemeSnapshot()?.favorites.themes).toEqual(['paper']);
+  });
+
+  it('keeps the guest snapshot when cloud selection cannot load', async () => {
+    const snapshot = {
+      themeId: 'paper',
+      localDress: {},
+      favorites: { themes: ['paper'], dresses: [] },
+    };
+    uni.setStorageSync('token', 'token');
+    uni.setStorageSync(THEME_GUEST_SNAP_KEY, snapshot);
+    vi.spyOn(themeApi, 'pullThemeCloudState').mockRejectedValueOnce(new Error('offline'));
+    const result = await applyThemeMergeChoice('cloud', snapshot);
+    expect(result).toMatchObject({ ok: false, choice: 'cloud', kind: THEME_FAULT_KIND.NETWORK });
+    expect(uni.getStorageSync(THEME_GUEST_SNAP_KEY)).toEqual(snapshot);
+  });
+
   it('clears local theme keys when switching accounts', async () => {
     uni.setStorageSync('ui_theme_account', 'user-a');
     uni.setStorageSync(THEME_PACK_STORAGE_KEY, 'member-pine');
@@ -176,6 +203,31 @@ describe('themeFault', () => {
     setThemeCloudFlusher(() => Promise.reject(new Error('offline')));
     const result = await flushThemeCloudQueue();
     expect(result).toMatchObject({ ok: false, kind: THEME_FAULT_KIND.NETWORK });
+  });
+
+  it('clears a synced cloud queue without deleting a newer payload', async () => {
+    uni.setStorageSync('token', 'token');
+    uni.setStorageSync('ui_theme_pack_cloud', { themeId: 'paper' });
+    setThemeCloudFlusher(async () => ({ ok: true }));
+    expect(await flushThemeCloudQueue()).toEqual({ ok: true });
+    expect(uni.getStorageSync('ui_theme_pack_cloud')).toBe('');
+
+    uni.setStorageSync('ui_theme_pack_cloud', { themeId: 'paper' });
+    setThemeCloudFlusher(async () => {
+      uni.setStorageSync('ui_theme_pack_cloud', { themeId: 'nightferry' });
+      return { ok: true };
+    });
+    expect(await flushThemeCloudQueue()).toEqual({ ok: true });
+    expect(uni.getStorageSync('ui_theme_pack_cloud')).toEqual({ themeId: 'nightferry' });
+  });
+
+  it('keeps the cloud queue when social reconciliation needs a retry', async () => {
+    uni.setStorageSync('token', 'token');
+    uni.setStorageSync('ui_theme_pack_cloud', { themeId: 'paper' });
+    setThemeCloudFlusher(async () => ({ ok: true, syncFailed: true }));
+    const result = await flushThemeCloudQueue();
+    expect(result).toMatchObject({ ok: false, syncFailed: true });
+    expect(uni.getStorageSync('ui_theme_pack_cloud')).toEqual({ themeId: 'paper' });
   });
 
   it('silently refreshes the catalog after reconnect when a fetcher is bound', async () => {

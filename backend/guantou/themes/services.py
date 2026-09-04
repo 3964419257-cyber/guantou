@@ -494,11 +494,15 @@ def create_mix(user, payload):
         raw_map = {}
     decoration_map = {}
     for component, item_id in raw_map.items():
-        if DecorationItem.objects.filter(decoration_id=str(item_id)).exists():
-            decoration_map[str(component)] = str(item_id)
-    ids = payload.get("decoration_ids")
-    if not isinstance(ids, list):
-        ids = list(decoration_map.values())
+        component = str(component)
+        if component not in ComponentType.values:
+            continue
+        item = DecorationItem.objects.filter(decoration_id=str(item_id)).first()
+        if item and item.component_type == component:
+            decoration_map[component] = item.decoration_id
+    # decoration_ids is a denormalized index used by reference checks. Derive it
+    # from the validated map so callers cannot persist contradictory references.
+    ids = list(dict.fromkeys(decoration_map.values()))
     overlay = parse_mix_overlay(payload)
     if mix_is_duplicate(user, theme_id, decoration_map, overlay):
         raise ThemeAPIError(409, "该搭配方案已保存，请勿重复添加", "mix_dup")
@@ -596,7 +600,9 @@ def item_is_referenced(item_type, item_id):
     for row in UserThemeConfig.objects.all().only("decoration_map"):
         if item_id in (row.decoration_map or {}).values():
             return True
-    for row in UserThemeMix.objects.all().only("decoration_ids"):
+    for row in UserThemeMix.objects.all().only("decoration_map", "decoration_ids"):
+        if item_id in (row.decoration_map or {}).values():
+            return True
         if item_id in (row.decoration_ids or []):
             return True
     return False

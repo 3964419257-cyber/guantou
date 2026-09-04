@@ -4616,6 +4616,9 @@ function rememberGuestSnapshot() {
     themeId: getActiveThemeId(),
     overlay: getOverlayLocalDress(),
     localDress: getLocalDressMap(),
+    favorites: getFavoriteMap(),
+    likes: getLikeMap(),
+    recent: getRecentRaw(),
     outfits: getSavedOutfits(),
   });
 }
@@ -4718,9 +4721,7 @@ export function hydrateFromCloudConfig(dto) {
     writeStorage(THEME_PACK_STORAGE_KEY, mapped.themeId || DEFAULT_THEME_ID);
     writeStorage(LOCAL_DRESS_STORAGE_KEY, mapped.localDress || {});
     writeStorage(THEME_OVERLAY_STORAGE_KEY, mapped.overlay ? '1' : '0');
-    if (mapped.recent?.length) {
-      writeStorage(THEME_RECENT_STORAGE_KEY, mapped.recent);
-    }
+    writeStorage(THEME_RECENT_STORAGE_KEY, mapped.recent || []);
     writeContractSnapshots();
     hydrateOutfitStyle();
     return { ok: true, ...mapped };
@@ -4908,6 +4909,59 @@ export function outfitFingerprint(outfit = {}) {
     .map((groupId) => `${groupId}:${dress[groupId]}`)
     .join('|');
   return `${themeId}#${overlay ? '1' : '0'}#${pairs}`;
+}
+
+export function mergeGuestThemeSnapshot(snapshot = {}) {
+  const mergePairs = (cloud = {}, guest = {}) => ({
+    themes: [...new Set([...(cloud.themes || []), ...(guest.themes || [])])],
+    dresses: [...new Set([...(cloud.dresses || []), ...(guest.dresses || [])])],
+  });
+  const recentByKey = new Map();
+  (snapshot.recent || []).forEach((row) => {
+    if (row?.kind && row?.id) recentByKey.set(`${row.kind}:${row.id}`, row);
+  });
+  getRecentRaw().forEach((row) => {
+    if (row?.kind && row?.id) recentByKey.set(`${row.kind}:${row.id}`, row);
+  });
+  const recent = [...recentByKey.values()]
+    .sort((left, right) => Number(right.usedAt || 0) - Number(left.usedAt || 0))
+    .slice(0, THEME_RECENT_LIMIT);
+
+  const cloudOutfits = getSavedOutfits();
+  const outfitIds = new Set(cloudOutfits.map((row) => row.id).filter(Boolean));
+  const outfitFingerprints = new Set(cloudOutfits.map((row) => outfitFingerprint(row)));
+  const outfits = [...cloudOutfits];
+  (snapshot.outfits || []).forEach((row) => {
+    const fingerprint = outfitFingerprint(row);
+    if ((row?.id && outfitIds.has(row.id)) || outfitFingerprints.has(fingerprint)) return;
+    outfits.push(row);
+    if (row?.id) outfitIds.add(row.id);
+    outfitFingerprints.add(fingerprint);
+  });
+
+  const writes = [
+    writeStorage(LOCAL_DRESS_STORAGE_KEY, {
+      ...(snapshot.localDress || {}),
+      ...getLocalDressMap(),
+    }),
+    writeStorage(
+      THEME_FAVORITE_STORAGE_KEY,
+      mergePairs(getFavoriteMap(), snapshot.favorites),
+    ),
+    writeStorage(THEME_LIKE_STORAGE_KEY, mergePairs(getLikeMap(), snapshot.likes)),
+    writeStorage(THEME_RECENT_STORAGE_KEY, recent),
+    writeStorage(THEME_OUTFIT_STORAGE_KEY, outfits.slice(0, THEME_OUTFIT_LIMIT)),
+  ];
+  const failed = writes.find((result) => !result.ok);
+  if (failed) return { ok: false, reason: failed.reason || 'write' };
+  queueCloudSync({ social: true });
+  return {
+    ok: true,
+    localDress: getLocalDressMap(),
+    favorites: getFavoriteMap(),
+    recent: getRecentRaw(),
+    outfits: getSavedOutfits(),
+  };
 }
 
 function currentOutfitSnapshot() {

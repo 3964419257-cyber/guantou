@@ -17,6 +17,7 @@ from .models import (
     ItemType,
     ThemeItem,
     UserThemeEntitlement,
+    UserThemeMix,
 )
 
 
@@ -1045,6 +1046,40 @@ class ThemeApiTests(TestCase):
         self.assertEqual(deleted.status_code, 404)
         still = self.client.get("/users/theme/mixes/", **self.auth())
         self.assertEqual(still.json()[0]["mix_id"], "mix-private")
+
+    def test_mix_canonicalizes_decoration_map_and_ids(self):
+        created = self.client.post(
+            "/users/theme/mixes/",
+            data={
+                "mix_id": "mix-canonical",
+                "mix_name": "可信搭配",
+                "global_theme_id": "default",
+                "decoration_map": {
+                    "card": "cards-plain",
+                    "avatar_frame": "cards-plain",
+                    "unknown_component": "avatar-plain",
+                },
+                "decoration_ids": ["avatar-plain", "missing-item"],
+            },
+            content_type="application/json",
+            **self.auth(),
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.json()["decoration_map"], {"card": "cards-plain"})
+        self.assertEqual(created.json()["decoration_ids"], ["cards-plain"])
+
+    def test_decoration_reference_checks_mix_map_as_source_of_truth(self):
+        UserThemeMix.objects.create(
+            mix_id="mix-map-only",
+            user=self.user,
+            mix_name="旧数据",
+            global_theme_id="default",
+            decoration_map={"card": "cards-plain"},
+            decoration_ids=[],
+        )
+        from .services import item_is_referenced
+
+        self.assertTrue(item_is_referenced(ItemType.DECORATION, "cards-plain"))
 
     def test_collect_delete_shares_write_rate_window(self):
         for _ in range(20):
