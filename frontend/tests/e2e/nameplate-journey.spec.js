@@ -126,9 +126,8 @@ test('nameplate stays the main journey through comments, login resume, and debat
     });
   });
 
-  await page.goto('/');
-  await page.getByText('刣', { exact: true }).click();
-  await expect(page).toHaveURL(/\/pages\/nameplates\/details\?id=21/);
+  // V2 首页已切换为 Recording 流；旧铭牌在阶段 8 删除前仍须可从直达链接完成闭环。
+  await page.goto('/pages/nameplates/details?id=21');
   await expect(page.getByText('tái → tâi')).toBeVisible();
 
   await page.locator('.comments-action').click();
@@ -149,6 +148,7 @@ test('nameplate stays the main journey through comments, login resume, and debat
   await expect(page.getByText('已支持 7', { exact: true })).toBeVisible();
   expect(supported).toBe(true);
 
+  // 登录恢复后的 Loading 正在淡出时也不能继续拦截下一项操作。
   await page.locator('.debate-action').click();
   await expect(page).toHaveURL(/\/pages\/nameplates\/create\?can_id=11&reference_id=21/);
   await expect(page.getByText('你的立论会与现有铭牌并列呈现，不会覆盖或修改别人的记录。')).toBeVisible();
