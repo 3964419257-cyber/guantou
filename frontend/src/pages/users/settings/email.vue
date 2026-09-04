@@ -27,7 +27,7 @@
       class="email-form"
     >
       <view class="hint">
-        验证码会发到新邮箱。若该地址已经绑定其他账号，需要换一个。
+        当前绑定 {{ oldEmailDisplay }}。验证码会发到新邮箱。若该地址已经绑定其他账号，需要换一个。
       </view>
       <BaseForm
         ref="form"
