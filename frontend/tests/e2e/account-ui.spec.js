@@ -174,7 +174,7 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await page.locator('.tab', { hasText: '我的装扮' }).click();
   await expect(page.getByText('系统默认顶栏').first()).toBeVisible();
   await expect(page.getByText('修改').first()).toBeVisible();
-  await page.locator('.action-stack .base-button').last().click({ force: true });
+  await page.locator('.action-stack .base-button', { hasText: '预览装扮效果' }).click({ force: true });
   await expect(page.getByText('装扮效果预览').first()).toBeVisible();
   await expect(page.getByText('预览仅为模拟效果，不会修改你的界面').first()).toBeVisible();
   await expect(page.getByText('评论区').first()).toBeVisible();
