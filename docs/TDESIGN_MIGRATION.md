@@ -21,8 +21,8 @@
 | `pages/users/settings/password` | issue | [#229](https://github.com/e-dialect/guantou/issues/229)：密码显示与原生 form submit |
 | `pages/users/settings/email` | issue | [#227](https://github.com/e-dialect/guantou/issues/227)：验证码与邮箱绑定流程 |
 | `pages/login/register` | done | [#228](https://github.com/e-dialect/guantou/issues/228) / [PR #309](https://github.com/e-dialect/guantou/pull/309)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：邮箱注册迁移到 BaseField/BaseButton，保留既有 API 契约并补字段错误与提交状态 |
-| `pages/login/register/wechat` | issue | [#230](https://github.com/e-dialect/guantou/issues/230)：微信昵称/授权能力 |
-| `pages/login/forget` | issue | [#226](https://github.com/e-dialect/guantou/issues/226)：多阶段找回密码流程 |
+| `pages/login/register/wechat` | done | [#230](https://github.com/e-dialect/guantou/issues/230) / [PR #308](https://github.com/e-dialect/guantou/pull/308)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、昵称确认、行内错误及可等待的微信授权注册 |
+| `pages/login/forget` | done | [#226](https://github.com/e-dialect/guantou/issues/226) / [PR #308](https://github.com/e-dialect/guantou/pull/308)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：分步找回、字段校验、提交状态与错误映射；不引入演示验证码 |
 | `pages/cans/create` | done | [#232](https://github.com/e-dialect/guantou/issues/232) / [PR #282](https://github.com/e-dialect/guantou/pull/282)：BaseForm / BaseField、按钮、加载、空态与共享反馈；保留方言级联、枚举 Picker、录音及草稿业务，见下方验收记录 |
 | `pages/pronunciations/create` | done | [#234](https://github.com/e-dialect/guantou/issues/234)：PageShell + BaseForm/BaseField/BaseButton、统一加载/重试/反馈；保留写法 Picker、方言级联、联合校验、字段错误定位与成功返回 |
 | `pages/shelves/index` | issue | [#231](https://github.com/e-dialect/guantou/issues/231)：创建表单与列表状态 |

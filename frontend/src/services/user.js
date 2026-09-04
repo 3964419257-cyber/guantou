@@ -44,37 +44,30 @@ export async function registerUser(username, password, email, code) {
  * @param nickname 昵称
  */
 export function registerWechatUser(username, password, nickname) {
-  uni.login({
-    async success(res) {
-      if (res.code) {
-        await rawRequest.post('/users/wechat/register', {
-          username,
-          password,
-          jscode: res.code,
-          nickname,
-        }, { auth: false }).then(async (response) => {
+  return new Promise((resolve, reject) => {
+    uni.login({
+      async success(res) {
+        if (!res.code) {
+          reject(new Error('当前平台不支持'));
+          return;
+        }
+        try {
+          const response = await rawRequest.post('/users/wechat/register', {
+            username,
+            password,
+            jscode: res.code,
+            nickname,
+          }, { auth: false });
           await afterLogin(response, { isNew: true });
-        }).catch((err) => {
-          switch (err.statusCode) {
-            case 409:
-              uni.showToast({
-                title: err.message || '用户名已存在',
-                icon: 'error',
-              });
-              break;
-            default:
-              uni.showToast({
-                title: err.message || '注册失败',
-                icon: 'error',
-              });
-          }
-        });
-      } else {
-        uni.showToast({
-          title: '当前平台不支持',
-        });
-      }
-    },
+          resolve(response);
+        } catch (error) {
+          reject(error);
+        }
+      },
+      fail() {
+        reject(new Error('获取微信授权失败'));
+      },
+    });
   });
 }
 
