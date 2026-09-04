@@ -80,10 +80,12 @@
       </view>
     </view>
 
-    <!-- 沉浸流主体 -->
+    <!-- 沉浸流主体：面板打开时用 CSS 锁定触摸（pointer-events/touch-action），
+         而非切换子树——否则会销毁并重建 HomeActionRail，把刚点赞/关注后的本地状态回退为旧值 -->
     <swiper
       v-else
       class="home-feed__swiper"
+      :class="{ 'home-feed__swiper--locked': swipeDisabled }"
       vertical
       :current="relativeCurrent"
       :duration="280"
@@ -108,6 +110,15 @@
         </view>
       </swiper-item>
     </swiper>
+
+    <!-- 加载更多指示：加载中显示，完成/无更多/失败时隐藏 -->
+    <view
+      v-if="loadingMore"
+      class="home-feed__load-more"
+      aria-hidden="true"
+    >
+      <view class="home-feed__spinner" />
+    </view>
 
     <!-- 加载更多失败条 -->
     <view
@@ -144,6 +155,11 @@ export default {
     tab: {
       type: String,
       required: true,
+    },
+    /* 评论面板打开时锁定罐头流滑动，避免上下滑同时驱动 swiper 与评论列表 */
+    swipeDisabled: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['share'],
@@ -318,6 +334,12 @@ export default {
   width: 100%;
 }
 
+/* 面板打开时锁定 swiper：不销毁子树（保住操作栏状态），仅阻断触摸命中与手势 */
+.home-feed__swiper--locked {
+  pointer-events: none;
+  touch-action: none;
+}
+
 .home-feed__slide {
   position: relative;
   height: 100%;
@@ -415,6 +437,43 @@ export default {
   border: 1rpx solid var(--immersive-border-color);
   color: var(--on-immersive-muted-color);
   font-size: var(--font-size-xs);
+}
+
+/* ---------- 加载更多指示 ---------- */
+.home-feed__load-more {
+  position: absolute;
+  left: 50%;
+  bottom: 24rpx;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding: 12rpx 24rpx;
+  border-radius: var(--radius-pill);
+  background: var(--immersive-surface-color);
+  border: 1rpx solid var(--immersive-border-color);
+  display: flex;
+  align-items: center;
+}
+
+.home-feed__spinner {
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  border: 3rpx solid var(--immersive-border-color);
+  border-top-color: var(--immersive-accent-color);
+  animation: home-feed-spin 0.8s linear infinite;
+}
+
+@keyframes home-feed-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 退化为静态圆环，不旋转 */
+  .home-feed__spinner {
+    animation: none;
+  }
 }
 
 /* ---------- 骨架屏 ---------- */

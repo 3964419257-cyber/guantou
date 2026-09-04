@@ -123,7 +123,9 @@ import AudioWave from '@/components/home/AudioWave.vue';
 import NameplateVoteRow from '@/components/home/NameplateVoteRow.vue';
 import { getNameplatePreview } from '@/services/homeFeed';
 import { goCanDetail } from '@/services/navigation';
-import { playManaged, stopAudio } from '@/utils/audio';
+import {
+  onExternalStop, playManaged, stopAudio,
+} from '@/utils/audio';
 import { toUserPage } from '@/routers/user';
 
 const STATUS_LABELS = {
@@ -203,16 +205,37 @@ export default {
       },
     },
   },
+  created() {
+    /* 播放句柄不进 data：需与外部停止广播携带的句柄做全等比较，
+     * 被响应式代理包装后引用不相等会导致归属判断失效 */
+    this.playbackHandle = null;
+  },
   mounted() {
     if (this.active) this.ensurePreviews();
+    /* 订阅外部停止广播：切 tab/跳详情/被其他播放顶掉时复位本地播放态 */
+    this.unsubscribeExternalStop = onExternalStop(this.resetPlaybackState);
   },
   activated() {
     if (this.active) this.ensurePreviews();
   },
   beforeUnmount() {
     this.stopPlayback();
+    if (this.unsubscribeExternalStop) {
+      this.unsubscribeExternalStop();
+      this.unsubscribeExternalStop = null;
+    }
   },
   methods: {
+    /* 外部停止回调：只复位本地展示态，不得再调 stopAudio（避免递归）。
+     * 广播携带被停止句柄：不属于本卡时忽略——否则本卡发起置换播放时，
+     * 先置 playing 再调 playManaged 的顺序会被旧句柄的停止广播误复位 */
+    resetPlaybackState(stoppedHandle) {
+      if (stoppedHandle && stoppedHandle !== this.playbackHandle) return;
+      this.playbackHandle = null;
+      this.playing = false;
+      this.progress = 0;
+      this.progressSeconds = 0;
+    },
     formatSeconds(seconds) {
       const total = Math.max(0, Math.floor(seconds));
       return `${total}″`;
@@ -234,7 +257,7 @@ export default {
       this.progress = 0;
       this.progressSeconds = 0;
       this.playing = true;
-      playManaged(this.can.audio_url, {
+      this.playbackHandle = playManaged(this.can.audio_url, {
         onTimeUpdate: ({ currentTime, duration }) => {
           this.progressSeconds = currentTime;
           if (duration > 0) {
@@ -242,14 +265,10 @@ export default {
           }
         },
         onEnded: () => {
-          this.playing = false;
-          this.progress = 0;
-          this.progressSeconds = 0;
+          this.resetPlaybackState();
         },
         onError: () => {
-          this.playing = false;
-          this.progress = 0;
-          this.progressSeconds = 0;
+          this.resetPlaybackState();
           uni.showToast({ title: '播放失败', icon: 'none' });
         },
       });
@@ -258,9 +277,7 @@ export default {
       if (this.playing) {
         stopAudio();
       }
-      this.playing = false;
-      this.progress = 0;
-      this.progressSeconds = 0;
+      this.resetPlaybackState();
     },
     openAuthor() {
       if (this.can.recorder && this.can.recorder.id) {
@@ -401,10 +418,12 @@ export default {
   border-radius: 50%;
   border: 2rpx solid var(--immersive-border-color);
   background: var(--immersive-surface-strong-color);
+  /* 内侧顶部高光：低成本提升玻璃质感 */
+  box-shadow: inset 0 3rpx 8rpx var(--immersive-surface-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, background-color 0.3s ease;
+  transition: transform 0.2s ease, background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .play-button::after {
@@ -418,6 +437,10 @@ export default {
 .play-button--playing {
   background: var(--immersive-accent-color);
   border-color: var(--immersive-accent-color);
+  /* 播放中外圈柔光，与 halo 呼吸呼应 */
+  box-shadow:
+    inset 0 3rpx 8rpx var(--immersive-surface-color),
+    0 0 28rpx var(--immersive-glow-color);
 }
 
 .play-button__triangle {
@@ -427,6 +450,8 @@ export default {
   border-left: 40rpx solid var(--on-immersive-color);
   border-top: 24rpx solid transparent;
   border-bottom: 24rpx solid transparent;
+  /* 单层投影增加立体感，比多层 border 造型更廉价 */
+  filter: drop-shadow(0 2rpx 4rpx var(--immersive-bg-color));
 }
 
 .play-button--playing .play-button__triangle {

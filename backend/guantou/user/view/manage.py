@@ -48,12 +48,11 @@ def apply_username_change(request, user, username):
     try:
         USERNAME_VALIDATOR(next_name)
     except ValidationError:
-        return username_error(
-            request, "用户名只能包含字母、数字和 @/./+/-/_", 400
-        )
-    if next_name != user.username and User.objects.exclude(pk=user.pk).filter(
-        username__iexact=next_name
-    ).exists():
+        return username_error(request, "用户名只能包含字母、数字和 @/./+/-/_", 400)
+    if (
+        next_name != user.username
+        and User.objects.exclude(pk=user.pk).filter(username__iexact=next_name).exists()
+    ):
         return username_error(request, "用户名已被占用", 409)
     user.username = next_name
     return None

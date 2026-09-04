@@ -9,35 +9,46 @@
     label-align="top"
   >
     <view class="base-field-control">
-      <t-textarea
-        v-if="type === 'textarea'"
-        :value="modelValue"
-        :placeholder="placeholder"
-        :maxlength="maxlength"
-        :disabled="disabled"
-        :readonly="readonly"
-        :autosize="resolvedAutosize"
-        :indicator="indicator"
-        bordered
-        @change="handleChange"
-        @blur="$emit('blur', $event)"
-        @focus="$emit('focus', $event)"
-      />
-      <t-input
-        v-else
-        :value="modelValue"
-        :type="inputType"
-        :placeholder="placeholder"
-        :maxlength="maxlength"
-        :disabled="disabled"
-        :readonly="readonly"
-        :clearable="clearable"
-        :status="error ? 'error' : 'default'"
-        borderless
-        @change="handleChange"
-        @blur="$emit('blur', $event)"
-        @focus="$emit('focus', $event)"
-      />
+      <slot>
+        <t-textarea
+          v-if="type === 'textarea'"
+          :value="modelValue"
+          :placeholder="placeholder"
+          :maxlength="maxlength"
+          :disabled="disabled"
+          :readonly="readonly"
+          :focus="focus"
+          :confirm-type="confirmType"
+          :autosize="resolvedAutosize"
+          :indicator="indicator"
+          bordered
+          @change="handleChange"
+          @blur="$emit('blur', $event)"
+          @focus="$emit('focus', $event)"
+          @enter="handleEnter"
+        />
+        <t-input
+          v-else
+          :value="modelValue"
+          :aria-role="ariaRole || undefined"
+          :aria-label="ariaLabel || undefined"
+          :type="inputType"
+          :placeholder="placeholder"
+          :maxlength="maxlength"
+          :disabled="disabled"
+          :readonly="readonly"
+          :focus="focus"
+          :confirm-type="confirmType"
+          :clearable="clearable"
+          :status="error ? 'error' : status"
+          :suffix-icon="suffixIcon"
+          borderless
+          @change="handleChange"
+          @blur="$emit('blur', $event)"
+          @focus="$emit('focus', $event)"
+          @enter="handleEnter"
+        />
+      </slot>
     </view>
     <view
       v-if="error"
@@ -60,6 +71,12 @@ export default {
     modelValue: { type: [String, Number], default: '' },
     name: { type: String, required: true },
     label: { type: String, default: '' },
+    status: {
+      type: String,
+      default: 'default',
+      validator: (value) => ['default', 'success', 'warning', 'error'].includes(value),
+    },
+    suffixIcon: { type: [String, Object], default: undefined },
     type: {
       type: String,
       default: 'text',
@@ -76,8 +93,16 @@ export default {
     autosize: { type: [Boolean, Object], default: false },
     indicator: { type: Boolean, default: false },
     clearable: { type: Boolean, default: false },
+    focus: { type: Boolean, default: false },
+    ariaLabel: { type: String, default: '' },
+    ariaRole: { type: String, default: '' },
+    confirmType: {
+      type: String,
+      default: 'done',
+      validator: (value) => ['return', 'send', 'search', 'next', 'go', 'done'].includes(value),
+    },
   },
-  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus'],
+  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus', 'enter', 'confirm'],
   computed: {
     inputType() {
       if (this.type === 'tel') return 'number';
@@ -94,6 +119,10 @@ export default {
       this.$emit('update:modelValue', value);
       this.$emit('change', value);
       this.$emit('input', value);
+    },
+    handleEnter(event) {
+      this.$emit('enter', event);
+      this.$emit('confirm', event);
     },
   },
 };

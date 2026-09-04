@@ -11,6 +11,11 @@ import EmptyState from '@/components/EmptyState.vue';
 import confirmDialog from '@/components/ConfirmDialog';
 
 describe('BaseButton', () => {
+  it('forwards recording action icons explicitly on both platforms', () => {
+    const wrapper = mount(BaseButton, { props: { icon: 'refresh' } });
+    expect(wrapper.getComponent({ name: 'TDesignStub' }).props('icon')).toBe('refresh');
+  });
+
   it('renders the primary variant with slot text by default', () => {
     const wrapper = mount(BaseButton, {
       slots: { default: '提交铭牌' },
@@ -71,6 +76,31 @@ describe('BaseButton', () => {
 });
 
 describe('BaseField', () => {
+  it('wraps a picker trigger without rendering an extra text input', () => {
+    const wrapper = mount(BaseField, {
+      props: { name: 'dialect', label: '方言点', error: '请选择方言点' },
+      slots: { default: '<div class="dialect-trigger">选择方言</div>' },
+    });
+    expect(wrapper.find('.dialect-trigger').exists()).toBe(true);
+    expect(wrapper.findAllComponents({ name: 'TDesignStub' })).toHaveLength(1);
+    expect(wrapper.find('.base-field-error').text()).toBe('请选择方言点');
+  });
+
+  it('preserves completion icons while server errors take precedence over success', async () => {
+    const suffixIcon = { name: 'check-circle-filled' };
+    const wrapper = mount(BaseField, {
+      props: { name: 'concept', status: 'success', suffixIcon, error: '概念有误' },
+    });
+    const input = wrapper.findAllComponents({ name: 'TDesignStub' })[1];
+    expect(input.attributes('status')).toBeUndefined();
+    expect(input.vm.$attrs.status).toBe('error');
+    expect(input.vm.$attrs['suffix-icon']).toEqual(suffixIcon);
+
+    await wrapper.setProps({ error: '' });
+    expect(input.vm.$attrs.status).toBe('success');
+    expect(input.vm.$attrs['suffix-icon']).toEqual(suffixIcon);
+  });
+
   it('renders label, required mark and error text', () => {
     const wrapper = mount(BaseField, {
       props: {
@@ -88,6 +118,18 @@ describe('BaseField', () => {
     expect(wrapper.findAllComponents({ name: 'TDesignStub' })).toHaveLength(2);
   });
 
+  it('keeps field semantics with a custom picker control instead of rendering an input', () => {
+    const wrapper = mount(BaseField, {
+      props: { name: 'dialect_id', label: '方言点', help: '请选择当地记录', required: true },
+      slots: { default: '<div class="custom-control">闽语 · 莆仙片</div>' },
+    });
+    expect(wrapper.findAllComponents({ name: 'TDesignStub' })).toHaveLength(1);
+    expect(wrapper.getComponent({ name: 'TDesignStub' }).props()).toMatchObject({
+      name: 'dialect_id', label: '方言点', help: '请选择当地记录', requiredMark: true,
+    });
+    expect(wrapper.get('.custom-control').text()).toBe('闽语 · 莆仙片');
+  });
+
   it('uses textarea and emits v-model updates on input', async () => {
     const wrapper = mount(BaseField, {
       props: { name: 'definition', type: 'textarea', modelValue: '' },
@@ -98,6 +140,29 @@ describe('BaseField', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.emitted('update:modelValue')[0]).toEqual(['罐头释义']);
     expect(wrapper.emitted('input')[0]).toEqual(['罐头释义']);
+  });
+
+  it('forwards TDesign enter events while keeping confirm compatibility', async () => {
+    const wrapper = mount(BaseField, {
+      props: {
+        name: 'search',
+        confirmType: 'search',
+        focus: true,
+        ariaRole: 'searchbox',
+        ariaLabel: '搜索',
+      },
+    });
+    const input = wrapper.findAllComponents({ name: 'TDesignStub' })[1];
+
+    expect(input.props('ariaLabel')).toBe('搜索');
+    expect(input.vm.$attrs.focus).toBe(true);
+    expect(input.vm.$attrs['confirm-type']).toBe('search');
+    expect(input.vm.$attrs['aria-role']).toBe('searchbox');
+    input.vm.$emit('enter', { value: '月亮' });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted('enter')).toHaveLength(1);
+    expect(wrapper.emitted('confirm')).toHaveLength(1);
   });
 });
 

@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SearchPanel from '@/components/SearchPanel.vue';
+import BaseField from '@/components/BaseField.vue';
 
 function mountSearchPanel(props = {}) {
   return mount(SearchPanel, {
@@ -46,12 +47,23 @@ describe('SearchPanel', () => {
   it('debounces suggestions for 300ms', async () => {
     const wrapper = mountSearchPanel();
 
-    await wrapper.find('input').setValue('moon');
+    wrapper.getComponent(BaseField).vm.$emit('update:modelValue', 'moon');
+    await wrapper.vm.$nextTick();
     vi.advanceTimersByTime(299);
     expect(wrapper.emitted('suggest')).toBeUndefined();
 
     vi.advanceTimersByTime(1);
     expect(wrapper.emitted('suggest')[0]).toEqual(['moon']);
+  });
+
+  it('submits through the TDesign enter event without changing grouped results', async () => {
+    const wrapper = mountSearchPanel({ modelValue: ' 月亮 ' });
+
+    wrapper.getComponent(BaseField).vm.$emit('enter');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.emitted('search')).toEqual([['月亮']]);
+    expect(wrapper.findAll('section')).toHaveLength(0);
   });
 
   it('clicks hot tags and history entries into searches', async () => {
@@ -70,7 +82,22 @@ describe('SearchPanel', () => {
     const wrapper = mountSearchPanel({
       hasSearched: true,
       results: {
-        flavors: [{ id: 1, name: '月亮', definition: '天体', variants: [], package_links: [] }],
+        flavors: [
+          {
+            id: 1,
+            name: '月亮',
+            definition: '天体',
+            pronunciations: [{ id: 11 }],
+            package_links: [],
+          },
+          {
+            id: 2,
+            name: '月亮',
+            definition: '天体',
+            pronunciations: [{ id: 22 }],
+            package_links: [],
+          },
+        ],
         packages: [],
         cans: [],
       },
@@ -81,6 +108,9 @@ describe('SearchPanel', () => {
     expect(wrapper.emitted('open')[0][0]).toMatchObject({
       id: 1,
       scope: 'flavors',
+      flavor_ids: [1, 2],
+      pronunciations: [{ id: 11 }, { id: 22 }],
     });
+    expect(wrapper.findAll('.entity-card')).toHaveLength(1);
   });
 });
