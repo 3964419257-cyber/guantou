@@ -145,7 +145,7 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await expect(page.locator('form:not(.t-form)')).toHaveCount(0);
 
   await page.getByRole('button', { name: '保存' }).click();
-  await expect(page.getByText('请输入原密码')).toBeVisible();
+  await expect(page.locator('.base-field-error').first()).toHaveText('请输入原密码');
 
   const oldInput = page.locator('input').first();
   await expect(oldInput).toHaveAttribute('type', 'password');
@@ -165,8 +165,14 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await inputs.nth(0).fill('old-pass');
   await inputs.nth(1).fill('new-pass');
   await inputs.nth(2).fill('new-pass');
+  const passwordRequest = page.waitForRequest((request) => (
+    request.method() === 'PUT' && request.url().endsWith('/users/7/password')
+  ));
   await page.getByRole('button', { name: '保存' }).click();
-  await expect(page.getByText('修改成功')).toBeVisible();
+  await passwordRequest;
+  await expect(page).toHaveURL(/\/pages\/users\/settings\/information/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('token')))
+    .toBe('fresh-token');
 });
 
 test('H5 nickname page hides WeChat nickname fill', async ({ page }) => {
@@ -214,12 +220,12 @@ test('email settings send a bind code without native form controls', async ({ pa
 
   await expect(page.getByText('修改邮箱').first()).toBeVisible();
   await expect(page.getByText('原邮箱')).toBeVisible();
-  await expect(page.getByText('c@example.com')).toBeVisible();
+  await expect(page.locator('input').first()).toHaveValue('c@example.com');
   await expect(page.getByText('获取验证码')).toBeVisible();
   await expect(page.locator('form:not(.t-form)')).toHaveCount(0);
 
   await page.getByRole('button', { name: '保存' }).click();
-  await expect(page.getByText('请输入新邮箱')).toBeVisible();
+  await expect(page.locator('.base-field-error').first()).toHaveText('请输入新邮箱');
 
   const inputs = page.locator('input');
   await inputs.nth(1).fill('new@example.com');

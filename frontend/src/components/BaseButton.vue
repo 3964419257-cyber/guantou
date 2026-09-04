@@ -2,6 +2,9 @@
   <t-button
     class="base-button"
     :class="rootClass"
+    role="button"
+    :tabindex="disabled ? -1 : 0"
+    :aria-disabled="disabled || loading ? 'true' : 'false'"
     :theme="tdTheme"
     :variant="tdVariant"
     :size="size"
