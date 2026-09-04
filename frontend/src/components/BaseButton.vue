@@ -14,7 +14,7 @@
     :disabled="disabled"
     :loading="loading"
     :type="type || undefined"
-    :aria-label="ariaLabel || text"
+    v-bind="buttonA11y"
     @click="handleClick"
   >
     <slot>{{ text }}</slot>
@@ -70,6 +70,12 @@ export default {
         `base-button--${this.size}`,
         { 'base-button--block': this.block },
       ];
+    },
+    resolvedAriaLabel() {
+      return this.ariaLabel || this.text || undefined;
+    },
+    buttonA11y() {
+      return this.resolvedAriaLabel ? { 'aria-label': this.resolvedAriaLabel } : {};
     },
   },
   methods: {

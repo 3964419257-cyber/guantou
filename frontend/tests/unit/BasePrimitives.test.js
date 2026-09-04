@@ -16,6 +16,13 @@ describe('BaseButton', () => {
     expect(wrapper.getComponent({ name: 'TDesignStub' }).props('icon')).toBe('refresh');
   });
 
+  it('omits an empty aria-label so slot text stays the accessible name', () => {
+    const wrapper = mount(BaseButton, {
+      slots: { default: '保存' },
+    });
+    expect(wrapper.vm.resolvedAriaLabel).toBeUndefined();
+  });
+
   it('renders the primary variant with slot text by default', () => {
     const wrapper = mount(BaseButton, {
       slots: { default: '提交铭牌' },

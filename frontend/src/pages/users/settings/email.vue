@@ -27,7 +27,7 @@
       class="email-form"
     >
       <view class="hint">
-        验证码会发到新邮箱。若该地址已经绑定其他账号，需要换一个。
+        当前绑定 {{ oldEmailDisplay }}。验证码会发到新邮箱。若该地址已经绑定其他账号，需要换一个。
       </view>
       <BaseForm
         ref="form"
@@ -103,7 +103,6 @@ import { resolveSessionUserId } from '@/services/session';
 import { changeUserEmail, getUserInfo } from '@/services/user';
 import { sendEmailCode } from '@/services/verification';
 
-const app = getApp();
 const CODE_THROTTLE_SECONDS = 60;
 
 function fieldErrorMessage(error, field) {
@@ -193,7 +192,7 @@ export default {
       this.loading = true;
       this.loadError = '';
       try {
-        const userInfo = await getUserInfo(app.globalData.id, true);
+        const userInfo = await getUserInfo(resolveSessionUserId(), true);
         this.oldEmail = userInfo.user.email || '';
       } catch (error) {
         this.loadError = error?.message || '邮箱读取失败，请检查网络后重试';
@@ -247,7 +246,7 @@ export default {
       if (valid !== true) return;
       this.saving = true;
       try {
-        await changeUserEmail(app.globalData.id, email, code);
+        await changeUserEmail(resolveSessionUserId(), email, code);
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {

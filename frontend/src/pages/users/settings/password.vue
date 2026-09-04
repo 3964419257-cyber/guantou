@@ -235,7 +235,7 @@ export default {
     },
     async loadPasswordState() {
       try {
-        const userInfo = await getUserInfo(app.globalData.id, true);
+        const userInfo = await getUserInfo(resolveSessionUserId(), true);
         const user = userInfo?.user || {};
         this.hasPassword = user.has_password !== false;
         if (user.username) {
@@ -274,7 +274,7 @@ export default {
       if (valid !== true) return;
       this.saving = true;
       try {
-        await changeUserPassword(app.globalData.id, oldPassword, newPassword);
+        await changeUserPassword(resolveSessionUserId(), oldPassword, newPassword);
         notifySuccess('修改成功');
         goBack(ROUTES.userInformation);
       } catch (error) {

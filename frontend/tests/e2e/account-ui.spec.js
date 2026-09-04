@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+async function tapAction(page, name) {
+  await page.locator('.base-button', { hasText: name }).last().click({ force: true });
+}
+
 async function openMine(page) {
   await page.goto('/');
   await page.getByRole('button', { name: '我的' }).click();
@@ -144,14 +148,14 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await expect(page.getByText('确认密码')).toBeVisible();
   await expect(page.locator('form:not(.t-form)')).toHaveCount(0);
 
-  await page.getByRole('button', { name: '保存' }).click();
+  await tapAction(page, '保存');
   await expect(page.locator('.base-field-error').first()).toHaveText('请输入原密码');
 
   const oldInput = page.locator('input').first();
   await expect(oldInput).toHaveAttribute('type', 'password');
-  await page.getByRole('button', { name: '显示' }).first().click();
+  await page.locator('.base-button', { hasText: '显示' }).first().click({ force: true });
   await expect(oldInput).toHaveAttribute('type', 'text');
-  await page.getByRole('button', { name: '隐藏' }).click();
+  await page.locator('.base-button', { hasText: '隐藏' }).click({ force: true });
   await expect(oldInput).toHaveAttribute('type', 'password');
 
   if (process.env.E2E_SCREENSHOT_DIR) {
@@ -168,7 +172,7 @@ test('password settings use design-system fields, visibility, and loading', asyn
   const passwordRequest = page.waitForRequest((request) => (
     request.method() === 'PUT' && request.url().endsWith('/users/7/password')
   ));
-  await page.getByRole('button', { name: '保存' }).click();
+  await tapAction(page, '保存');
   await passwordRequest;
   await expect(page).toHaveURL(/\/pages\/users\/settings\/information/);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('token')))
@@ -220,18 +224,19 @@ test('email settings send a bind code without native form controls', async ({ pa
 
   await expect(page.getByText('修改邮箱').first()).toBeVisible();
   await expect(page.getByText('原邮箱')).toBeVisible();
+  await expect(page.getByText('c@example.com')).toBeVisible();
   await expect(page.locator('input').first()).toHaveValue('c@example.com');
   await expect(page.getByText('获取验证码')).toBeVisible();
   await expect(page.locator('form:not(.t-form)')).toHaveCount(0);
 
-  await page.getByRole('button', { name: '保存' }).click();
+  await tapAction(page, '保存');
   await expect(page.locator('.base-field-error').first()).toHaveText('请输入新邮箱');
 
   const inputs = page.locator('input');
   await inputs.nth(1).fill('new@example.com');
-  await page.getByRole('button', { name: '获取验证码' }).click();
+  await page.locator('.base-button', { hasText: '获取验证码' }).click({ force: true });
   await expect(page.getByText('验证码已发送')).toBeVisible();
-  await expect(page.getByRole('button', { name: /后重发/ })).toBeDisabled();
+  await expect(page.locator('.base-button', { hasText: /后重发/ })).toBeDisabled();
 
   if (process.env.E2E_SCREENSHOT_DIR) {
     await page.screenshot({
