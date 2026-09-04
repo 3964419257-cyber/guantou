@@ -1,7 +1,7 @@
 <template>
-  <view class="base-field-shell">
+  <view class="base-field">
     <t-form-item
-      class="base-field"
+      class="base-field-item"
       :name="name"
       :label="label"
       :help="help"
@@ -136,11 +136,8 @@ export default {
 </script>
 
 <style scoped>
-.base-field-shell {
-  width: 100%;
-}
-
 .base-field {
+  width: 100%;
   --td-form-item-border-color: transparent;
   --td-form-item-horizontal-padding: 0;
   --td-form-item-vertical-padding: var(--space-2);

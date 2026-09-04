@@ -79,8 +79,8 @@ test('theme center keeps one live pack and placeholders', async ({ page }) => {
   await expect(page.getByText('会员专属').first()).toBeVisible();
   await expect(page.getByText('已绝版').first()).toBeVisible();
   await expect(page.getByText('川渝烟火', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('地域方言风', { exact: true })).toBeVisible();
-  await expect(page.getByText('国风', { exact: true })).toBeVisible();
+  await expect(page.getByText('地域方言风', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('国风', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('全局主题将统一改变导航栏、按钮、卡片、背景、文字色彩')).toBeVisible();
   await expect(page.getByText('全局主题会带轻微地域纹理，不会改变罐头播放内容；部分组件在微信小程序存在限制。')).toBeVisible();
   await expect(page.getByText('提示：部分限定装扮为限时活动产出，活动结束后将绝版；')).toBeVisible();
