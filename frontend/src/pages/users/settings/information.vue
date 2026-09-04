@@ -100,6 +100,7 @@
         <view
           class="avatar-hit pressable"
           @tap="openAvatarSheet"
+          @click="openAvatarSheet"
         >
           <image
             class="hero-avatar"

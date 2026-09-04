@@ -1,16 +1,21 @@
 import { expect, test } from '@playwright/test';
 
 async function tap(locator) {
-  await locator.click({ force: true });
+  await locator.click();
 }
 
 async function tapAction(page, name) {
-  await page.locator('.base-button', { hasText: name }).last().click({ force: true });
+  const byRole = page.getByRole('button', { name });
+  if (await byRole.count()) {
+    await byRole.last().click();
+    return;
+  }
+  await page.locator('.base-button', { hasText: name }).last().click();
 }
 
 async function openMine(page) {
   await page.goto('/');
-  await tap(page.getByRole('button', { name: '我的' }));
+  await page.getByRole('button', { name: '我的' }).click();
   await expect(page.getByText('还没有登录')).toBeVisible();
 }
 

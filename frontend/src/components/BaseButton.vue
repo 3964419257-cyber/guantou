@@ -16,6 +16,7 @@
     :type="type || undefined"
     v-bind="buttonA11y"
     @click="handleClick"
+    @tap="handleClick"
   >
     <slot>{{ text }}</slot>
   </t-button>
@@ -69,6 +70,7 @@ export default {
       primaryLook: getPrimaryLookPreference(),
       ghostLook: getGhostLookPreference(),
       effect: getEffectPreference(),
+      emittingClick: false,
     };
   },
   computed: {
@@ -138,8 +140,12 @@ export default {
       this.effect = theme?.effect || getEffectPreference();
     },
     handleClick(event) {
-      if (this.disabled || this.loading) return;
+      if (this.disabled || this.loading || this.emittingClick) return;
+      this.emittingClick = true;
       this.$emit('click', event);
+      this.$nextTick(() => {
+        this.emittingClick = false;
+      });
     },
   },
 };
@@ -147,11 +153,8 @@ export default {
 
 <style scoped>
 .base-button {
+  pointer-events: auto;
   --td-button-border-radius: var(--dress-button-border-radius, var(--radius-pill));
-}
-
-.base-button :deep(.t-button__content) {
-  pointer-events: none;
 }
 
 .base-button--look-soft {

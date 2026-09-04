@@ -1,63 +1,65 @@
 <template>
-  <t-form-item
-    class="base-field"
-    :name="name"
-    :label="label"
-    :help="help"
-    :required-mark="required"
-    :rules="rules"
-    label-align="top"
-  >
-    <view class="base-field-control">
-      <slot>
-        <t-textarea
-          v-if="type === 'textarea'"
-          :value="modelValue"
-          :placeholder="placeholder"
-          :maxlength="maxlength"
-          :disabled="disabled"
-          :readonly="readonly"
-          :focus="focus"
-          :confirm-type="confirmType"
-          :autosize="resolvedAutosize"
-          :indicator="indicator"
-          bordered
-          @change="handleChange"
-          @blur="$emit('blur', $event)"
-          @focus="$emit('focus', $event)"
-          @enter="handleEnter"
-        />
-        <t-input
-          v-else
-          :value="modelValue"
-          :aria-role="ariaRole || undefined"
-          :aria-label="ariaLabel || undefined"
-          :type="inputType"
-          :placeholder="placeholder"
-          :maxlength="maxlength"
-          :disabled="disabled"
-          :readonly="readonly"
-          :focus="focus"
-          :confirm-type="confirmType"
-          :clearable="clearable"
-          :status="error ? 'error' : status"
-          :suffix-icon="suffixIcon"
-          borderless
-          @change="handleChange"
-          @confirm="handleConfirm"
-          @blur="$emit('blur', $event)"
-          @focus="$emit('focus', $event)"
-          @enter="handleEnter"
-        />
-      </slot>
-    </view>
+  <view class="base-field-shell">
+    <t-form-item
+      class="base-field"
+      :name="name"
+      :label="label"
+      :help="help"
+      :required-mark="required"
+      :rules="rules"
+      label-align="top"
+    >
+      <view class="base-field-control">
+        <slot>
+          <t-textarea
+            v-if="type === 'textarea'"
+            :value="modelValue"
+            :placeholder="placeholder"
+            :maxlength="maxlength"
+            :disabled="disabled"
+            :readonly="readonly"
+            :focus="focus"
+            :confirm-type="confirmType"
+            :autosize="resolvedAutosize"
+            :indicator="indicator"
+            bordered
+            @change="handleChange"
+            @blur="$emit('blur', $event)"
+            @focus="$emit('focus', $event)"
+            @enter="handleEnter"
+          />
+          <t-input
+            v-else
+            :value="modelValue"
+            :aria-role="ariaRole || undefined"
+            :aria-label="ariaLabel || undefined"
+            :type="inputType"
+            :placeholder="placeholder"
+            :maxlength="maxlength"
+            :disabled="disabled"
+            :readonly="readonly"
+            :focus="focus"
+            :confirm-type="confirmType"
+            :clearable="clearable"
+            :status="error ? 'error' : status"
+            :suffix-icon="suffixIcon"
+            borderless
+            @change="handleChange"
+            @confirm="handleConfirm"
+            @blur="$emit('blur', $event)"
+            @focus="$emit('focus', $event)"
+            @enter="handleEnter"
+          />
+        </slot>
+      </view>
+    </t-form-item>
     <view
       v-if="error"
       class="base-field-error"
     >
       {{ error }}
     </view>
-  </t-form-item>
+  </view>
 </template>
 
 <script>
@@ -134,6 +136,10 @@ export default {
 </script>
 
 <style scoped>
+.base-field-shell {
+  width: 100%;
+}
+
 .base-field {
   --td-form-item-border-color: transparent;
   --td-form-item-horizontal-padding: 0;
