@@ -1,7 +1,7 @@
 # 三期商业化与生态拓展
 
-**文档状态：** 独立拆分（**三期**低优先级；一期 / 二期不对用户开放支付、碎片、社区、榜单、复刻）  
-**产品：** 乡声集盒 · 主题中心 · 商业化、积分碎片、社区复刻、节日运营  
+**文档状态：** 独立拆分（**三期**低优先级；一期 / 二期不对用户开放支付、碎片、社区、榜单、复刻）
+**产品：** 乡声集盒 · 主题中心 · 商业化、积分碎片、社区复刻、节日运营
 **对应实现：** 现网无账本、无支付、无公开搭配、无社区路由。节日窗复用已有 `activity_start_at` / `activity_end_at` + `sync_theme_activity_windows`。投稿见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)（**尚未开工**，不是已完成）
 
 本文只定 **三期商业化与生态玩法的边界、和已有分册怎么衔接、现网绝不提前开通什么**。不定 UI 稿、支付通道选型、买断合同。分期谁先做见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。启用以 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md) + [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md) 为准。字段见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。热度见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。后台见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。埋点见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。跳转见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。容错见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。总览见 [`THEME_CENTER.md`](THEME_CENTER.md)。

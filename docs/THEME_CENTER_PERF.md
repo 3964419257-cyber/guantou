@@ -1,7 +1,7 @@
 # 主题中心性能优化
 
-**文档状态：** 独立拆分（一期稳、二期可提前分页/懒加载/版本缓存；虚拟列表按三期验收）  
-**产品：** 乡声集盒 · 主题中心 · 全链路性能  
+**文档状态：** 独立拆分（一期稳、二期可提前分页/懒加载/版本缓存；虚拟列表按三期验收）
+**产品：** 乡声集盒 · 主题中心 · 全链路性能
 **对应实现：** `themeCenter.js` / `themeSchema.js` / `themeFault.js` / `themeAnalytics.js` 性能事件
 
 本文只定列表、图片、样式注入、缓存、小程序、弱网和监控怎么做，不定 UI 稿。不能为了指标关掉启用、预览、筛选、收藏等已承诺能力。低端机和弱网先保证能看、能换、不闪退，再追求帧率。
@@ -183,7 +183,7 @@ C 端用 `resolveOutfitStyle` → `applyOutfitStyle`（`hydrateOutfitStyle`）�
 
 ## 八、必须避开的坑
 
-1. **不要把完整 `style_json` 写入 localStorage / 小程序 storage。** 货架缓存只存 id 与展示字段。样式从 `GET /themes/{id}/`、`GET /decorations/{id}/` 取，命中内存 LRU。  
+1. **不要把完整 `style_json` 写入 localStorage / 小程序 storage。** 货架缓存只存 id 与展示字段。样式从 `GET /themes/{id}/`、`GET /decorations/{id}/` 取，命中内存 LRU。
    现网内置清单仍可能整表进 `theme_cache`（含样式）；接上分页目录接口后按本节收口。
 2. **历史搭配只存 id：** `global_theme_id` + `decoration_map` / `decoration_ids`，不存各件 `style_json`。应用时现解析；绝版件跳过（容错文档）。
 3. **实时预览用独立沙盒**（`ThemeLivePreview` 模拟首页罐头流 / 个人中心 / 评论区 / 话题卡）。点「立即应用」前不调用面向真实页的 `applyOutfitStyle`。取消/关闭销毁实例。

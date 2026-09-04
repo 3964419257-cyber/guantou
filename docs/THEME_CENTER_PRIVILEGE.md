@@ -1,7 +1,7 @@
 # 四维权限体系
 
-**文档状态：** 二期（独立拆分；启用以本文 + SECURITY / DATA / FAULT 为准）  
-**产品：** 乡声集盒 · 主题中心 · 免费 / 会员 / 活动 / 创作者  
+**文档状态：** 二期（独立拆分；启用以本文 + SECURITY / DATA / FAULT 为准）
+**产品：** 乡声集盒 · 主题中心 · 免费 / 会员 / 活动 / 创作者
 **页面：** 列表与详情标签；引导进 `/pages/users/theme-member`、`theme-event`、`theme-acquire`（不另开权限路由）
 
 本文只定 **谁能启用哪件装扮**。全局换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。预览见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。搜索筛选见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)。历史搭配一键应用跳过无权限件见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。进退见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。启用校验见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。后台配置见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)（Django Admin 可改单件 `privilege_type`；批量改权限与 `/manage/` 中台属三期）。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。

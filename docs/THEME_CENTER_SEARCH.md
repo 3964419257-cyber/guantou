@@ -1,7 +1,7 @@
 # 搜索、筛选、排序
 
-**文档状态：** 二期（独立拆分；枚举与接口以本文 + DATA / FAULT / NAV 为准）  
-**产品：** 乡声集盒 · 主题中心 · 检索  
+**文档状态：** 二期（独立拆分；枚举与接口以本文 + DATA / FAULT / NAV 为准）
+**产品：** 乡声集盒 · 主题中心 · 检索
 **页面：** `/pages/users/theme-center` 顶栏搜索 + 筛选模态（规划独立搜索子页；现网用页内 `searching`）
 
 本文只定 **怎么找装扮**。全局换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。进退见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。容错见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。后台热搜配置见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)（三期）。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。

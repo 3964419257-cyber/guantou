@@ -472,9 +472,16 @@ export default {
 
 <style scoped>
 .comment-thread__composer {
-  padding: 0 0 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  padding: 24rpx;
   margin-bottom: 8rpx;
-  border-bottom: 1rpx solid var(--border-color);
+  border:
+    var(--dress-input-box-border-width, 1rpx)
+    solid var(--dress-input-box-border-color, var(--border-color));
+  border-radius: var(--dress-input-box-border-radius, var(--radius-lg));
+  background: var(--dress-input-box-background, var(--surface-color));
 }
 
 .comment-thread__composer .base-field {

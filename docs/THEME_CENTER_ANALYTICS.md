@@ -1,7 +1,7 @@
 # 主题中心埋点统计方案
 
-**文档状态：** 独立拆分（一期进入/切 Tab/启用；完整事件在二期验收；看板导出属三期）  
-**产品：** 乡声集盒 · 主题中心 · 全链路数据埋点  
+**文档状态：** 独立拆分（一期进入/切 Tab/启用；完整事件在二期验收；看板导出属三期）
+**产品：** 乡声集盒 · 主题中心 · 全链路数据埋点
 **对应实现：** `frontend/src/services/themeAnalytics.js`；热度计数另走 `POST /users/theme/events/`（SECURITY 去重）
 
 乡声集盒主题中心记录用户浏览、筛选、收藏、分享、预览、启用与获取装扮等行为。H5 与小程序 **事件名、字段、触发逻辑一致**。只统计行为，不采集昵称、手机号、邮箱、头像、账号 id、openid、visitor_id 等隐私字段。待上线、已绝版装扮同样记录浏览与详情进入。总览见 [`THEME_CENTER.md`](THEME_CENTER.md)。分期交付见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。跳转链路见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。性能事件见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。预览分层见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。搜索筛选见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。收藏分享热度见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。越权 / 429 等风控日志不上报分析 SDK，见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。运营看板见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)（三期）。容错提示见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。

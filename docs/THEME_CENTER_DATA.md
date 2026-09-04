@@ -1,7 +1,7 @@
 # 主题中心数据结构与存储架构
 
-**文档状态：** 独立拆分（一期 MVP 底层核心；字段名、枚举与 C 端接口以本文为准）  
-**产品：** 乡声集盒 · 主题中心 · 标准化数据结构  
+**文档状态：** 独立拆分（一期 MVP 底层核心；字段名、枚举与 C 端接口以本文为准）
+**产品：** 乡声集盒 · 主题中心 · 标准化数据结构
 **对应实现：** `backend/guantou/themes/models.py`、`serializers.py`、`views.py`；前端 `frontend/src/services/themeSchema.js`、`themeCenter.js`、`themeFault.js`
 
 本文只定 **字段名、枚举、模型、接口路径、空值兜底与版本兼容**。H5 与微信小程序解析同一套字段，终端差异由前端按 `support_terminal` 判断。同步时机与换号见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。失败 Toast 见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。启用校验与账号隔离见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。热度计数见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。埋点事件名见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。后台 CMS 与定时见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。目录缓存与 `catalog_version` 见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。
@@ -112,7 +112,7 @@ C 端 DTO：`coming` → `available=false`；`deprecated` → `available=true` �
 
 ### 风格 `style_tags`
 
-全局主题：`简约`、`地域方言风`、`复古`、`赛博`、`国风`、`市井烟火`、`节日限定`、`节日风俗`、`季节时令`、`二次元`、`极简暗色`。  
+全局主题：`简约`、`地域方言风`、`复古`、`赛博`、`国风`、`市井烟火`、`节日限定`、`节日风俗`、`季节时令`、`二次元`、`极简暗色`。
 局部装扮另可含：`导航栏`、`底部Tab`、`交互按钮`、`罐头卡片`、`个人主页`、`头像挂件`、`评论区`、`话题卡片`、`弹窗输入框`。
 
 ### 组件 `component_type`
@@ -336,7 +336,7 @@ H5 `localStorage` 与小程序 storage 字段名相同。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/themes/` | 全局主题列表。Query：`keyword` `privilege_type` `style_tag` `dialect_tag` `status` `sort`（`newest` `heat` `free` `name`）`support_terminal` `page` `page_size`（默认 20，最大 50）。响应带 `catalog_version`。检索规则见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md) |
+| GET | `/themes/` | 全局主题列表。Query：`keyword` `privilege_type` `style_tag` `dialect_tag` `status` `sort`（`newest` `heat` `free` `name`）`support_terminal` `page` `page_size`（默认 20，最大 200）。响应带 `catalog_version`。检索规则见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md) |
 | GET | `/themes/{theme_id}/` | 主题详情 |
 | GET | `/decorations/` | 局部装扮列表。另支持 `component_type`；分页同 `/themes/` |
 | GET | `/decorations/{decoration_id}/` | 装扮详情 |

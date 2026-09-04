@@ -552,6 +552,8 @@ export function flattenStyleJson(style, componentType = '') {
       styleObjectCache.set(style, byType);
     }
     if (byType.has(componentType)) return byType.get(componentType);
+    // Function declarations are hoisted; keeping the public cache wrapper first aids discovery.
+    // eslint-disable-next-line no-use-before-define
     const computed = computeFlattenStyleJson(style, componentType);
     byType.set(componentType, computed);
     return computed;
@@ -563,6 +565,7 @@ export function flattenStyleJson(style, componentType = '') {
     styleStringCache.set(key, hit);
     return hit;
   }
+  // eslint-disable-next-line no-use-before-define
   const computed = computeFlattenStyleJson(style, componentType);
   styleStringCache.set(key, computed);
   if (styleStringCache.size > THEME_STYLE_CACHE_LIMIT) {

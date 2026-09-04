@@ -1,7 +1,7 @@
 # 用户投稿与创作者自制装扮
 
-**文档状态：** 独立拆分（**三期**生态；一期 / 二期不对用户开放投稿入口）  
-**产品：** 乡声集盒 · 主题中心 · UGC 投稿与创作者自制  
+**文档状态：** 独立拆分（**三期**生态；一期 / 二期不对用户开放投稿入口）
+**产品：** 乡声集盒 · 主题中心 · UGC 投稿与创作者自制
 **对应实现：** 现网无投稿路由、无审核队列。过审上架后走已有目录 `ThemeItem` / `DecorationItem`。创作者领取皮仍是 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md) 的 `creator_unlocked`
 
 本文只定 **谁能投、审什么、过审后怎么进货架、下架怎么兜底**。不定创作 IDE、买断合同、月度评选。买断与碎片激励见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)。启用校验见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。字段见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。后台目录见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。热度见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。埋点见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。跳转见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。容错见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。总览见 [`THEME_CENTER.md`](THEME_CENTER.md)。

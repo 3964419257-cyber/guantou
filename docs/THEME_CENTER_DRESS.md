@@ -1,7 +1,7 @@
 # 局部装扮模块
 
-**文档状态：** 一期 MVP（独立拆分；货架与启用以本文 + 安全/数据契约为准）  
-**产品：** 乡声集盒 · 主题中心 · 局部装扮  
+**文档状态：** 一期 MVP（独立拆分；货架与启用以本文 + 安全/数据契约为准）
+**产品：** 乡声集盒 · 主题中心 · 局部装扮
 **页面：** `/pages/users/theme-center` 的 **局部装扮** Tab；分类子页 `/pages/users/theme-dress?group=`（不另开其它路由）
 
 本文只定 **单组件换装与混搭** 这一底座。全局一键换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。覆盖开关见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)。我的装扮汇总见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。三层预览见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。最近使用见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)。搜索筛选见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。收藏分享热度见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。分期与小程序降级见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。启用校验见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。目录上下架见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)。

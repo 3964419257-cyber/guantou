@@ -1,7 +1,7 @@
 # 装扮状态 UI 兜底体系
 
-**文档状态：** 二期（独立拆分；空态 / 占位 / 失效标识以本文 + FAULT / SEARCH / ROADMAP 为准）  
-**产品：** 乡声集盒 · 主题中心 · 全场景状态展示  
+**文档状态：** 二期（独立拆分；空态 / 占位 / 失效标识以本文 + FAULT / SEARCH / ROADMAP 为准）
+**产品：** 乡声集盒 · 主题中心 · 全场景状态展示
 **页面：** 主题中心各 Tab、搜索态、局部装扮分类页；统一走 `EmptyState` / `ThemeStatusPane`（不另开状态路由）
 
 本文只定 **无数据、加载中、网络失败、待上线 / 绝版 / 下架 / 终端不支持** 怎么展示、点什么。列表货架见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)、[`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。搜索筛选见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)。收藏见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。最近使用见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。权限引导见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。预览拦截见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。失败 Toast 见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。埋点见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。

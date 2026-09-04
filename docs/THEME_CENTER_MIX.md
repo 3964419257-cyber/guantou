@@ -1,7 +1,7 @@
 # 历史搭配方案系统
 
-**文档状态：** 二期（独立拆分；保存 / 应用 / 管理以本文 + DATA / FAULT / SECURITY 为准）  
-**产品：** 乡声集盒 · 主题中心 · 历史搭配  
+**文档状态：** 二期（独立拆分；保存 / 应用 / 管理以本文 + DATA / FAULT / SECURITY 为准）
+**产品：** 乡声集盒 · 主题中心 · 历史搭配
 **页面：** `/pages/users/theme-center?tab=mine` 的「历史搭配」模块（**不另开** `/pages/users/theme-outfit`）
 
 本文只定 **整套搭配的保存、列表、一键应用、重命名、删除、沙盒预览**。当前生效装扮、覆盖开关、重置见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。覆盖开关字段见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)。全屏预览沙盒见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。最近使用见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。进退见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。失败提示见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。埋点见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。安全见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。

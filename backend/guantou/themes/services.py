@@ -576,15 +576,14 @@ def record_event(user, visitor_id, event_name, item_id=""):
 
 
 def _bump_share(item_id):
-    theme = ThemeItem.objects.filter(theme_id=item_id).first()
-    if theme:
-        theme.share_count = int(theme.share_count or 0) + 1
-        theme.save(update_fields=["share_count"])
+    updated = ThemeItem.objects.filter(theme_id=item_id).update(
+        share_count=F("share_count") + 1
+    )
+    if updated:
         return
-    deco = DecorationItem.objects.filter(decoration_id=item_id).first()
-    if deco:
-        deco.share_count = int(deco.share_count or 0) + 1
-        deco.save(update_fields=["share_count"])
+    DecorationItem.objects.filter(decoration_id=item_id).update(
+        share_count=F("share_count") + 1
+    )
 
 
 def item_is_referenced(item_type, item_id):

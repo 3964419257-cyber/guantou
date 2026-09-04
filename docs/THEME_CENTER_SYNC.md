@@ -1,7 +1,7 @@
 # 装扮双端存储与云端同步
 
-**文档状态：** 一期 MVP（独立拆分；游客 / 登录 / 弱网 / 换号以本文 + DATA / FAULT / SECURITY 为准）  
-**产品：** 乡声集盒 · 主题中心 · 存储同步底座  
+**文档状态：** 一期 MVP（独立拆分；游客 / 登录 / 弱网 / 换号以本文 + DATA / FAULT / SECURITY 为准）
+**产品：** 乡声集盒 · 主题中心 · 存储同步底座
 **页面：** 无独立页面；所有装扮写操作走同一套本地键与云端队列
 
 本文只定 **数据存在哪、何时上云、冲突怎么合、换号怎么清**。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。失败 Toast 与登录合并弹窗见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。启用校验与越权见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。缓存体积与目录版本见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。全局换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。覆盖开关见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)。我的装扮见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。预览沙盒见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。最近使用见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)。搜索筛选见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。收藏见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。

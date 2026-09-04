@@ -1,7 +1,7 @@
 # 装扮社交能力（收藏 / 分享 / 热度）
 
-**文档状态：** 二期（独立拆分；收藏、分享渠道与热度以本文 + DATA / FAULT / ANALYTICS / SECURITY 为准）  
-**产品：** 乡声集盒 · 主题中心 · 收藏、分享、热度  
+**文档状态：** 二期（独立拆分；收藏、分享渠道与热度以本文 + DATA / FAULT / ANALYTICS / SECURITY 为准）
+**产品：** 乡声集盒 · 主题中心 · 收藏、分享、热度
 **页面：** 主题中心「我的收藏」Tab；详情 / 预览上的收藏与分享；`ThemeShareSheet` 模态（不另开社交路由）
 
 本文只定 **收藏留存、多渠道分享、公开热度**。全局换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。预览见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。搜索热度排序见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)。权限（收藏不是解锁）见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。进退见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。埋点见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。后台报表与分享模板见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)（三期）。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。

@@ -1,7 +1,7 @@
 # 装扮三层预览体系
 
-**文档状态：** 一期 MVP（独立拆分；分层与沙盒以本文 + ROADMAP / NAV 为准）  
-**产品：** 乡声集盒 · 主题中心 · 预览  
+**文档状态：** 一期 MVP（独立拆分；分层与沙盒以本文 + ROADMAP / NAV 为准）
+**产品：** 乡声集盒 · 主题中心 · 预览
 **页面：** 主题中心列表 / 详情模态 / `ThemeLivePreview` 沙盒（均不入栈）
 
 本文只定 **怎么看、怎么隔离、什么时候才真正启用**。全局换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。覆盖开关见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)。我的装扮见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。最近使用见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。收藏分享热度见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。进退栈见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。性能见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。安全见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。
@@ -77,7 +77,7 @@
 
 ## 埋点
 
-一期：`theme_item_enter_detail`、`theme_preview_click` 且 `preview_type=大图预览`。  
+一期：`theme_item_enter_detail`、`theme_preview_click` 且 `preview_type=大图预览`。
 `preview_type=实时模拟预览`、预览→启用转化随二期沙盒验收。
 
 ## 后台

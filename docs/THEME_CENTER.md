@@ -1,15 +1,15 @@
 # 主题装扮模块总览
 
-**文档状态：** 产品总结（整套主题中心 PRD 的入口）  
+**文档状态：** 产品总结（整套主题中心 PRD 的入口）
 **产品：** 乡声集盒 · 主题中心（H5 网页 + 微信小程序）
 
 细节以分册为准，发生冲突时按下面优先级，不要在分册里另造一套枚举：
 
-1. **是否对用户开放、小程序降级** → ROADMAP  
-2. **字段名与接口** → DATA（`privilege_type=activity`，`status=coming|available|deprecated`）  
-3. **失败提示** → FAULT  
-4. **进退栈** → NAV  
-5. **启用是否允许** → SECURITY  
+1. **是否对用户开放、小程序降级** → ROADMAP
+2. **字段名与接口** → DATA（`privilege_type=activity`，`status=coming|available|deprecated`）
+3. **失败提示** → FAULT
+4. **进退栈** → NAV
+5. **启用是否允许** → SECURITY
 
 前端内部仍可能用 `access=event`、`upcoming`/`ended`，对外接口和后台只用契约值。埋点里的中文枚举是报表展示，不是第四套权限名。
 

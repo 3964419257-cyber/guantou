@@ -1,7 +1,7 @@
 # 我的装扮汇总中心
 
-**文档状态：** 一期 MVP（独立拆分；入口与进退以本文 + NAV 为准）  
-**产品：** 乡声集盒 · 主题中心 · 我的装扮  
+**文档状态：** 一期 MVP（独立拆分；入口与进退以本文 + NAV 为准）
+**产品：** 乡声集盒 · 主题中心 · 我的装扮
 **页面：** `/pages/users/theme-center?tab=mine`（第四入口；**不另开** `/pages/users/theme-outfit`）
 
 本文只定 **个人装扮管理中台**：看当前整套、改全局/局部、开关、重置。历史搭配保存 / 应用 / 管理见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。全局换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。覆盖开关见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)。三层预览见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。最近使用见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。进退栈见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。失败提示见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。

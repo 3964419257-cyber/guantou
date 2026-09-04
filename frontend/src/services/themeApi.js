@@ -35,6 +35,8 @@ async function fetchPaged(path) {
   /* Catalog pages must follow `next`; fetching them in parallel would skip or duplicate rows. */
   /* eslint-disable no-await-in-loop */
   while (page <= 30) {
+    // Catalog pages are cursor-like: the next request depends on this response.
+    // eslint-disable-next-line no-await-in-loop
     const data = await request('GET', path, { page, page_size: pageSize }, {
       ...silent,
       auth: false,

@@ -1,6 +1,6 @@
 # 主题中心三阶段迭代规划
 
-**文档状态：** 产品规划（按阶段交付，完成一期再开二期）  
+**文档状态：** 产品规划（按阶段交付，完成一期再开二期）
 **产品：** 乡声集盒 · 主题中心（H5 网页 + 微信小程序）
 
 本文只定范围、优先级和小程序降级，不定 UI 稿。模块总览、风险与验收见 [`THEME_CENTER.md`](THEME_CENTER.md)。全局主题见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)，局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)，覆盖开关见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)，我的装扮汇总见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)，三层预览见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)，最近使用见 [`THEME_CENTER_RECENT.md`](THEME_CENTER_RECENT.md)，搜索筛选见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)，四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)，收藏分享热度见 [`THEME_CENTER_SOCIAL.md`](THEME_CENTER_SOCIAL.md)，历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)，空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)，双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)，容错见 [`THEME_CENTER_FAULT.md`](THEME_CENTER_FAULT.md)，埋点见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)，跳转链路见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)，后台运营见 [`THEME_CENTER_ADMIN.md`](THEME_CENTER_ADMIN.md)，性能见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)，安全见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。用户投稿自制装扮见 [`THEME_CENTER_UGC.md`](THEME_CENTER_UGC.md)（三期）。商业化、碎片、社区复刻见 [`THEME_CENTER_ECO.md`](THEME_CENTER_ECO.md)（三期）。
@@ -148,9 +148,9 @@
 
 进入下一阶段前，产品 + 研发确认：
 
-- [ ] 本阶段「做」清单可在 H5 和小程序各走通一遍主路径  
-- [ ] 本阶段「不做」没有提前对用户开通  
-- [ ] 小程序降级规则与该阶段描述一致  
-- [ ] 无「作品」「短视频」进界面  
+- [ ] 本阶段「做」清单可在 H5 和小程序各走通一遍主路径
+- [ ] 本阶段「不做」没有提前对用户开通
+- [ ] 小程序降级规则与该阶段描述一致
+- [ ] 无「作品」「短视频」进界面
 
 通过后再排下一阶段。

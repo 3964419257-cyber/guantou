@@ -1,8 +1,8 @@
 # 主题装扮后台管理
 
-**文档状态：** 独立拆分（完整 `/manage/` 中台、报表、热搜/文案 CMS 按三期验收；Django Admin 校验与活动窗校正可提前）  
-**产品：** 乡声集盒 · 主题中心运营后台  
-**入口：** 内部 Django Admin（staff 登录）。不是 C 端主题中心，也不对普通用户开放。  
+**文档状态：** 独立拆分（完整 `/manage/` 中台、报表、热搜/文案 CMS 按三期验收；Django Admin 校验与活动窗校正可提前）
+**产品：** 乡声集盒 · 主题中心运营后台
+**入口：** 内部 Django Admin（staff 登录）。不是 C 端主题中心，也不对普通用户开放。
 **对应实现：** `backend/guantou/themes/admin.py`、`models.py` `clean`、`services.clean_catalog_item` / `sync_activity_windows`；审计 `audit.ObjectChangeLog`
 
 本文只定模块、字段、校验、权限和生效规则，不定 UI 稿。总览见 [`THEME_CENTER.md`](THEME_CENTER.md)。C 端字段与枚举以 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md) 为准（标准化数据结构，独立拆分）。埋点口径见 [`THEME_CENTER_ANALYTICS.md`](THEME_CENTER_ANALYTICS.md)。C 端检索见 [`THEME_CENTER_SEARCH.md`](THEME_CENTER_SEARCH.md)（热搜后台配置属三期）。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)（批量改权限属三期）。历史搭配只读见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。空态不配后台文案，见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)：后台上下架中台、定时看板、报表属 **三期**。图片 WebP、多尺寸与 `catalog_version` 见 [`THEME_CENTER_PERF.md`](THEME_CENTER_PERF.md)。用户数据只读与越权见 [`THEME_CENTER_SECURITY.md`](THEME_CENTER_SECURITY.md)。C 端预览沙盒见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。
@@ -212,8 +212,8 @@ C 端目录走 Django `themes`：`GET /themes/`、`GET /decorations/`。运营�
 | 启用次数 | `theme_apply_click` 且 `apply_result=成功启用` |
 | 转化率 | 成功启用 / 详情 PV |
 
-方言地域热度：按 `region_tag` / `dialect_tags` 排浏览与启用。  
-权限维度：`free` / `member` / `activity` / `creator` 的点击与启用。  
+方言地域热度：按 `region_tag` / `dialect_tags` 排浏览与启用。
+权限维度：`free` / `member` / `activity` / `creator` 的点击与启用。
 小程序不支持：`theme_unsupported_env` 与 `apply_result=环境不支持`，用于排兼容或下线优先级。
 
 ### 行为统计

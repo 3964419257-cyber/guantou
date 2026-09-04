@@ -1,7 +1,7 @@
 # 最近使用记录
 
-**文档状态：** 二期（独立拆分；条数与同步以本文 + DATA / FAULT 为准）  
-**产品：** 乡声集盒 · 主题中心 · 最近使用  
+**文档状态：** 二期（独立拆分；条数与同步以本文 + DATA / FAULT 为准）
+**产品：** 乡声集盒 · 主题中心 · 最近使用
 **页面：** `/pages/users/theme-center` 全局主题 / 局部装扮 Tab 顶部横滑条（不另开路由）
 
 本文只定 **启用成功后的快捷复用条**。全局换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。覆盖开关见 [`THEME_CENTER_OVERLAY.md`](THEME_CENTER_OVERLAY.md)。我的装扮见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。预览见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。进退见 [`THEME_CENTER_NAV.md`](THEME_CENTER_NAV.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。

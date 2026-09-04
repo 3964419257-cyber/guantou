@@ -1,7 +1,7 @@
 # 冲突控制开关
 
-**文档状态：** 一期 MVP（独立拆分；渲染优先级以本文 + 数据/安全契约为准）  
-**产品：** 乡声集盒 · 主题中心 · 全局主题覆盖局部装扮  
+**文档状态：** 一期 MVP（独立拆分；渲染优先级以本文 + 数据/安全契约为准）
+**产品：** 乡声集盒 · 主题中心 · 全局主题覆盖局部装扮
 **页面：** `/pages/users/theme-center?tab=mine`（我的装扮汇总；不另开路由）
 
 本文只定 **全局主题 vs 局部装扮的优先级开关**。全局换装见 [`THEME_CENTER_GLOBAL.md`](THEME_CENTER_GLOBAL.md)。局部装扮见 [`THEME_CENTER_DRESS.md`](THEME_CENTER_DRESS.md)。我的装扮汇总见 [`THEME_CENTER_OUTFIT.md`](THEME_CENTER_OUTFIT.md)。历史搭配见 [`THEME_CENTER_MIX.md`](THEME_CENTER_MIX.md)。三层预览见 [`THEME_CENTER_PREVIEW.md`](THEME_CENTER_PREVIEW.md)。四维权限见 [`THEME_CENTER_PRIVILEGE.md`](THEME_CENTER_PRIVILEGE.md)。空态标识见 [`THEME_CENTER_STATUS.md`](THEME_CENTER_STATUS.md)。双端存储与同步见 [`THEME_CENTER_SYNC.md`](THEME_CENTER_SYNC.md)。分期见 [`THEME_CENTER_ROADMAP.md`](THEME_CENTER_ROADMAP.md)。标准化数据结构（独立拆分）见 [`THEME_CENTER_DATA.md`](THEME_CENTER_DATA.md)。
