@@ -365,7 +365,9 @@ export default {
   padding: var(--dress-card-padding, var(--space-2));
   border-radius: var(--dress-card-border-radius, var(--radius-md));
   background: var(--dress-card-background, var(--surface-color));
-  border: var(--dress-card-border-width, 1px) solid var(--dress-card-border-color, var(--border-color));
+  border:
+    var(--dress-card-border-width, 1px)
+    solid var(--dress-card-border-color, var(--border-color));
   box-shadow: var(--dress-card-shadow, none);
 }
 
@@ -431,7 +433,9 @@ export default {
   height: 72rpx;
   border-radius: var(--radius-pill);
   background: var(--accent-color);
-  border: var(--dress-avatar-frame-border-width, 0px) solid var(--dress-avatar-frame-border-color, transparent);
+  border:
+    var(--dress-avatar-frame-border-width, 0px)
+    solid var(--dress-avatar-frame-border-color, transparent);
   box-shadow: none;
 }
 
@@ -461,7 +465,9 @@ export default {
   gap: var(--space-2);
   border-radius: var(--dress-comment-bubble-border-radius, var(--radius-md));
   background: var(--dress-comment-bubble-background, var(--accent-subtle-color));
-  border: var(--dress-comment-bubble-border-width, 1px) solid var(--dress-comment-bubble-border-color, transparent);
+  border:
+    var(--dress-comment-bubble-border-width, 1px)
+    solid var(--dress-comment-bubble-border-color, transparent);
   color: var(--text-color);
 }
 
@@ -471,7 +477,9 @@ export default {
   border-radius: var(--dress-input-box-border-radius, var(--radius-md));
   color: var(--muted-color);
   background: var(--dress-input-box-background, var(--accent-subtle-color));
-  border: var(--dress-input-box-border-width, 0px) solid var(--dress-input-box-border-color, transparent);
+  border:
+    var(--dress-input-box-border-width, 0px)
+    solid var(--dress-input-box-border-color, transparent);
 }
 
 .mock-topic {
@@ -479,7 +487,9 @@ export default {
   z-index: 1;
   border-radius: var(--dress-topic-card-border-radius, var(--radius-md));
   background: var(--dress-topic-card-background, var(--accent-subtle-color));
-  border: var(--dress-topic-card-border-width, 0px) solid var(--dress-topic-card-border-color, transparent);
+  border:
+    var(--dress-topic-card-border-width, 0px)
+    solid var(--dress-topic-card-border-color, transparent);
 }
 
 .sheet-actions {

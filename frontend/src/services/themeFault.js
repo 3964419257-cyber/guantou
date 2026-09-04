@@ -84,6 +84,17 @@ export function isQuotaError(error) {
   return /quota|limit|full|空间不足/i.test(message);
 }
 
+function purgeEphemeralThemeStorage() {
+  if (typeof uni === 'undefined' || typeof uni.removeStorageSync !== 'function') return;
+  THEME_EPHEMERAL_STORAGE_KEYS.forEach((key) => {
+    try {
+      uni.removeStorageSync(key);
+    } catch {
+      // ignore
+    }
+  });
+}
+
 export function writeThemeStorage(key, value) {
   if (typeof uni === 'undefined' || typeof uni.setStorageSync !== 'function') {
     return { ok: false, reason: 'missing' };
@@ -112,17 +123,6 @@ export function writeThemeStorage(key, value) {
       kind: quota ? THEME_FAULT_KIND.USER : THEME_FAULT_KIND.DATA,
     };
   }
-}
-
-function purgeEphemeralThemeStorage() {
-  if (typeof uni === 'undefined' || typeof uni.removeStorageSync !== 'function') return;
-  THEME_EPHEMERAL_STORAGE_KEYS.forEach((key) => {
-    try {
-      uni.removeStorageSync(key);
-    } catch {
-      // ignore
-    }
-  });
 }
 
 export function setThemeLogoutHandler(handler) {
@@ -441,7 +441,14 @@ export function guestThemeSnapshot() {
 }
 
 export function clearThemeLocalState() {
-  [...THEME_STORAGE_KEYS, THEME_ACCOUNT_KEY, THEME_GUEST_SNAP_KEY, THEME_CATALOG_CACHE_KEY, THEME_CATALOG_VERSION_KEY, 'ui_theme_analytics_queue']
+  [
+    ...THEME_STORAGE_KEYS,
+    THEME_ACCOUNT_KEY,
+    THEME_GUEST_SNAP_KEY,
+    THEME_CATALOG_CACHE_KEY,
+    THEME_CATALOG_VERSION_KEY,
+    'ui_theme_analytics_queue',
+  ]
     .forEach((key) => {
       try {
         uni.removeStorageSync(key);

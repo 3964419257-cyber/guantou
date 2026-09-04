@@ -222,6 +222,12 @@ function persistQueueToStorage() {
   }
 }
 
+function trimQueue() {
+  if (queue.length > QUEUE_LIMIT) {
+    queue.splice(0, queue.length - QUEUE_LIMIT);
+  }
+}
+
 function restoreQueueFromStorage() {
   if (queue.length) return;
   if (typeof uni === 'undefined' || typeof uni.getStorageSync !== 'function') return;
@@ -240,12 +246,6 @@ function restoreQueueFromStorage() {
     trimQueue();
   } catch {
     // Ignore corrupt cache.
-  }
-}
-
-function trimQueue() {
-  if (queue.length > QUEUE_LIMIT) {
-    queue.splice(0, queue.length - QUEUE_LIMIT);
   }
 }
 

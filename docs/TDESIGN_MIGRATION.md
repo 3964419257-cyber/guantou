@@ -15,20 +15,20 @@
 | `pages/users/settings/nickname` | done | 单字段表单 |
 | `pages/users/settings/telephone` | done | 单字段表单 |
 | `pages/mails/send` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：标准表单、字段错误与 payload 回归测试 |
-| `pages/login/login` | issue | [#238](https://github.com/e-dialect/guantou/issues/238)：倒计时、双登录模式与登录恢复 |
+| `pages/login/login` | done | [#238](https://github.com/e-dialect/guantou/issues/238) / [PR #309](https://github.com/e-dialect/guantou/pull/309)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、双登录模式独立校验、字段错误与提交状态；保留登录恢复 |
 | `pages/nameplates/create` | done | [#237](https://github.com/e-dialect/guantou/issues/237)：BaseForm/BaseField/BaseButton、与装罐页一致的 Cascader/Picker、联合校验、加载重试与防重复提交；H5 浅暗主题已验收，小程序构建通过，真机验收待补 |
 | `pages/users/settings/information` | done | [#225](https://github.com/e-dialect/guantou/issues/225) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：头像开放能力、日期与方言 Picker |
 | `pages/users/settings/password` | done | [#229](https://github.com/e-dialect/guantou/issues/229) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：密码显示与表单提交 |
 | `pages/users/settings/email` | done | [#227](https://github.com/e-dialect/guantou/issues/227) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：验证码与邮箱绑定流程 |
-| `pages/login/register` | issue | [#228](https://github.com/e-dialect/guantou/issues/228)：验证码、协议与注册校验 |
-| `pages/login/register/wechat` | issue | [#230](https://github.com/e-dialect/guantou/issues/230)：微信昵称/授权能力 |
-| `pages/login/forget` | done | [#226](https://github.com/e-dialect/guantou/issues/226) / [PR #208](https://github.com/e-dialect/guantou/pull/208)：多阶段找回密码与修改密码入口 |
-| `pages/cans/create` | partial | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：录音、草稿、TDesign 级联与枚举 Picker 已迁移；项目表单原语的进一步收敛由 [#232](https://github.com/e-dialect/guantou/issues/232) 跟踪 |
+| `pages/login/register` | done | [#228](https://github.com/e-dialect/guantou/issues/228) / [PR #309](https://github.com/e-dialect/guantou/pull/309)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：邮箱注册迁移到 BaseField/BaseButton，保留既有 API 契约并补字段错误与提交状态 |
+| `pages/login/register/wechat` | done | [#230](https://github.com/e-dialect/guantou/issues/230) / [PR #308](https://github.com/e-dialect/guantou/pull/308)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、昵称确认、行内错误及可等待的微信授权注册 |
+| `pages/login/forget` | done | [#226](https://github.com/e-dialect/guantou/issues/226) / [PR #308](https://github.com/e-dialect/guantou/pull/308)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：分步找回、字段校验、提交状态与错误映射；不引入演示验证码 |
+| `pages/cans/create` | done | [#232](https://github.com/e-dialect/guantou/issues/232) / [PR #282](https://github.com/e-dialect/guantou/pull/282)：BaseForm / BaseField、按钮、加载、空态与共享反馈；保留方言级联、枚举 Picker、录音及草稿业务，见下方验收记录 |
 | `pages/pronunciations/create` | done | [#234](https://github.com/e-dialect/guantou/issues/234)：PageShell + BaseForm/BaseField/BaseButton、统一加载/重试/反馈；保留写法 Picker、方言级联、联合校验、字段错误定位与成功返回 |
 | `pages/shelves/index` | issue | [#231](https://github.com/e-dialect/guantou/issues/231)：创建表单与列表状态 |
 | `pages/shelves/details` | issue | [#235](https://github.com/e-dialect/guantou/issues/235)：编辑、双搜索和成员管理 |
-| `pages/search` / `components/SearchPanel` | issue | [#236](https://github.com/e-dialect/guantou/issues/236)：聚焦、键盘与搜索联想 |
-| `pages/users/onboarding` | issue | [#233](https://github.com/e-dialect/guantou/issues/233)：方言联动选择与登录门禁 |
+| `pages/search` / `components/SearchPanel` | partial | [#236](https://github.com/e-dialect/guantou/issues/236) / [PR #312](https://github.com/e-dialect/guantou/pull/312)（源自关闭的 [#224](https://github.com/e-dialect/guantou/pull/224)）：搜索输入已迁移到 BaseField/BaseButton，保留全部分类结果、聚焦、键盘 confirm 与搜索联想；页面状态与视觉细化继续由 issue 跟踪 |
+| `pages/users/onboarding` | done | [#233](https://github.com/e-dialect/guantou/issues/233) / [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseField/BaseButton、方言树加载重试与真实乡音样本；保留登录中断恢复 |
 | `pages/cans/drafts` | done | [#195](https://github.com/e-dialect/guantou/issues/195) / [PR #216](https://github.com/e-dialect/guantou/pull/216)：加载、空态、错误、继续编辑与删除反馈 |
 | `pages/cans/index` / `library` | queued | 每页独立 PR |
 | `pages/cans/details` / `comments` | done | 普通控件已收敛；分享开放能力及低频 Cell/Textarea 直接使用 TDesign |
@@ -39,13 +39,27 @@
 | `pages/packages/index` / `details` | queued | 搜索、加载与详情操作 |
 | `pages/circles/index` / `details` | queued | 搜索、Picker 与详情操作 |
 | `pages/discovery/index` | queued | 操作按钮与加载状态 |
-| `pages/users/me` / `details` / `recommend-follow` | queued | 开放能力与关注交互分别迁移 |
+| `pages/users/me` / `details` | queued | 开放能力与关注交互分别迁移 |
+| `pages/users/recommend-follow` | done | [PR #310](https://github.com/e-dialect/guantou/pull/310)（源自关闭的 [#209](https://github.com/e-dialect/guantou/pull/209)）：BaseButton、统一加载/空态/重试及关注结果反馈 |
 | `pages/users/theme-center` | done | 总览 THEME_CENTER.md。分期 ROADMAP：一期核心切换；二期搜索收藏预览权限；三期不在本页做投稿社区。跳转 NAV |
 | `pages/users/theme-dress` | done | 单组局部装扮：免费/会员/活动/创作者权限、待上线占位；不覆盖其它分组 |
 | `pages/users/theme-acquire` | done | 装扮获取聚合：会员、活动、创作任务与方言主题福利 |
 | `pages/users/theme-member` | done | 开通会员，权益 H5/小程序同步 |
 | `pages/users/theme-event` | done | 活动领取与已绝版提示 |
 | `pages/mails/index` / `details` | queued | Cell、加载和通用操作 |
+
+## 装罐页 #232 验收记录
+
+- 基于 #216 已完成的方言级联与录音布局迁移，继续使用一次加载的方言树、默认/最近方言快捷入口及三个枚举 Picker，不增加惰性请求。
+- 普通话概念与方言点通过 BaseForm 校验；音频可用性仍由页面业务校验。家乡话写法、说明、读音、来源及备注继续选填，字段长度和提交 payload 保持原样。补录模式继续锁定义项并调用原有提交服务。
+- BaseField 支持自定义控件插槽和完成状态图标；BaseButton 显式传递录音操作图标，兼容小程序编译。AudioCapture 仅替换按钮与反馈，保留录音器、文件选择和播放适配。
+- 草稿基线测试先于迁移建立；覆盖临时音频持久化、失效音频、账号隔离、游客登录归属、登录前保存失败、401 返回上下文、提交失败保留和成功后清理。异步校验期间也阻止重复提交。
+- 自动化验证：前端 lint、完整单元测试、H5 与微信小程序构建；新增浏览器测试使用模拟 API 和浏览器测试音源，覆盖真实 H5 控件、麦克风拒绝后重试、IndexedDB 恢复/缺失音频、游客登录拦截、提交失败与成功清理。
+- 浅暗主题在 390×844 视口验收；长图仅展开页面滚动容器以展示完整内容：[浅色](assets/tdesign-migration/can-create-light-390x844.png)、[暗色](assets/tdesign-migration/can-create-dark-390x844.png)。
+- PR 展示使用提交者提供的三张截图：[草稿恢复弹窗](assets/tdesign-migration/issue-232/draft-restore.png)、[补充表单](assets/tdesign-migration/issue-232/optional-fields.png)、[录音完成状态](assets/tdesign-migration/issue-232/recording-ready.png)。
+- 微信录音回调与临时文件恢复已做模拟回归，并通过小程序构建；本次未连接微信真机，系统授权弹窗、实际设备录音与重启后的文件恢复仍需真机验收。
+
+浏览器复现：启动 H5 预览后，设置 `E2E_BASE_URL` 为预览地址，运行 `npx playwright test tests/e2e/can-create-form.spec.js --workers=1`。可选设置 `E2E_SCREENSHOT_DIR=../docs/assets/tdesign-migration` 保存长图。
 
 ## 发表立论页（#237）
 

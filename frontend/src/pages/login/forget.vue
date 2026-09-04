@@ -1,361 +1,211 @@
 <template>
   <PageShell
-    title="找回密码"
-    :back-fallback="backFallback"
+    title="忘记密码"
+    :show-back="true"
   >
-    <view
-      v-if="step === 0"
-      class="forget-form"
-    >
-      <view class="hint">
-        验证码会发到该账号已绑定的邮箱。没有邮箱时，需要先绑定。
+    <view class="auth-card">
+      <view class="auth-card__title">
+        找回密码
       </view>
-      <BaseForm
-        ref="lookupForm"
-        :data="lookupData"
-        :rules="lookupRules"
+      <view class="auth-card__lead">
+        通过账号绑定的邮箱验证身份后，即可设置新密码。
+      </view>
+
+      <view
+        v-if="steps === 0"
+        class="auth-form"
       >
         <BaseField
           v-model="username"
           name="username"
           label="用户名"
+          placeholder="请输入用户名"
           required
-          placeholder="请输入乡声号"
-          :error="usernameError"
-          :disabled="looking"
+          :error="errors.username"
+          @input="clearFieldError('username')"
         />
         <BaseButton
           block
-          :disabled="looking"
-          :loading="looking"
-          @click="lookupAccount"
+          :loading="checking"
+          @click="next"
         >
           下一步
         </BaseButton>
-      </BaseForm>
-      <BaseButton
-        v-if="needsEmailBind"
-        class="bind-email"
-        block
-        variant="ghost"
-        @click="goBindEmail"
-      >
-        去绑定邮箱
-      </BaseButton>
-    </view>
-
-    <view
-      v-else
-      class="forget-form"
-    >
-      <view class="hint">
-        验证码会发到 {{ emailMasked }}。
       </view>
-      <BaseForm
-        ref="resetForm"
-        :data="resetData"
-        :rules="resetRules"
+
+      <view
+        v-else
+        class="auth-form"
       >
-        <view class="password-row">
-          <view class="password-field">
-            <BaseField
-              v-model="password"
-              name="password"
-              label="新密码"
-              :type="passwordVisible ? 'text' : 'password'"
-              required
-              placeholder="请输入新密码"
-              :maxlength="32"
-              :error="passwordError"
-              :disabled="saving"
-            />
-          </view>
-          <BaseButton
-            class="password-toggle"
-            size="small"
-            variant="ghost"
-            :disabled="saving"
-            @click="toggleVisible('password')"
-          >
-            {{ passwordVisible ? '隐藏' : '显示' }}
-          </BaseButton>
-        </view>
-        <view class="password-row">
-          <view class="password-field">
-            <BaseField
-              v-model="confirmPassword"
-              name="confirm"
-              label="确认密码"
-              :type="confirmVisible ? 'text' : 'password'"
-              required
-              placeholder="请再次输入新密码"
-              :maxlength="32"
-              :error="confirmError"
-              :disabled="saving"
-            />
-          </view>
-          <BaseButton
-            class="password-toggle"
-            size="small"
-            variant="ghost"
-            :disabled="saving"
-            @click="toggleVisible('confirm')"
-          >
-            {{ confirmVisible ? '隐藏' : '显示' }}
-          </BaseButton>
-        </view>
+        <BaseField
+          v-model="password"
+          name="password"
+          label="新密码"
+          type="password"
+          placeholder="请输入新密码"
+          required
+          :error="errors.password"
+          @input="clearFieldError('password')"
+        />
+        <BaseField
+          v-model="repeatedPassword"
+          name="repeatedPassword"
+          label="重复密码"
+          type="password"
+          placeholder="请重复新密码"
+          required
+          :error="errors.repeatedPassword"
+          @input="clearFieldError('repeatedPassword')"
+        />
+        <BaseField
+          v-model="emailMasked"
+          name="emailMasked"
+          label="邮箱"
+          placeholder="已绑定的邮箱"
+          disabled
+        />
+
         <view class="code-row">
           <view class="code-field">
             <BaseField
               v-model="code"
               name="code"
               label="验证码"
-              required
               placeholder="请输入验证码"
-              :maxlength="6"
-              :error="codeError"
-              :disabled="saving"
+              required
+              :error="errors.code"
+              @input="clearFieldError('code')"
             />
           </view>
           <BaseButton
             class="code-button"
-            size="small"
             variant="ghost"
-            :disabled="sending || saving || countdown > 0"
-            :loading="sending"
-            @click="sendCode"
+            size="medium"
+            :disabled="isSending"
+            @click="getCode"
           >
-            {{ sendCodeLabel }}
+            {{ sendCodeMsg }}
           </BaseButton>
-        </view>
-        <view
-          v-if="demoCode"
-          class="demo-code"
-        >
-          Demo 验证码：<text>{{ demoCode }}</text>
         </view>
         <BaseButton
           block
-          :disabled="saving || sending"
-          :loading="saving"
-          @click="submitReset"
+          :loading="submitting"
+          @click="reset"
         >
           重置密码
         </BaseButton>
-      </BaseForm>
+      </view>
     </view>
   </PageShell>
 </template>
 
 <script>
+import PageShell from '@/components/PageShell.vue';
 import BaseButton from '@/components/BaseButton.vue';
 import BaseField from '@/components/BaseField.vue';
-import BaseForm from '@/components/BaseForm.vue';
-import PageShell from '@/components/PageShell.vue';
-import { notify, notifySuccess } from '@/services/feedback';
 import {
-  goLogin,
-  goUserEmail,
-  ROUTES,
-} from '@/services/navigation';
-import { resolveSessionUserId } from '@/services/session';
-import {
-  clearUserInfo,
   getEmailByUsername,
   requestPasswordResetCode,
   resetPassword,
 } from '@/services/user';
-
-const CODE_THROTTLE_SECONDS = 60;
-
-function fieldErrorMessage(error, field) {
-  const item = error?.data?.[field];
-  if (typeof item === 'string') return item;
-  if (item?.message) return item.message;
-  return '';
-}
-
-function isPasswordLengthValid(value) {
-  const text = String(value || '').trim();
-  return text.length >= 6 && text.length <= 32;
-}
+import { applyFieldErrors, readableErrorMessage } from '@/utils/apiError';
+import getCodeMixin from './mixin/getCodeMixin';
 
 export default {
-  name: 'ForgetPassword',
-  components: {
-    BaseButton, BaseField, BaseForm, PageShell,
-  },
+  name: 'ForgetPage',
+  components: { PageShell, BaseButton, BaseField },
+  mixins: [getCodeMixin],
   data() {
     return {
-      step: 0,
       username: '',
       emailMasked: '',
+      steps: 0,
       password: '',
-      confirmPassword: '',
+      repeatedPassword: '',
       code: '',
-      usernameError: '',
-      passwordError: '',
-      confirmError: '',
-      codeError: '',
-      looking: false,
-      sending: false,
-      saving: false,
-      needsEmailBind: false,
-      passwordVisible: false,
-      confirmVisible: false,
-      countdown: 0,
-      countdownTimer: null,
-      demoCode: '',
-      lookupRules: {
-        username: [{ required: true, message: '请输入用户名' }],
-      },
-      resetRules: {
-        password: [
-          { required: true, message: '请输入新密码' },
-          {
-            validator: isPasswordLengthValid,
-            message: '新密码长度为 6 到 32 个字符',
-          },
-        ],
-        confirm: [{ required: true, message: '请确认新密码' }],
-        code: [{ required: true, message: '请输入验证码' }],
+      checking: false,
+      submitting: false,
+      errors: {
+        username: '',
+        password: '',
+        repeatedPassword: '',
+        code: '',
       },
     };
   },
-  computed: {
-    backFallback() {
-      return resolveSessionUserId() ? ROUTES.userPassword : ROUTES.login;
-    },
-    lookupData() {
-      return { username: this.username };
-    },
-    resetData() {
-      return {
-        password: this.password,
-        confirm: this.confirmPassword,
-        code: this.code,
-      };
-    },
-    sendCodeLabel() {
-      if (this.countdown > 0) return `${this.countdown}s 后重发`;
-      return '获取验证码';
-    },
-  },
   onLoad(query) {
     this.username = String(query?.username || '').trim();
-    if (this.username) this.lookupAccount();
-  },
-  onUnload() {
-    this.clearCountdown();
   },
   methods: {
-    toggleVisible(field) {
-      if (this.saving) return;
-      const key = `${field}Visible`;
-      this[key] = !this[key];
+    clearFieldError(field) {
+      this.errors[field] = '';
     },
-    clearCountdown() {
-      if (this.countdownTimer) clearInterval(this.countdownTimer);
-      this.countdownTimer = null;
-      this.countdown = 0;
-    },
-    startCountdown(seconds) {
-      this.clearCountdown();
-      this.countdown = Number(seconds) || CODE_THROTTLE_SECONDS;
-      this.countdownTimer = setInterval(() => {
-        this.countdown -= 1;
-        if (this.countdown <= 0) this.clearCountdown();
-      }, 1000);
-    },
-    async lookupAccount() {
-      if (this.looking) return;
+    async next() {
       const username = String(this.username || '').trim();
-      this.usernameError = username ? '' : '请输入用户名';
-      if (!username) return;
-      const valid = await this.$refs.lookupForm?.validate();
-      if (valid !== true && valid !== undefined) return;
-      this.looking = true;
-      this.needsEmailBind = false;
+      this.errors.username = username ? '' : '请输入用户名';
+      if (this.errors.username) return;
+
+      this.checking = true;
       try {
-        const response = await getEmailByUsername(username);
-        this.emailMasked = response?.email_masked || '';
-        this.username = username;
-        this.step = 1;
+        const res = await getEmailByUsername(username);
+        this.emailMasked = res.email_masked;
+        this.steps = 1;
       } catch (error) {
-        this.usernameError = fieldErrorMessage(error, 'username')
-          || error?.message
-          || '找不到这个用户名';
-        this.needsEmailBind = /邮箱/.test(this.usernameError);
-        notify({ title: this.usernameError });
-      } finally {
-        this.looking = false;
-      }
-    },
-    goBindEmail() {
-      if (resolveSessionUserId()) {
-        goUserEmail();
-        return;
-      }
-      notify({ title: '请先登录后再绑定邮箱' });
-      goLogin();
-    },
-    async sendCode() {
-      if (this.sending || this.saving || this.countdown > 0) return;
-      this.sending = true;
-      this.codeError = '';
-      try {
-        const response = await requestPasswordResetCode(this.username);
-        this.emailMasked = response?.email_masked || this.emailMasked;
-        this.demoCode = response?.demo_code || '';
-        notify({ title: this.demoCode ? '验证码已生成' : '验证码已发送' });
-        this.startCountdown(response?.retry_after);
-      } catch (error) {
-        this.codeError = fieldErrorMessage(error, 'code')
-          || error?.message
-          || '验证码发送失败';
-        notify({ title: this.codeError });
-        if (error?.statusCode === 429) {
-          this.startCountdown(error?.data?.retry_after || CODE_THROTTLE_SECONDS);
+        if (!applyFieldErrors(this.errors, error, ['username'])) {
+          const title = readableErrorMessage(error, {
+            404: '没有找到该账号',
+          }) || '查询失败';
+          uni.showToast({ title, icon: 'none' });
         }
       } finally {
-        this.sending = false;
+        this.checking = false;
       }
     },
-    async submitReset() {
-      if (this.saving || this.sending) return;
-      const password = String(this.password || '').trim();
-      const confirmPassword = String(this.confirmPassword || '').trim();
+    async getCode() {
+      try {
+        const res = await requestPasswordResetCode(this.username);
+        this.emailMasked = res.email_masked;
+        uni.showToast({ title: '验证码已发送', icon: 'success' });
+        this.isSending = true;
+      } catch (error) {
+        if (!applyFieldErrors(this.errors, error, ['username', 'code'])) {
+          uni.showToast({
+            title: readableErrorMessage(error) || '验证码发送失败',
+            icon: 'none',
+          });
+        }
+      }
+    },
+    async reset() {
+      const password = String(this.password || '');
+      const repeatedPassword = String(this.repeatedPassword || '');
       const code = String(this.code || '').trim();
-      this.passwordError = password ? '' : '请输入新密码';
-      this.confirmError = confirmPassword ? '' : '请确认新密码';
-      this.codeError = code ? '' : '请输入验证码';
-      if (!password || !confirmPassword || !code) return;
-      if (password !== confirmPassword) {
-        this.confirmError = '两次密码不一样';
+
+      this.errors.password = password ? '' : '请输入新密码';
+      this.errors.repeatedPassword = repeatedPassword ? '' : '请重复新密码';
+      this.errors.code = code ? '' : '请输入验证码';
+      if (this.errors.password || this.errors.repeatedPassword || this.errors.code) return;
+
+      if (password.length < 6 || password.length > 32) {
+        this.errors.password = '密码长度 6 - 32 位';
         return;
       }
-      if (!isPasswordLengthValid(password)) {
-        this.passwordError = '新密码长度为 6 到 32 个字符';
+      if (repeatedPassword !== password) {
+        this.errors.repeatedPassword = '两次密码不一致';
         return;
       }
-      const valid = await this.$refs.resetForm?.validate();
-      if (valid !== true && valid !== undefined) return;
-      this.saving = true;
+
+      this.submitting = true;
       try {
         await resetPassword(this.username, password, code);
-        clearUserInfo();
-        notifySuccess('重置成功，请用新密码登录');
-        goLogin({}, { reset: true });
+        uni.showToast({ title: '重置成功', icon: 'success', duration: 2000 });
+        uni.navigateBack({ delta: 1 });
       } catch (error) {
-        const passwordError = fieldErrorMessage(error, 'password');
-        const codeError = fieldErrorMessage(error, 'code');
-        this.passwordError = passwordError;
-        this.codeError = codeError || (!passwordError ? (error?.message || '重置失败，请检查网络后重试') : '');
-        notify({
-          title: this.passwordError || this.codeError || '重置失败，请检查网络后重试',
-        });
+        if (!applyFieldErrors(this.errors, error, ['password', 'code'])) {
+          uni.showToast({ title: readableErrorMessage(error) || '重置失败', icon: 'none' });
+        }
       } finally {
-        this.saving = false;
+        this.submitting = false;
       }
     },
   },
@@ -363,60 +213,48 @@ export default {
 </script>
 
 <style scoped>
-.forget-form {
-  width: 100%;
-  max-width: 100%;
+.auth-card {
+  max-width: 680rpx;
+  margin: 42rpx auto 0;
+  padding: 52rpx 34rpx 38rpx;
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+  box-shadow: 0 20rpx 60rpx var(--border-color);
   box-sizing: border-box;
 }
 
-.hint {
-  margin-bottom: var(--space-3);
-  color: var(--muted-color);
+.auth-card__title {
+  color: var(--text-color);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+}
+
+.auth-card__lead {
+  margin-top: var(--space-2);
+  color: var(--text-secondary-color);
   font-size: var(--font-size-sm);
   line-height: 1.6;
 }
 
-.bind-email {
-  margin-top: var(--space-3);
+.auth-form {
+  margin-top: var(--space-4);
 }
 
-.password-row,
 .code-row {
   display: flex;
   align-items: flex-end;
   gap: var(--space-2);
 }
 
-.password-field,
 .code-field {
-  min-width: 0;
   flex: 1;
+  min-width: 0;
 }
 
-.password-toggle,
 .code-button {
+  flex: 0 0 auto;
   margin-bottom: var(--space-3);
-  flex-shrink: 0;
 }
 
-.demo-code {
-  margin-bottom: var(--space-3);
-  padding: var(--space-3);
-  background: var(--surface-subtle-color);
-  color: var(--warning-color);
-  font-size: var(--font-size-sm);
-}
-
-.demo-code text {
-  font-weight: 700;
-  letter-spacing: 0.2em;
-}
-
-:deep(.base-field-control),
-:deep(.uni-input-wrapper),
-:deep(.uni-input-input) {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
 </style>

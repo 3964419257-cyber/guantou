@@ -513,6 +513,37 @@ export function fromCurrentConfig(dto, resolveDressGroup) {
   };
 }
 
+function computeFlattenStyleJson(style, componentType = '') {
+  const parsed = parseThemeStyle(style);
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      vars: {},
+      appearance: {},
+      reason: parsed.reason,
+    };
+  }
+  const source = parsed.style && typeof parsed.style === 'object' ? parsed.style : {};
+  const vars = {};
+  const appearance = {};
+  Object.entries(source).forEach(([key, raw]) => {
+    const value = String(raw || '').trim();
+    if (!value) return;
+    if (APPEARANCE_KEYS.has(key)) {
+      appearance[key] = value;
+      return;
+    }
+    const cssKey = TOKEN_KEY.test(key) ? key : CAMEL_TO_VAR[key];
+    if (!cssKey) return;
+    if (!isSafeCssValue(value)) return;
+    const scoped = componentType
+      ? cssKey.replace('--dress-', `--dress-${componentType.replace(/_/g, '-')}-`)
+      : cssKey;
+    vars[scoped] = value;
+  });
+  return { ok: true, vars, appearance };
+}
+
 export function flattenStyleJson(style, componentType = '') {
   if (style && typeof style === 'object' && !Array.isArray(style)) {
     let byType = styleObjectCache.get(style);
@@ -543,37 +574,6 @@ export function flattenStyleJson(style, componentType = '') {
 
 export function clearThemeStyleCache() {
   styleStringCache.clear();
-}
-
-function computeFlattenStyleJson(style, componentType = '') {
-  const parsed = parseThemeStyle(style);
-  if (!parsed.ok) {
-    return {
-      ok: false,
-      vars: {},
-      appearance: {},
-      reason: parsed.reason,
-    };
-  }
-  const source = parsed.style && typeof parsed.style === 'object' ? parsed.style : {};
-  const vars = {};
-  const appearance = {};
-  Object.entries(source).forEach(([key, raw]) => {
-    const value = String(raw || '').trim();
-    if (!value) return;
-    if (APPEARANCE_KEYS.has(key)) {
-      appearance[key] = value;
-      return;
-    }
-    const cssKey = TOKEN_KEY.test(key) ? key : CAMEL_TO_VAR[key];
-    if (!cssKey) return;
-    if (!isSafeCssValue(value)) return;
-    const scoped = componentType
-      ? cssKey.replace('--dress-', `--dress-${componentType.replace(/_/g, '-')}-`)
-      : cssKey;
-    vars[scoped] = value;
-  });
-  return { ok: true, vars, appearance };
 }
 
 export function resolveOutfitStyle({

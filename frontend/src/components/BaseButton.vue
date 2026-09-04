@@ -6,6 +6,7 @@
     :variant="tdVariant"
     :size="size"
     :shape="resolvedShape"
+    :icon="icon"
     :block="block"
     :disabled="disabled"
     :loading="loading"
@@ -43,6 +44,7 @@ export default {
       validator: (value) => ['extra-small', 'small', 'medium', 'large'].includes(value),
     },
     text: { type: String, default: '' },
+    icon: { type: [String, Object], default: '' },
     ariaLabel: { type: String, default: '' },
     block: { type: Boolean, default: false },
     disabled: { type: Boolean, default: false },

@@ -1,11 +1,5 @@
 import { mount } from '@vue/test-utils';
-import {
-  beforeEach, describe, expect, it, vi,
-} from 'vitest';
-import { peekInterceptIntent } from '@/services/authGuard';
-import { cancelLoginToSearch } from '@/services/authJourney';
-import { notifySuccess } from '@/services/feedback';
-import { requestPhoneCode } from '@/services/phoneAuth';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/services/authGuard', () => ({
   actionLabel: vi.fn((action) => ({ record_can: '录一罐' }[action] || action)),
@@ -26,10 +20,9 @@ vi.mock('@/services/phoneAuth', () => ({
   requestPhoneCode: vi.fn(),
 }));
 
-vi.mock('@/services/feedback', () => ({
-  notify: vi.fn(),
-  notifySuccess: vi.fn(),
-}));
+import { cancelLoginToSearch } from '@/services/authJourney';
+import { peekInterceptIntent } from '@/services/authGuard';
+import { loginWithPhone } from '@/services/phoneAuth';
 
 globalThis.getApp = vi.fn(() => ({
   globalData: {
@@ -61,7 +54,9 @@ describe('login page intent', () => {
       getStorageSync: vi.fn(() => ''),
       onThemeChange: vi.fn(),
       offThemeChange: vi.fn(),
+      showToast: vi.fn(),
     };
+    loginWithPhone.mockResolvedValue({});
   });
 
   it('explains the intercepted action and lets the guest return to search', async () => {
@@ -101,14 +96,55 @@ describe('login page intent', () => {
     expect(wrapper.find('.password-form').exists()).toBe(true);
   });
 
-  it('auto-fills the demo verification code', async () => {
+  it('does not let stale password-mode errors block a valid phone login', async () => {
     peekInterceptIntent.mockReturnValue(null);
-    requestPhoneCode.mockResolvedValue({ demo_code: '654321', retry_after: 60 });
     const wrapper = mountLogin();
-    wrapper.vm.phone = '13800138000';
-    await wrapper.vm.sendPhoneCode();
-    expect(wrapper.vm.code).toBe('654321');
-    expect(wrapper.vm.demoCode).toBe('654321');
-    expect(notifySuccess).toHaveBeenCalledWith('验证码 654321');
+
+    wrapper.vm.changeMode({ detail: { value: 'password' } });
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.passwordLogin();
+    expect(wrapper.vm.errors.username).toBe('请输入用户名');
+
+    wrapper.vm.changeMode({ detail: { value: 'phone' } });
+    expect(wrapper.vm.errors.username).toBe('');
+    wrapper.vm.phone = '13800000000';
+    wrapper.vm.code = '123456';
+    await wrapper.vm.phoneLogin();
+
+    expect(loginWithPhone).toHaveBeenCalledTimes(1);
+    expect(loginWithPhone).toHaveBeenCalledWith('13800000000', '123456');
+  });
+
+  it('maps server field errors onto the matching field without a toast', async () => {
+    peekInterceptIntent.mockReturnValue(null);
+    const wrapper = mountLogin();
+    wrapper.vm.phone = '13800000000';
+    wrapper.vm.code = '000000';
+    loginWithPhone.mockRejectedValue({
+      statusCode: 400,
+      message: '请求参数校验失败',
+      data: { code: { code: 'invalid', message: '验证码错误' } },
+    });
+
+    await wrapper.vm.phoneLogin();
+
+    expect(wrapper.vm.errors.code).toBe('验证码错误');
+    expect(wrapper.vm.errors.phone).toBe('');
+    expect(uni.showToast).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a single toast when the server error has no field', async () => {
+    peekInterceptIntent.mockReturnValue(null);
+    const wrapper = mountLogin();
+    wrapper.vm.phone = '13800000000';
+    wrapper.vm.code = '000000';
+    loginWithPhone.mockRejectedValue({ statusCode: 401, message: '手机号或验证码错误' });
+
+    await wrapper.vm.phoneLogin();
+
+    expect(uni.showToast).toHaveBeenCalledTimes(1);
+    expect(uni.showToast).toHaveBeenCalledWith({ title: '手机号或验证码错误', icon: 'none' });
+    expect(wrapper.vm.errors.phone).toBe('');
+    expect(wrapper.vm.errors.code).toBe('');
   });
 });

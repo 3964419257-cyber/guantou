@@ -135,9 +135,11 @@ export default {
       }
       const claimed = await Promise.resolve(claimSkin(this.kind, this.item.id));
       if (!claimed?.ok) {
-        notify({ title: claimed?.reason === 'ended'
-          ? '该限定装扮活动已结束，无法获取'
-          : '暂无权限使用该装扮' });
+        notify({
+          title: claimed?.reason === 'ended'
+            ? '该限定装扮活动已结束，无法获取'
+            : '暂无权限使用该装扮',
+        });
         return;
       }
       trackThemeGet(this.kind, this.item, 'event');

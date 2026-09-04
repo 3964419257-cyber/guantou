@@ -84,20 +84,20 @@ describe('theme acquire, member, and event pages', () => {
     expect(notifySuccess).toHaveBeenCalledWith('会员已开通，装扮权益两端同步');
   });
 
-  it('claims an active event and blocks ended events', () => {
+  it('claims an active event and blocks ended events', async () => {
     const wrapper = mount(ThemeEventPage, {
       global: { stubs: stubs() },
     });
     wrapper.vm.kind = 'theme';
     wrapper.vm.itemId = 'event-lantern';
     wrapper.vm.refresh();
-    wrapper.vm.onClaim();
+    await wrapper.vm.onClaim();
     expect(isOwned('theme', 'event-lantern')).toBe(true);
     expect(notifySuccess).toHaveBeenCalledWith('恭喜，已获得该装扮，可前往我的装扮使用');
 
     wrapper.vm.itemId = 'event-spring';
     wrapper.vm.refresh();
-    wrapper.vm.onClaim();
+    await wrapper.vm.onClaim();
     expect(notify).toHaveBeenCalledWith({ title: '该限定装扮活动已结束，无法获取' });
     expect(isOwned('theme', 'event-spring')).toBe(false);
   });

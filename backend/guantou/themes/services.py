@@ -446,7 +446,9 @@ def _bump_collect(item_type, item_id, delta):
 
 
 def mix_signature(theme_id, decoration_map, overlay):
-    items = tuple(sorted((str(key), str(value)) for key, value in (decoration_map or {}).items()))
+    items = tuple(
+        sorted((str(key), str(value)) for key, value in (decoration_map or {}).items())
+    )
     return (str(theme_id or "default"), items, bool(overlay))
 
 
@@ -463,11 +465,14 @@ def mix_is_duplicate(user, theme_id, decoration_map, overlay):
         "decoration_map",
         "is_cover_local_decoration",
     ):
-        if mix_signature(
-            row.global_theme_id,
-            row.decoration_map,
-            row.is_cover_local_decoration,
-        ) == target:
+        if (
+            mix_signature(
+                row.global_theme_id,
+                row.decoration_map,
+                row.is_cover_local_decoration,
+            )
+            == target
+        ):
             return True
     return False
 

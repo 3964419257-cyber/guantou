@@ -114,7 +114,9 @@ def apply_catalog_filters(queryset, params, *, decoration=False):
         )
         tag_query = Q()
         for needle in _json_needles(keyword):
-            tag_query |= Q(_style_kw__icontains=needle) | Q(_dialect_kw__icontains=needle)
+            tag_query |= Q(_style_kw__icontains=needle) | Q(
+                _dialect_kw__icontains=needle
+            )
         queryset = queryset.filter(
             Q(name__icontains=keyword) | Q(desc__icontains=keyword) | tag_query
         )

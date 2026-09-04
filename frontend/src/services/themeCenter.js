@@ -2759,10 +2759,13 @@ Object.entries(PACK_FINISH).forEach(([id, finish]) => {
   PACK_SURFACES[id] = { ...(PACK_SURFACES[id] || {}), ...finish };
 });
 
-GLOBAL_THEMES.forEach((item) => {
+GLOBAL_THEMES.forEach((item, index) => {
   const family = STYLE_FAMILIES[item.category] || STYLE_FAMILIES.simple;
   const extra = PACK_SURFACES[item.id] || {};
-  item.style_json = { ...(item.style_json || {}), ...family, ...extra };
+  GLOBAL_THEMES[index] = {
+    ...item,
+    style_json: { ...(item.style_json || {}), ...family, ...extra },
+  };
 });
 
 const DRESS_GROUP_DEFS = [

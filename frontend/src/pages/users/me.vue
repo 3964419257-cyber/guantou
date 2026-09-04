@@ -707,7 +707,9 @@ export default {
   border-radius: var(--radius-pill);
   background: var(--surface-subtle-color);
   color: var(--dress-avatar-frame-color, inherit);
-  border: var(--dress-avatar-frame-border-width, 0px) solid var(--dress-avatar-frame-border-color, transparent);
+  border:
+    var(--dress-avatar-frame-border-width, 0px)
+    solid var(--dress-avatar-frame-border-color, transparent);
   box-sizing: border-box;
   flex-shrink: 0;
 }

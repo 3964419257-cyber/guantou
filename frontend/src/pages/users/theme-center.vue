@@ -3824,7 +3824,9 @@ export default {
   height: 36rpx;
   margin-top: 8rpx;
   border-radius: var(--radius-pill);
-  border: var(--dress-avatar-frame-border-width, 0px) solid var(--dress-avatar-frame-border-color, transparent);
+  border:
+    var(--dress-avatar-frame-border-width, 0px)
+    solid var(--dress-avatar-frame-border-color, transparent);
 }
 
 .shot-line {

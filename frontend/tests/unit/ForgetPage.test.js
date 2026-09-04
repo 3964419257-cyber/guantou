@@ -1,0 +1,151 @@
+import { mount } from '@vue/test-utils';
+import {
+  afterEach, beforeEach, describe, expect, it, vi,
+} from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+  getEmailByUsername: vi.fn(),
+  requestPasswordResetCode: vi.fn(),
+  resetPassword: vi.fn(),
+  sendEmailCode: vi.fn(),
+}));
+
+vi.mock('@/services/user', () => ({
+  getEmailByUsername: mocks.getEmailByUsername,
+  requestPasswordResetCode: mocks.requestPasswordResetCode,
+  resetPassword: mocks.resetPassword,
+}));
+vi.mock('@/services/verification', () => ({ sendEmailCode: mocks.sendEmailCode }));
+
+const { default: ForgetPage } = await import('@/pages/login/forget.vue');
+
+function mountPage() {
+  return mount(ForgetPage, {
+    global: {
+      stubs: {
+        PageShell: { template: '<main><slot /></main>' },
+      },
+    },
+  });
+}
+
+function fillResetForm(wrapper) {
+  wrapper.vm.password = 'password123';
+  wrapper.vm.repeatedPassword = 'password123';
+  wrapper.vm.code = '654321';
+}
+
+describe('forget password page', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    globalThis.uni = {
+      showToast: vi.fn(),
+      navigateBack: vi.fn(),
+    };
+    mocks.getEmailByUsername.mockResolvedValue({ email_masked: 'c***@example.com' });
+    mocks.requestPasswordResetCode.mockResolvedValue({
+      email_masked: 'c***@example.com',
+      demo_code: '123456',
+    });
+    mocks.resetPassword.mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it('advances to the password step with the masked email', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.username = 'collector';
+
+    await wrapper.vm.next();
+
+    expect(wrapper.vm.steps).toBe(1);
+    expect(wrapper.vm.emailMasked).toBe('c***@example.com');
+  });
+
+  it('offers a friendly message when the username is unknown', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.username = 'ghost';
+    mocks.getEmailByUsername.mockRejectedValue({ statusCode: 404, message: 'Not Found' });
+
+    await wrapper.vm.next();
+
+    expect(wrapper.vm.steps).toBe(0);
+    expect(uni.showToast).toHaveBeenCalledWith({ title: '没有找到该账号', icon: 'none' });
+  });
+
+  it('requests a reset code without exposing a demo code', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.username = 'collector';
+    wrapper.vm.steps = 1;
+
+    await wrapper.vm.getCode();
+
+    expect(mocks.requestPasswordResetCode).toHaveBeenCalledWith('collector');
+    expect(wrapper.vm.emailMasked).toBe('c***@example.com');
+    expect(wrapper.text()).not.toContain('123456');
+    expect(wrapper.vm.isSending).toBe(true);
+  });
+
+  it('maps reset-code field errors without duplicating a toast', async () => {
+    const wrapper = mountPage();
+    mocks.requestPasswordResetCode.mockRejectedValue({
+      statusCode: 400,
+      data: { username: '账号不可用' },
+    });
+
+    await wrapper.vm.getCode();
+
+    expect(wrapper.vm.errors.username).toBe('账号不可用');
+    expect(uni.showToast).not.toHaveBeenCalled();
+  });
+
+  it('does not let step-one errors block the password reset', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.username = 'collector';
+    fillResetForm(wrapper);
+    wrapper.vm.errors.username = '请输入用户名';
+
+    await wrapper.vm.reset();
+
+    expect(mocks.resetPassword).toHaveBeenCalledWith('collector', 'password123', '654321');
+    expect(uni.navigateBack).toHaveBeenCalled();
+  });
+
+  it('maps the server verification-code error onto the code field', async () => {
+    const wrapper = mountPage();
+    fillResetForm(wrapper);
+    mocks.resetPassword.mockRejectedValue({
+      statusCode: 400,
+      message: '验证码错误',
+      data: { code: '验证码错误' },
+    });
+
+    await wrapper.vm.reset();
+
+    expect(wrapper.vm.errors.code).toBe('验证码错误');
+    expect(uni.showToast).not.toHaveBeenCalled();
+    expect(wrapper.vm.submitting).toBe(false);
+  });
+
+  it('validates password length and match before submitting', async () => {
+    const wrapper = mountPage();
+    wrapper.vm.password = '12345';
+    wrapper.vm.repeatedPassword = '12345';
+    wrapper.vm.code = '654321';
+
+    await wrapper.vm.reset();
+
+    expect(wrapper.vm.errors.password).toBe('密码长度 6 - 32 位');
+    expect(mocks.resetPassword).not.toHaveBeenCalled();
+
+    wrapper.vm.password = 'password123';
+    await wrapper.vm.reset();
+
+    expect(wrapper.vm.errors.repeatedPassword).toBe('两次密码不一致');
+    expect(mocks.resetPassword).not.toHaveBeenCalled();
+  });
+});

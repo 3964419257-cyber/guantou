@@ -143,7 +143,9 @@ class BindWechat(View):
         body = demjson3.decode(request.body)
         if body.get("demo"):
             if not getattr(settings, "WECHAT_BIND_DEMO_MODE", False):
-                return JsonResponse({"msg": "微信绑定只能在微信小程序中完成"}, status=400)
+                return JsonResponse(
+                    {"msg": "微信绑定只能在微信小程序中完成"}, status=400
+                )
             openid = f"demo-wechat-{user.id}"
         else:
             jscode = body["jscode"]
@@ -162,7 +164,9 @@ class BindWechat(View):
         user = check_request_user(request, id)
         if not len(user.user_info.wechat):
             raise NotBoundWechat(user.user_info.nickname)
-        if not len(user.email) and not getattr(settings, "WECHAT_BIND_DEMO_MODE", False):
+        if not len(user.email) and not getattr(
+            settings, "WECHAT_BIND_DEMO_MODE", False
+        ):
             return JsonResponse({"msg": "未绑定邮箱，无法解绑微信"}, status=403)
         user.user_info.wechat = ""
         user.user_info.save()

@@ -32,6 +32,8 @@ async function fetchPaged(path) {
   const collected = [];
   let catalogVersion = 1;
   let page = 1;
+  /* Catalog pages must follow `next`; fetching them in parallel would skip or duplicate rows. */
+  /* eslint-disable no-await-in-loop */
   while (page <= 30) {
     const data = await request('GET', path, { page, page_size: pageSize }, {
       ...silent,
@@ -43,6 +45,7 @@ async function fetchPaged(path) {
     if (!data?.next || rows.length === 0) break;
     page += 1;
   }
+  /* eslint-enable no-await-in-loop */
   return {
     results: collected,
     catalog_version: catalogVersion,

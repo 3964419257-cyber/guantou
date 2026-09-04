@@ -165,7 +165,15 @@ class ThemeApiTests(TestCase):
                 "create_time",
             },
         )
-        for key in ("remark", "sort_index", "invalid_ids", "last_apply_time", "style_json", "is_public", "copy_count"):
+        for key in (
+            "remark",
+            "sort_index",
+            "invalid_ids",
+            "last_apply_time",
+            "style_json",
+            "is_public",
+            "copy_count",
+        ):
             self.assertNotIn(key, mix_row)
 
         missing = self.client.get("/users/theme/submissions/", **self.auth())
@@ -639,7 +647,9 @@ class ThemeApiTests(TestCase):
         ids = [row["theme_id"] for row in by_desc.json()["results"]]
         self.assertIn("chuankiang", ids)
 
-        tagged = self.client.get("/decorations/", {"keyword": "罐头卡片", "page_size": 50})
+        tagged = self.client.get(
+            "/decorations/", {"keyword": "罐头卡片", "page_size": 50}
+        )
         self.assertEqual(tagged.status_code, 200)
         deco_ids = [row["decoration_id"] for row in tagged.json()["results"]]
         self.assertIn("cards-plain", deco_ids)
@@ -768,7 +778,9 @@ class ThemeApiTests(TestCase):
         )
         chuankiang = ThemeItem.objects.get(theme_id="chuankiang")
         self.assertEqual(chuankiang.style_json.get("cardBorderRadius"), "14px")
-        self.assertEqual(chuankiang.style_json.get("cardBackground"), "var(--page-color)")
+        self.assertEqual(
+            chuankiang.style_json.get("cardBackground"), "var(--page-color)"
+        )
         detail = self.client.get("/themes/paper/")
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.json()["style_json"]["cardBorderRadius"], "4px")
@@ -920,7 +932,9 @@ class ThemeApiTests(TestCase):
             **self.auth(),
         )
         self.assertEqual(apply.status_code, 200)
-        self.assertEqual(apply.json()["decoration_map"]["avatar_frame"], "avatar-creator")
+        self.assertEqual(
+            apply.json()["decoration_map"]["avatar_frame"], "avatar-creator"
+        )
 
     def test_guest_cannot_write_collects(self):
         response = self.client.post(

@@ -204,4 +204,3 @@ class LocalFileStorageTests(TestCase):
         self.assertEqual(served.content, b"image-data")
         self.assertEqual(served["Content-Type"], "image/png")
         self.assertNotIn("Content-Disposition", served)
-

@@ -544,7 +544,9 @@ export default {
   border-radius: 50%;
   background: var(--surface-subtle-color);
   color: var(--dress-avatar-frame-color, inherit);
-  border: var(--dress-avatar-frame-border-width, 0px) solid var(--dress-avatar-frame-border-color, transparent);
+  border:
+    var(--dress-avatar-frame-border-width, 0px)
+    solid var(--dress-avatar-frame-border-color, transparent);
   box-sizing: border-box;
 }
 
@@ -581,7 +583,9 @@ export default {
   white-space: pre-wrap;
   background: var(--dress-comment-bubble-background, transparent);
   border-radius: var(--dress-comment-bubble-border-radius, 0px);
-  border: var(--dress-comment-bubble-border-width, 1px) solid var(--dress-comment-bubble-border-color, transparent);
+  border:
+    var(--dress-comment-bubble-border-width, 1px)
+    solid var(--dress-comment-bubble-border-color, transparent);
   box-sizing: border-box;
 }
 

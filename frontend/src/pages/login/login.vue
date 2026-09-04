@@ -46,33 +46,42 @@
         v-if="loginMode === 'phone'"
         class="login-form phone-form"
       >
-        <t-input
-          v-model:value="phone"
+        <BaseField
+          v-model="phone"
           class="phone-input"
+          name="phone"
           label="手机号"
           type="number"
-          maxlength="13"
+          :maxlength="13"
           placeholder="请输入手机号"
-          clearable
+          required
+          :error="errors.phone"
+          @input="clearFieldError('phone')"
         />
         <view class="code-row">
-          <t-input
-            v-model:value="code"
-            class="code-input"
-            label="验证码"
-            type="number"
-            maxlength="6"
-            placeholder="六位验证码"
-          />
-          <t-button
+          <view class="code-field">
+            <BaseField
+              v-model="code"
+              class="code-input"
+              name="code"
+              label="验证码"
+              type="number"
+              :maxlength="6"
+              placeholder="六位验证码"
+              required
+              :error="errors.code"
+              @input="clearFieldError('code')"
+            />
+          </view>
+          <BaseButton
             class="code-button"
-            theme="light"
-            size="small"
+            variant="ghost"
+            size="medium"
             :disabled="countdown > 0 || sendingCode"
             @click="sendPhoneCode"
           >
             {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
-          </t-button>
+          </BaseButton>
         </view>
         <view
           v-if="demoCode"
@@ -80,52 +89,57 @@
         >
           Demo 验证码：<text>{{ demoCode }}</text>
         </view>
-        <t-button
+        <BaseButton
           class="phone-login-button"
           block
-          theme="primary"
-          size="large"
+          :loading="submitting"
           @click="phoneLogin"
         >
           登录 / 注册
-        </t-button>
+        </BaseButton>
       </view>
 
       <view
         v-else
         class="login-form password-form"
       >
-        <t-input
-          v-model:value="username"
+        <BaseField
+          v-model="username"
+          name="username"
           label="账号"
           placeholder="请输入用户名"
-          clearable
+          required
+          :error="errors.username"
+          @input="clearFieldError('username')"
         />
-        <t-input
-          v-model:value="password"
+        <BaseField
+          v-model="password"
+          name="password"
           label="密码"
           type="password"
           placeholder="请输入密码"
+          required
+          :error="errors.password"
+          @input="clearFieldError('password')"
         />
-        <t-button
+        <BaseButton
           block
-          theme="primary"
-          size="large"
+          :loading="submitting"
           @click="passwordLogin"
         >
           账号密码登录
-        </t-button>
+        </BaseButton>
       </view>
 
       <!-- #ifdef MP-WEIXIN -->
-      <t-button
+      <BaseButton
         class="wechat-login"
         block
-        theme="light"
+        variant="ghost"
         @click="mpLogin()"
       >
         微信一键登录 / 注册
-      </t-button>
+      </BaseButton>
       <!-- #endif -->
 
       <view class="login-card__secondary">
@@ -156,23 +170,24 @@
 </template>
 
 <script>
-import TButton from '@tdesign/uniapp/button/button.vue';
-import TInput from '@tdesign/uniapp/input/input.vue';
 import TTabPanel from '@tdesign/uniapp/tab-panel/tab-panel.vue';
 import TTabs from '@tdesign/uniapp/tabs/tabs.vue';
 import PageShell from '@/components/PageShell.vue';
+import BaseButton from '@/components/BaseButton.vue';
+import BaseField from '@/components/BaseField.vue';
 import { actionLabel, peekInterceptIntent } from '@/services/authGuard';
 import { cancelLoginToSearch } from '@/services/authJourney';
-import { notify, notifySuccess } from '@/services/feedback';
 import { mpLogin, normalLogin } from '@/services/login';
 import { loginWithPhone, requestPhoneCode } from '@/services/phoneAuth';
 import { toForgetPage, toRegisterPage, toWechatRegisterPage } from '@/routers/login';
+import { applyFieldErrors, readableErrorMessage } from '@/utils/apiError';
 
 export default {
+  name: 'LoginPage',
   components: {
     PageShell,
-    TButton,
-    TInput,
+    BaseButton,
+    BaseField,
     TTabPanel,
     TTabs,
   },
@@ -191,6 +206,13 @@ export default {
       countdown: 0,
       countdownTimer: null,
       sendingCode: false,
+      submitting: false,
+      errors: {
+        phone: '',
+        code: '',
+        username: '',
+        password: '',
+      },
     };
   },
   computed: {
@@ -213,7 +235,20 @@ export default {
     mpLogin,
     cancelLoginToSearch,
     changeMode(event) {
-      this.loginMode = event?.detail?.value || event?.detail || event || 'phone';
+      const value = event?.detail?.value ?? event?.value ?? event?.detail ?? event;
+      const nextMode = value ?? 'phone';
+      if (nextMode === this.loginMode) return;
+      this.loginMode = nextMode;
+      // 两种模式字段互斥，切走时清空错误，避免隐藏字段的旧错误阻塞提交。
+      this.errors = {
+        phone: '',
+        code: '',
+        username: '',
+        password: '',
+      };
+    },
+    clearFieldError(field) {
+      this.errors[field] = '';
     },
     clearCountdown() {
       if (this.countdownTimer) clearInterval(this.countdownTimer);
@@ -229,28 +264,50 @@ export default {
     },
     async sendPhoneCode() {
       if (this.countdown > 0 || this.sendingCode) return;
+      const phone = String(this.phone || '').trim();
+      this.errors.phone = phone ? '' : '请输入手机号';
+      if (!phone) return;
       this.sendingCode = true;
       try {
-        const response = await requestPhoneCode(this.phone);
+        const response = await requestPhoneCode(phone);
         this.demoCode = response.demo_code || '';
-        if (this.demoCode) this.code = this.demoCode;
         this.startCountdown(response.retry_after);
-        notifySuccess(this.demoCode ? `验证码 ${this.demoCode}` : '验证码已发送');
+        uni.showToast({ title: '验证码已生成', icon: 'success' });
       } catch (error) {
-        notify({ title: error.message || '连不上后端，验证码发不出去' });
+        this.errors.phone = error.message || '验证码发送失败';
       } finally {
         this.sendingCode = false;
       }
     },
     async phoneLogin() {
+      const phone = String(this.phone || '').trim();
+      const code = String(this.code || '').trim();
+      this.errors.phone = phone ? '' : '请输入手机号';
+      this.errors.code = code ? '' : '请输入验证码';
+      if (this.errors.phone || this.errors.code) return;
+      this.submitting = true;
       try {
-        await loginWithPhone(this.phone, this.code);
+        await loginWithPhone(phone, code);
       } catch (error) {
-        notify({ title: error.message || '登录失败' });
+        if (!applyFieldErrors(this.errors, error, ['phone', 'code'])) {
+          uni.showToast({ title: readableErrorMessage(error) || '登录失败', icon: 'none' });
+        }
+      } finally {
+        this.submitting = false;
       }
     },
-    passwordLogin() {
-      normalLogin(this.username, this.password);
+    async passwordLogin() {
+      const username = String(this.username || '').trim();
+      const { password } = this;
+      this.errors.username = username ? '' : '请输入用户名';
+      this.errors.password = password ? '' : '请输入密码';
+      if (this.errors.username || this.errors.password) return;
+      this.submitting = true;
+      try {
+        await normalLogin(username, password);
+      } finally {
+        this.submitting = false;
+      }
     },
   },
 };
@@ -263,9 +320,10 @@ export default {
   margin: 42rpx auto 0;
   padding: 52rpx 34rpx 38rpx;
   border: 1rpx solid var(--border-color);
-  border-radius: 8rpx;
+  border-radius: var(--radius-sm);
   background: var(--surface-color);
   box-shadow: 0 20rpx 60rpx var(--border-color);
+  box-sizing: border-box;
 }
 
 .login-card__stamp {
@@ -331,16 +389,18 @@ export default {
 
 .code-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12rpx;
 }
 
-.code-input {
+.code-field {
   flex: 1;
+  min-width: 0;
 }
 
 .code-button {
   flex: 0 0 auto;
+  margin-bottom: var(--space-3);
 }
 
 .demo-code {
@@ -370,6 +430,11 @@ export default {
   color: var(--accent-color);
   text-align: center;
   font-size: 24rpx;
+  transition: opacity 0.2s ease;
+}
+
+.browse-first:active {
+  opacity: 0.6;
 }
 
 .login-links {
@@ -379,6 +444,21 @@ export default {
   margin-top: 22rpx;
   color: var(--muted-color);
   font-size: 22rpx;
+}
+
+.login-links text {
+  transition: color 0.2s ease;
+}
+
+.login-links text:active {
+  color: var(--accent-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .browse-first,
+  .login-links text {
+    transition: none;
+  }
 }
 
 :deep(.login-content) {

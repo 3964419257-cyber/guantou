@@ -17,29 +17,37 @@
           :maxlength="maxlength"
           :disabled="disabled"
           :readonly="readonly"
+          :focus="focus"
+          :confirm-type="confirmType"
           :autosize="resolvedAutosize"
           :indicator="indicator"
           bordered
           @change="handleChange"
           @blur="$emit('blur', $event)"
           @focus="$emit('focus', $event)"
+          @enter="handleEnter"
         />
         <t-input
           v-else
           :value="modelValue"
+          :aria-role="ariaRole || undefined"
+          :aria-label="ariaLabel || undefined"
           :type="inputType"
           :placeholder="placeholder"
           :maxlength="maxlength"
           :disabled="disabled"
           :readonly="readonly"
+          :focus="focus"
           :confirm-type="confirmType"
           :clearable="clearable"
-          :status="error ? 'error' : 'default'"
+          :status="error ? 'error' : status"
+          :suffix-icon="suffixIcon"
           borderless
           @change="handleChange"
           @confirm="handleConfirm"
           @blur="$emit('blur', $event)"
           @focus="$emit('focus', $event)"
+          @enter="handleEnter"
         />
       </slot>
     </view>
@@ -64,6 +72,12 @@ export default {
     modelValue: { type: [String, Number], default: '' },
     name: { type: String, required: true },
     label: { type: String, default: '' },
+    status: {
+      type: String,
+      default: 'default',
+      validator: (value) => ['default', 'success', 'warning', 'error'].includes(value),
+    },
+    suffixIcon: { type: [String, Object], default: undefined },
     type: {
       type: String,
       default: 'text',
@@ -80,9 +94,16 @@ export default {
     autosize: { type: [Boolean, Object], default: false },
     indicator: { type: Boolean, default: false },
     clearable: { type: Boolean, default: false },
-    confirmType: { type: String, default: 'done' },
+    focus: { type: Boolean, default: false },
+    ariaLabel: { type: String, default: '' },
+    ariaRole: { type: String, default: '' },
+    confirmType: {
+      type: String,
+      default: 'done',
+      validator: (value) => ['return', 'send', 'search', 'next', 'go', 'done'].includes(value),
+    },
   },
-  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus', 'confirm'],
+  emits: ['update:modelValue', 'change', 'input', 'blur', 'focus', 'enter', 'confirm'],
   computed: {
     inputType() {
       if (this.type === 'tel') return 'number';
@@ -104,6 +125,10 @@ export default {
       const value = event?.detail?.value ?? event?.value ?? this.modelValue;
       this.$emit('confirm', value);
     },
+    handleEnter(event) {
+      this.$emit('enter', event);
+      this.$emit('confirm', event);
+    },
   },
 };
 </script>
@@ -122,7 +147,9 @@ export default {
 .base-field-control {
   width: 100%;
   min-width: 0;
-  border: var(--dress-input-box-border-width, 0px) solid var(--dress-input-box-border-color, transparent);
+  border:
+    var(--dress-input-box-border-width, 0px)
+    solid var(--dress-input-box-border-color, transparent);
   border-radius: var(--dress-input-box-border-radius, var(--radius-md));
   overflow: hidden;
 }
