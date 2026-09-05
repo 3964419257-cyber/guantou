@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { stableScreenshot } from './helpers/stableScreenshot';
 
 test.use({
   launchOptions: {
@@ -118,9 +119,10 @@ for (const theme of ['light', 'dark']) {
     expect(colors.text).not.toBe(colors.background);
 
     // Expand only the scroll container for a full-length capture at the same mobile viewport.
-    await page.addStyleTag({ content: '.shell-scroll, .shell-scroll .uni-scroll-view, .shell-scroll .uni-scroll-view-content { height: auto !important; overflow: visible !important; }' });
+    await page.addStyleTag({ content: '.page-shell .shell-scroll { height: auto !important; overflow: visible !important; }' });
     await page.evaluate(() => window.scrollTo(0, 0));
-    const screenshot = await page.screenshot({ fullPage: true,
+    const screenshot = await stableScreenshot(page, {
+      fullPage: true,
       ...(process.env.E2E_SCREENSHOT_DIR ? { path: `${process.env.E2E_SCREENSHOT_DIR}/can-create-${theme}-390x844.png` } : {}),
     });
     await testInfo.attach(`can-create-${theme}-390x844`, { body: screenshot, contentType: 'image/png' });

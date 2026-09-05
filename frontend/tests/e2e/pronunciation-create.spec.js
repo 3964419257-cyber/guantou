@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { resolve } from 'node:path';
+import { stableScreenshot } from './helpers/stableScreenshot';
 
 const createUrl = '/pages/pronunciations/create?flavor_id=1';
 const flavor = {
@@ -67,7 +68,7 @@ async function snapshot(page, testInfo, name) {
   const path = process.env.UPDATE_MIGRATION_SCREENSHOTS === '1'
     ? resolve('..', 'docs', 'assets', 'tdesign-migration', `${name}.png`) : undefined;
   await testInfo.attach(name, {
-    body: await page.screenshot({ path }),
+    body: await stableScreenshot(page, { path }),
     contentType: 'image/png',
   });
 }

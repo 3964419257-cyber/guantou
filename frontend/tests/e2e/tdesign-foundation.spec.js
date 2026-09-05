@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { stableScreenshot } from './helpers/stableScreenshot';
 
 const rect = (locator) => locator.evaluate((element) => {
   const { width, height } = element.getBoundingClientRect();
@@ -28,7 +29,7 @@ test('BaseField stays readable and full width on a 390px mobile viewport', async
   await expect(page.locator('.t-form__item-extra')).toHaveCount(3);
 
   await testInfo.attach('mail-form-light-390x844', {
-    body: await page.screenshot({ fullPage: true }),
+    body: await stableScreenshot(page, { fullPage: true }),
     contentType: 'image/png',
   });
 });
@@ -50,7 +51,7 @@ test('TDesign theme bridge supplies readable dark form colors', async ({ page },
   expect(colors.text).not.toBe(colors.background);
 
   await testInfo.attach('mail-form-dark-390x844', {
-    body: await page.screenshot({ fullPage: true }),
+    body: await stableScreenshot(page, { fullPage: true }),
     contentType: 'image/png',
   });
 });

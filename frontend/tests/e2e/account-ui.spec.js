@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { stableScreenshot } from './helpers/stableScreenshot';
 
 async function tap(locator) {
   await locator.click();
@@ -40,9 +41,8 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   expect(light.page).toBe('#f6f7f3');
   expect(light.text).toBe('#1d2a24');
   expect(light.page).not.toBe(light.text);
-  await page.screenshot({
+  await stableScreenshot(page, {
     path: 'test-results/account-me-light.png',
-    fullPage: true,
   });
 
   await tap(page.locator('.filters.appearance .chip', { hasText: '深色' }));
@@ -53,9 +53,8 @@ test('mine page keeps contrast in light and dark themes', async ({ page }) => {
   expect(dark.text).toBe('#edf4ef');
   expect(dark.surface).toBe('#1d2822');
   expect(dark.page).not.toBe(light.page);
-  await page.screenshot({
+  await stableScreenshot(page, {
     path: 'test-results/account-me-dark.png',
-    fullPage: true,
   });
 });
 
@@ -297,9 +296,8 @@ test('password settings use design-system fields, visibility, and loading', asyn
   await expect(oldInput).toHaveAttribute('type', 'password');
 
   if (process.env.E2E_SCREENSHOT_DIR) {
-    await page.screenshot({
+    await stableScreenshot(page, {
       path: `${process.env.E2E_SCREENSHOT_DIR}/account-password-light.png`,
-      fullPage: true,
     });
   }
 
@@ -346,9 +344,8 @@ test('information settings replace native pickers and open the avatar sheet', as
   await expect(page.getByText('微信头像和聊天记录需要在小程序里使用')).toHaveCount(0);
 
   if (process.env.E2E_SCREENSHOT_DIR) {
-    await page.screenshot({
+    await stableScreenshot(page, {
       path: `${process.env.E2E_SCREENSHOT_DIR}/account-information-light.png`,
-      fullPage: true,
     });
   }
 
@@ -379,9 +376,8 @@ test('email settings send a bind code without native form controls', async ({ pa
   await expect(page.locator('.base-button', { hasText: /后重发/ })).toBeDisabled();
 
   if (process.env.E2E_SCREENSHOT_DIR) {
-    await page.screenshot({
+    await stableScreenshot(page, {
       path: `${process.env.E2E_SCREENSHOT_DIR}/account-email-light.png`,
-      fullPage: true,
     });
   }
 });
